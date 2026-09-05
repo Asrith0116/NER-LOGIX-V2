@@ -1,0 +1,10 @@
+{
+  "name": "NER-LOGIX",
+  "description": "AI-Based Smart Logistics & Accessibility Intelligence Platform for the North Eastern Region of India",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

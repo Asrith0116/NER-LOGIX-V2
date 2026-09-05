@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* NER-LOGIX Color System */
+  --color-bg: #f8f8f7;
+  --color-surface: #ffffff;
+  --color-surface-raised: #fafaf9;
+  --color-surface-overlay: #f4f4f3;
+
+  --color-border: #e4e4e3;
+  --color-border-subtle: #ebebea;
+
+  --color-text-primary: #1a1a19;
+  --color-text-secondary: #5a5a57;
+  --color-text-tertiary: #8a8a87;
+  --color-text-inverse: #ffffff;
+
+  /* Brand */
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-brand-subtle: #eff6ff;
+  --color-brand-text: #1e40af;
+
+  /* Semantic - Risk */
+  --color-risk-low: #16a34a;
+  --color-risk-low-bg: #f0fdf4;
+  --color-risk-low-border: #bbf7d0;
+
+  --color-risk-moderate: #d97706;
+  --color-risk-moderate-bg: #fffbeb;
+  --color-risk-moderate-border: #fde68a;
+
+  --color-risk-high: #dc2626;
+  --color-risk-high-bg: #fef2f2;
+  --color-risk-high-border: #fecaca;
+
+  --color-risk-blocked: #7f1d1d;
+  --color-risk-blocked-bg: #450a0a;
+
+  /* Status */
+  --color-status-online: #16a34a;
+  --color-status-offline: #dc2626;
+  --color-status-syncing: #d97706;
+  --color-status-pending: #6b7280;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 4px 12px 0 rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.05);
+  --shadow-dropdown: 0 4px 16px 0 rgba(0,0,0,0.10), 0 2px 8px -2px rgba(0,0,0,0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Leaflet overrides */
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: #e8e4dc;
+}
+
+.leaflet-tile {
+  filter: saturate(0.85) brightness(1.02);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d2;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a5;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
