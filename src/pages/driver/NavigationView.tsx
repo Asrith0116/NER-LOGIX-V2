@@ -63,6 +63,7 @@ export function NavigationView() {
     networkStatus,
     setNetworkStatus,
     selectedRouteId,
+    selectedCustomRoute,
     pendingIncidentsCount,
     setPendingIncidentsCount,
     selectedDriverVehicleId,
@@ -101,6 +102,7 @@ export function NavigationView() {
     : undefined;
 
   const activeRoute =
+    selectedCustomRoute ||
     (driverVehicle?.plannedRouteId
       ? Object.values(DEMO_ROUTES).find((r) => r.id === driverVehicle.plannedRouteId)
       : undefined) ||

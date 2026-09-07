@@ -1,4 +1,4 @@
-import type { RiskLevel, RiskFactorBreakdown, Incident } from '@/types';
+import type { RiskLevel, RiskFactorBreakdown, Incident, RouteCandidate } from '@/types';
 import type { WeatherDataPoint } from '@/types';
 
 export interface RiskEvaluationInput {
@@ -13,6 +13,58 @@ export interface RiskEvaluationInput {
   vehicleType?: string;
   cargoPriority?: string;
   isColdChain?: boolean;
+}
+
+export function candidateToRiskBreakdown(candidate: RouteCandidate): RiskFactorBreakdown {
+  const fb = candidate.featureBreakdown;
+  const rc = fb.riskComponents;
+
+  return {
+    totalScore: candidate.riskScore,
+    riskCategory: candidate.riskLevel,
+    factors: {
+      rainfall: {
+        score: Math.min(35, rc.weather),
+        max: 35,
+        label: 'Monsoon Rainfall & Moisture Saturation',
+        value: `${fb.rainfallMmPerHour} mm/h precipitation along corridor`,
+      },
+      slopeTerrain: {
+        score: Math.min(25, rc.terrain),
+        max: 25,
+        label: 'Terrain Slope & Soil Shear Gradient',
+        value: `${fb.terrainSlopeDegrees}° average gradient (${fb.terrainSlopeDegrees > 20 ? 'steep scree cutting' : 'gentle valley alignment'})`,
+      },
+      historicalDisruptions: {
+        score: Math.min(20, rc.historical),
+        max: 20,
+        label: 'Historical Seasonal Failure Index',
+        value: `${fb.historicalDisruptionsCount} documented washouts/slides across past monsoon seasons`,
+      },
+      activeHazards: {
+        score: Math.min(30, rc.incidents),
+        max: 30,
+        label: 'Active Field Incident & Blockage Reports',
+        value: candidate.isBlocked
+          ? (candidate.blockageReason || 'Active verified road blockage')
+          : fb.activeIncidentsCount > 0
+            ? `${fb.activeIncidentsCount} active advisory hazard report(s) noted along corridor`
+            : 'No active road disruptions reported on this alignment',
+      },
+      vehicleWeightModifier: {
+        score: Math.min(15, rc.vehicle + rc.cargo),
+        max: 15,
+        label: 'Vehicle Constraint & Cargo Sensitivity Match',
+        value: `Axle match: ${fb.vehicleSuitability.toUpperCase()} · Cargo sensitivity factor: ${fb.cargoVulnerabilityScore}/35`,
+      },
+    },
+    plainLanguageExplanation: candidate.recommendationReason,
+    recommendation: candidate.isBlocked
+      ? 'DO NOT PROCEED. Corridor is impassable; select #1 Recommended alternate route.'
+      : candidate.advantages.length > 0
+        ? `Advisory: ${candidate.advantages.slice(0, 2).join(' · ')}`
+        : 'Viable corridor for dispatch with standard telemetry enabled.',
+  };
 }
 
 /**

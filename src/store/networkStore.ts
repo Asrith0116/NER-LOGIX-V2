@@ -876,6 +876,14 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
     });
 
     useAppStore.getState().setSelectedDriverVehicleId('AS-01-J-4422');
+    useAppStore.getState().setSelectedCustomRoute(null);
+    useAppStore.getState().setTripState({
+      activeTripId: null,
+      selectedRouteId: null,
+      selectedCustomRoute: null,
+      isJourneyActive: false,
+      isOfflineReady: false,
+    });
   },
 
   syncFromIndexedDB: async () => {

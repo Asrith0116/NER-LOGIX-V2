@@ -9,6 +9,30 @@ export type UserRole = 'driver' | 'dispatcher' | 'sdma' | 'contractor';
 export type CargoPriority = 'low' | 'normal' | 'high' | 'critical';
 export type TripStatus = 'idle' | 'active' | 'completed' | 'disrupted';
 
+export type CargoSensitivity = 'low' | 'medium' | 'high' | 'critical';
+export type TripPriority = 'standard' | 'high' | 'urgent' | 'emergency';
+
+export interface OperationalConstraints {
+  requireColdChain: boolean;
+  avoidHighRiskCorridors: boolean;
+  maxDelayTolerance: 'strict' | 'moderate' | 'flexible';
+  riskTolerance: 'conservative' | 'balanced' | 'aggressive';
+  avoidUnpavedSections: boolean;
+}
+
+export interface TripRequest {
+  origin: Location;
+  destination: Location;
+  vehicleId: string;
+  vehicleType: string;
+  driverName: string;
+  cargoCategory: string;
+  cargoSensitivity: CargoSensitivity;
+  priority: TripPriority;
+  departureWindow: 'immediate' | 'within_2h' | 'morning_clear';
+  constraints: OperationalConstraints;
+}
+
 export interface Location {
   name: string;
   shortName: string;
@@ -31,6 +55,58 @@ export interface Route {
   riskSegments?: RouteRiskSegment[];
   /** Demo corridor segments this route traverses — used for disruption avoidance */
   segmentIds?: string[];
+}
+
+export interface RouteFeatureBreakdown {
+  terrainSlopeDegrees: number;
+  historicalDisruptionsCount: number;
+  rainfallMmPerHour: number;
+  activeIncidentsCount: number;
+  activeBlockedSegmentsCount: number;
+  vehicleSuitability: 'optimal' | 'acceptable' | 'penalized' | 'restricted';
+  cargoVulnerabilityScore: number;
+  prioritySpeedWeight: number;
+  riskComponents: {
+    terrain: number;
+    weather: number;
+    historical: number;
+    incidents: number;
+    vehicle: number;
+    cargo: number;
+  };
+}
+
+export interface RouteCandidate extends Route {
+  corridorName: string;
+  operationalScore: number; // 0-100 overall composite suitability
+  suitability: 'High' | 'Moderate' | 'Constrained' | 'Unsuitable';
+  recommendationRank: number;
+  recommendationReason: string;
+  advantages: string[];
+  disadvantages: string[];
+  riskFactors: string[];
+  isBlocked: boolean;
+  blockageReason?: string;
+  featureBreakdown: RouteFeatureBreakdown;
+  providerId: string;
+  providerType: 'SEED' | 'SIMULATED' | 'LIVE_PROVIDER';
+}
+
+export interface OperationalContext {
+  roadSegments: RoadSegment[];
+  disruptions: Disruption[];
+  activeIncidents: Incident[];
+  weatherData?: Record<string, WeatherDataPoint>;
+}
+
+export interface RouteProvider {
+  id: string;
+  name: string;
+  isLive: boolean;
+  findCandidates: (
+    request: TripRequest,
+    context: OperationalContext
+  ) => Promise<RouteCandidate[]> | RouteCandidate[];
 }
 
 export interface RouteRiskSegment {
