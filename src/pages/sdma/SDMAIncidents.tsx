@@ -6,6 +6,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { RiskBadge } from '@/components/ui/RiskBadge';
 import { Button } from '@/components/ui/Button';
 import { Notification } from '@/components/ui/Notification';
+import { AudioPlayer } from '@/components/ui/AudioPlayer';
 import { formatDateTime, formatTimeAgo, getIncidentTypeLabel } from '@/utils';
 import { cn } from '@/utils';
 import {
@@ -18,14 +19,13 @@ import {
   FileCheck,
   Camera,
   ChevronRight,
-  ArrowRight,
-  Mic,
   ShieldAlert,
+  Sparkles,
+  Truck,
 } from 'lucide-react';
 
 export function SDMAIncidents() {
   const incidents = useNetworkStore((state) => state.activeIncidents);
-  const roadSegments = useNetworkStore((state) => state.roadSegments);
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
   const verifyIncident = useNetworkStore((state) => state.verifyIncident);
   const syncFromIndexedDB = useNetworkStore((state) => state.syncFromIndexedDB);
@@ -41,54 +41,55 @@ export function SDMAIncidents() {
   const selected = incidents.find((i) => i.id === selectedId) || incidents[0] || null;
 
   const pendingIncidents = incidents.filter(
-    (i) => i.syncStatus === 'pending_verification' || i.syncStatus === 'synced',
+    (i) => i.syncStatus === 'pending_verification' || i.syncStatus === 'synced' || i.syncStatus === 'local_pending'
   );
   const verifiedIncidents = incidents.filter((i) => i.syncStatus === 'verified' || i.syncStatus === 'rejected');
 
-  const relatedSegment = roadSegments.find(
-    (s) => s.id === 'seg-nh2-02' || (selected && s.affectedByIncidentId === selected.id)
+  // Vehicles that would be affected by closing this corridor
+  const potentiallyAffectedVehicles = activeVehicles.filter(
+    (v) => v.status === 'on_route' || v.status === 'disrupted'
   );
 
   const handleVerify = (id: string, approved: boolean) => {
     setVerifyingId(id);
     setTimeout(async () => {
-      await verifyIncident(id, approved, 'Ranjit Sharma (SDMA-NE Command)');
+      await verifyIncident(id, approved, 'Dr. Rohan Goswami (SDMA-NE Authority)');
       setNotification({
         type: approved ? 'success' : 'error',
         msg: approved
-          ? `Incident ${id} officially verified — road status updated to BLOCKED on shared network.`
-          : `Incident ${id} rejected as false positive.`,
+          ? `Incident ${id} officially verified — road status updated to BLOCKED. Broadcast sent to approaching fleet.`
+          : `Incident ${id} dismissed as false positive.`,
       });
       setVerifyingId(null);
-      setTimeout(() => setNotification(null), 3500);
-    }, 900);
+      setTimeout(() => setNotification(null), 4000);
+    }, 700);
   };
 
   return (
-    <div className="h-full flex min-h-0 bg-[#f8f8f7]">
-      {/* Incident list */}
-      <div className="w-80 border-r border-[#e4e4e3] bg-[#fafaf9] flex flex-col shrink-0">
+    <div className="h-full flex flex-col lg:flex-row min-h-0 bg-[#f8f8f7]">
+      {/* Left Column: Triage Queue */}
+      <div className="w-full lg:w-84 border-r border-[#e4e4e3] bg-[#fafaf9] flex flex-col shrink-0">
         <div className="px-4 py-3.5 bg-white border-b border-[#e4e4e3]">
           <div className="flex items-center gap-2">
             <FileCheck className="w-4 h-4 text-[#2563eb]" />
-            <h1 className="text-sm font-bold text-[#1a1a19]">Verification Triage Queue</h1>
+            <h1 className="text-sm font-bold text-[#1a1a19]">SDMA Verification Triage</h1>
           </div>
           <div className="flex gap-2 mt-2">
             <span className="px-2 py-0.5 rounded-full bg-[#fffbeb] border border-[#fde68a] text-[#d97706] text-[10px] font-bold">
-              {pendingIncidents.length} Awaiting Verification
+              {pendingIncidents.length} Pending Review
             </span>
             <span className="px-2 py-0.5 rounded-full bg-[#f0fdf4] border border-[#bbf7d0] text-[#16a34a] text-[10px] font-bold">
-              {verifiedIncidents.length} Resolved
+              {verifiedIncidents.length} Authoritative Records
             </span>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
-          {/* Pending section */}
+          {/* Pending triage */}
           {pendingIncidents.length > 0 && (
             <div>
               <p className="px-4 py-1.5 text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">
-                Field Reports Awaiting Review
+                Awaiting Authority Sign-off
               </p>
               {pendingIncidents.map((inc) => (
                 <button
@@ -97,8 +98,8 @@ export function SDMAIncidents() {
                   className={cn(
                     'w-full flex items-start gap-3 px-4 py-2.5 border-b border-[#f0f0ef] text-left transition-colors cursor-pointer',
                     selected?.id === inc.id
-                      ? 'bg-[#eff6ff] border-l-3 border-l-[#2563eb]'
-                      : 'hover:bg-white',
+                      ? 'bg-[#eff6ff] border-l-4 border-l-[#2563eb]'
+                      : 'hover:bg-white'
                   )}
                 >
                   <div className="w-6 h-6 rounded-full bg-[#fffbeb] flex items-center justify-center shrink-0 mt-0.5">
@@ -111,14 +112,21 @@ export function SDMAIncidents() {
                     </div>
                     <p className="text-[11px] font-semibold text-[#5a5a57]">{getIncidentTypeLabel(inc.type)}</p>
                     <p className="text-[10px] text-[#8a8a87] truncate">{inc.locationName}</p>
-                    <p className="text-[10px] text-[#8a8a87] mt-0.5">{formatTimeAgo(inc.reportedAt)}</p>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="text-[10px] text-[#8a8a87]">{formatTimeAgo(inc.reportedAt)}</span>
+                      {inc.voiceNote && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#eff6ff] text-[#2563eb]">
+                          Voice Note
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </button>
               ))}
             </div>
           )}
 
-          {/* Resolved section */}
+          {/* Resolved/Verified section */}
           {verifiedIncidents.length > 0 && (
             <div>
               <p className="px-4 py-1.5 text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold mt-2">
@@ -131,17 +139,21 @@ export function SDMAIncidents() {
                   className={cn(
                     'w-full flex items-start gap-3 px-4 py-2.5 border-b border-[#f0f0ef] text-left transition-colors cursor-pointer',
                     selected?.id === inc.id
-                      ? 'bg-[#eff6ff] border-l-3 border-l-[#2563eb]'
-                      : 'hover:bg-white',
+                      ? 'bg-[#eff6ff] border-l-4 border-l-[#2563eb]'
+                      : 'hover:bg-white'
                   )}
                 >
-                  <div className={cn('w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5',
-                    inc.syncStatus === 'verified' ? 'bg-[#f0fdf4]' : 'bg-[#fef2f2]'
-                  )}>
-                    {inc.syncStatus === 'verified'
-                      ? <CheckCircle className="w-3.5 h-3.5 text-[#16a34a]" />
-                      : <XCircle className="w-3.5 h-3.5 text-[#dc2626]" />
-                    }
+                  <div
+                    className={cn(
+                      'w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5',
+                      inc.syncStatus === 'verified' ? 'bg-[#f0fdf4]' : 'bg-[#fef2f2]'
+                    )}
+                  >
+                    {inc.syncStatus === 'verified' ? (
+                      <CheckCircle className="w-3.5 h-3.5 text-[#16a34a]" />
+                    ) : (
+                      <XCircle className="w-3.5 h-3.5 text-[#dc2626]" />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <span className="text-xs font-bold text-[#1a1a19]">{inc.id}</span>
@@ -155,15 +167,11 @@ export function SDMAIncidents() {
         </div>
       </div>
 
-      {/* Detail panel */}
+      {/* Main Detail Panel */}
       <div className="flex-1 overflow-y-auto bg-white">
         {notification && (
           <div className="px-6 pt-4">
-            <Notification
-              type={notification.type}
-              title={notification.msg}
-              visible
-            />
+            <Notification type={notification.type} title={notification.msg} visible />
           </div>
         )}
 
@@ -175,15 +183,15 @@ export function SDMAIncidents() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
               transition={{ duration: 0.15 }}
-              className="px-6 py-5 max-w-4xl"
+              className="px-6 py-5 max-w-4xl space-y-5"
             >
               {/* Header */}
-              <div className="flex items-start justify-between mb-4 pb-4 border-b border-[#e4e4e3]">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-[#e4e4e3]">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h2 className="text-lg font-bold text-[#1a1a19]">{selected.id}</h2>
                     <StatusBadge syncStatus={selected.syncStatus} />
-                    <span className="text-xs text-[#8a8a87]">· Field Observation</span>
+                    <span className="text-xs text-[#8a8a87]">· Layer 4 Human-in-the-Loop Triage</span>
                   </div>
                   <p className="text-sm font-semibold text-[#5a5a57]">
                     {getIncidentTypeLabel(selected.type)} — Severity: {selected.severity.toUpperCase()}
@@ -191,66 +199,72 @@ export function SDMAIncidents() {
                 </div>
                 <RiskBadge
                   level={
-                    selected.severity === 'critical' ? 'blocked' :
-                    selected.severity === 'high' ? 'high' :
-                    selected.severity === 'moderate' ? 'moderate' : 'low'
+                    selected.severity === 'critical'
+                      ? 'blocked'
+                      : selected.severity === 'high'
+                      ? 'high'
+                      : selected.severity === 'moderate'
+                      ? 'moderate'
+                      : 'low'
                   }
                 />
               </div>
 
-              {/* Verification Lifecycle Indicator */}
-              <div className="mb-5 p-3 rounded-xl bg-[#fafaf9] border border-[#e4e4e3]">
+              {/* Multi-Lingual Audio Player with Waveform & Bilingual Translation */}
+              <div>
                 <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider mb-2">
-                  SDMA Incident Lifecycle State
+                  Acoustic Evidence & Speech-to-Intent
                 </p>
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 text-[#16a34a] font-semibold">
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    <span>Reported by Driver</span>
-                  </div>
-                  <ArrowRight className="w-3 h-3 text-[#8a8a87]" />
-                  <div className={cn('flex items-center gap-1.5 font-semibold', selected.syncStatus === 'verified' ? 'text-[#16a34a]' : 'text-[#d97706]')}>
-                    {selected.syncStatus === 'verified' ? <CheckCircle className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
-                    <span>Official SDMA Verification</span>
-                  </div>
-                  <ArrowRight className="w-3 h-3 text-[#8a8a87]" />
-                  <div className={cn('flex items-center gap-1.5 font-semibold', selected.syncStatus === 'verified' ? 'text-[#dc2626]' : 'text-[#8a8a87]')}>
-                    <span>Active Road Disruption Enforced</span>
-                  </div>
-                  <ArrowRight className="w-3 h-3 text-[#8a8a87]" />
-                  <div className="flex items-center gap-1.5 text-[#8a8a87]">
-                    <span>Highway Reopened</span>
-                  </div>
-                </div>
+                <AudioPlayer
+                  language={selected.voiceLanguage || 'Assamese (অসমীয়া)'}
+                  transcript={
+                    selected.voiceTranscript ||
+                    'পাহাৰৰ পৰা ডাঙৰ শিল আৰু মাটি খহি ৰাস্তা সম্পূৰ্ণ বন্ধ হৈ পৰিছে। কোনো গাড়ী পাৰ হ’ব পৰা নাই।'
+                  }
+                  translatedSummary={
+                    selected.aiAnalysis?.englishSummary ||
+                    'Major slope collapse with shale boulders blocking both carriageways. Completely impassable.'
+                  }
+                />
               </div>
 
-              {/* Photo & Audio Evidence */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-                {/* Photo evidence */}
-                <div className="bg-[#f8f8f7] border border-[#e4e4e3] rounded-xl h-44 flex flex-col items-center justify-center p-4 text-center">
-                  <Camera className="w-7 h-7 text-[#8a8a87] mb-1.5" />
-                  <p className="text-xs font-semibold text-[#1a1a19]">Field Photo Evidence Attached</p>
-                  <p className="text-[11px] text-[#8a8a87] mt-0.5">
-                    Debris blocking entire carriageway · Slope failure approx 45m
-                  </p>
-                </div>
-
-                {/* Audio memo evidence */}
-                <div className="bg-[#f8f8f7] border border-[#e4e4e3] rounded-xl h-44 flex flex-col items-center justify-center p-4 text-center">
-                  <Mic className="w-7 h-7 text-[#2563eb] mb-1.5" />
-                  <p className="text-xs font-semibold text-[#1a1a19]">Field Audio Note (0:18s)</p>
-                  <p className="text-[11px] text-[#8a8a87] mt-0.5">
-                    "Heavy mudslide right after checkpoint, no light vehicles passing either."
-                  </p>
-                  <span className="mt-2 text-[10px] font-bold px-2 py-0.5 rounded bg-[#eff6ff] text-[#2563eb]">
-                    Verified Audio Evidence
+              {/* AI Structured Entity Extraction Card */}
+              <div className="p-4 rounded-xl bg-[#eff6ff] border border-[#bfdbfe] space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#1e40af]">
+                    <Sparkles className="w-4 h-4 text-[#2563eb]" />
+                    <span>AI Autonomous Triage & Extraction Engine</span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/15 text-[#15803d]">
+                    Confidence: 94%
                   </span>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+                  <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">
+                    <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Road Impact</span>
+                    <span className="font-bold text-[#dc2626]">
+                      {selected.aiAnalysis?.roadImpact ? selected.aiAnalysis.roadImpact.replace('_', ' ').toUpperCase() : 'FULLY BLOCKED'}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">
+                    <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Extracted Entities</span>
+                    <span className="font-semibold text-[#1a1a19]">
+                      {selected.aiAnalysis?.extractedEntities?.join(' · ') || 'NH-2 · KM 312 · Mao Pass'}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">
+                    <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Recommended Action</span>
+                    <span className="font-semibold text-[#2563eb]">
+                      {selected.aiAnalysis?.recommendedAction || 'Execute Reactive Reroute via Route A'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              {/* Incident Metadata */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-                <div className="bg-[#f8f8f7] rounded-lg p-3 border border-[#e4e4e3]">
+              {/* Location & Metadata */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-[#f8f8f7] rounded-xl p-3 border border-[#e4e4e3]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <MapPin className="w-3.5 h-3.5 text-[#2563eb]" />
                     <span className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">Location</span>
@@ -260,7 +274,7 @@ export function SDMAIncidents() {
                     {selected.location[0].toFixed(4)}°N, {selected.location[1].toFixed(4)}°E
                   </p>
                 </div>
-                <div className="bg-[#f8f8f7] rounded-lg p-3 border border-[#e4e4e3]">
+                <div className="bg-[#f8f8f7] rounded-xl p-3 border border-[#e4e4e3]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Clock className="w-3.5 h-3.5 text-[#d97706]" />
                     <span className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">Reported Time</span>
@@ -268,62 +282,91 @@ export function SDMAIncidents() {
                   <p className="text-xs font-bold text-[#1a1a19]">{formatDateTime(selected.reportedAt)}</p>
                   <p className="text-[10px] text-[#8a8a87] mt-0.5">{formatTimeAgo(selected.reportedAt)}</p>
                 </div>
-                <div className="bg-[#f8f8f7] rounded-lg p-3 border border-[#e4e4e3]">
+                <div className="bg-[#f8f8f7] rounded-xl p-3 border border-[#e4e4e3]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <User className="w-3.5 h-3.5 text-[#16a34a]" />
-                    <span className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">Source Observer</span>
+                    <span className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">Observer</span>
                   </div>
                   <p className="text-xs font-bold text-[#1a1a19]">{selected.reportedBy}</p>
                   <p className="text-[10px] text-[#8a8a87] mt-0.5">Field Transport Driver</p>
                 </div>
               </div>
 
-              {/* Description */}
-              <div className="mb-5">
-                <p className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold mb-2">Driver Field Description</p>
-                <div className="bg-[#f8f8f7] border border-[#e4e4e3] rounded-lg p-3.5 text-xs text-[#1a1a19] leading-relaxed">
-                  {selected.description}
+              {/* Photo Evidence */}
+              <div className="p-3.5 rounded-xl bg-[#fafaf9] border border-[#e4e4e3] flex flex-col sm:flex-row gap-4 items-center">
+                <div className="w-full sm:w-48 h-32 rounded-lg bg-black/5 overflow-hidden shrink-0 border border-[#e4e4e3]">
+                  <img
+                    src={selected.photoUrl || 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=600&q=80'}
+                    alt="Debris evidence"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex-1 space-y-1 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-[#1a1a19]">
+                    <Camera className="w-4 h-4 text-[#2563eb]" />
+                    <span>Visual Evidence Analysis</span>
+                  </div>
+                  <p className="text-[#5a5a57] leading-relaxed">
+                    Geotagged image confirms heavy soil shear and scree blockage across both lanes.
+                    Approximate debris volume: ~350 m³. No light or heavy vehicle clearance without mechanized earthmovers.
+                  </p>
+                  <span className="inline-block text-[10px] font-semibold text-[#16a34a] bg-[#f0fdf4] px-2 py-0.5 rounded border border-[#bbf7d0]">
+                    EXIF Metadata Validated
+                  </span>
                 </div>
               </div>
 
-              {/* Corridor Impact Preview */}
-              <div className="mb-5 p-3.5 rounded-xl bg-[#fff8f8] border border-[#fca5a5]">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <ShieldAlert className="w-4 h-4 text-[#dc2626]" />
-                  <p className="text-xs font-bold text-[#991b1b] uppercase tracking-wider">
-                    Downstream Corridor Impact Analysis
-                  </p>
+              {/* Downstream Fleet Blast Radius Table */}
+              <div className="p-4 rounded-xl bg-[#fff8f8] border border-[#fca5a5] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-[#dc2626]" />
+                    <h3 className="text-xs font-bold text-[#991b1b] uppercase tracking-wider">
+                      Affected In-Transit Fleet Blast Radius
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5]">
+                    {potentiallyAffectedVehicles.length} Transports En Route
+                  </span>
                 </div>
                 <p className="text-xs text-[#7f1d1d] leading-snug">
-                  Verifying this incident will mark <strong>{relatedSegment?.name || 'NH-2 Mao Gate'}</strong> as <strong>BLOCKED</strong>.
-                  This immediately propagates a disruption event to active transport vehicles (monitoring {activeVehicles.length} vehicles across regional routes).
+                  Official verification will immediately trigger WebSocket reroute recalculations for approaching freight:
                 </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {potentiallyAffectedVehicles.map((v) => (
+                    <div key={v.id} className="p-2.5 rounded-lg bg-white border border-[#fecaca] flex items-center justify-between text-xs">
+                      <div>
+                        <div className="flex items-center gap-1.5 font-bold text-[#1a1a19]">
+                          <Truck className="w-3.5 h-3.5 text-[#2563eb]" />
+                          <span>{v.id}</span>
+                          <span className="font-normal text-[#8a8a87]">· {v.driverName}</span>
+                        </div>
+                        <p className="text-[10px] text-[#5a5a57] mt-0.5">
+                          {v.origin} → {v.destination} ({v.cargoType})
+                        </p>
+                      </div>
+                      <StatusBadge
+                        label={v.status === 'disrupted' ? 'Disrupted' : 'En Route'}
+                        variant={v.status === 'disrupted' ? 'danger' : 'warning'}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Verification status if verified */}
-              {selected.verifiedBy && (
-                <div className="mb-5 p-3.5 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0]">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <CheckCircle className="w-4 h-4 text-[#16a34a]" />
-                    <span className="text-xs font-bold text-[#166534]">Officially Verified by Highway Authority</span>
-                  </div>
-                  <p className="text-xs text-[#16a34a]">
-                    Verified by {selected.verifiedBy} · {selected.verifiedAt ? formatTimeAgo(selected.verifiedAt) : ''}.
-                    Shared road network updated.
-                  </p>
-                </div>
-              )}
-
               {/* Official Action Controls */}
-              {(selected.syncStatus === 'pending_verification' || selected.syncStatus === 'synced') && (
-                <div className="border-t border-[#e4e4e3] pt-4">
-                  <p className="text-xs text-[#5a5a57] mb-3">
-                    As SDMA Authority, your confirmation updates the authoritative state of the highway network:
+              {(selected.syncStatus === 'pending_verification' ||
+                selected.syncStatus === 'synced' ||
+                selected.syncStatus === 'local_pending') && (
+                <div className="border-t border-[#e4e4e3] pt-4 space-y-3">
+                  <p className="text-xs text-[#5a5a57]">
+                    Confirming as State Disaster Management Authority updates authoritative PostGIS layers and broadcasts automated reroute directives:
                   </p>
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3">
                     <Button
                       variant="primary"
-                      className="bg-[#16a34a] hover:bg-[#15803d] text-white text-xs"
+                      className="bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-bold shadow-sm"
                       iconLeft={<CheckCircle className="w-4 h-4" />}
                       loading={verifyingId === selected.id}
                       onClick={() => handleVerify(selected.id, true)}
@@ -332,20 +375,29 @@ export function SDMAIncidents() {
                     </Button>
                     <Button
                       variant="outline"
-                      className="text-xs text-[#dc2626] border-[#fca5a5] hover:bg-[#fef2f2]"
+                      className="text-xs text-[#dc2626] border-[#fca5a5] hover:bg-[#fef2f2] font-semibold"
                       iconLeft={<XCircle className="w-4 h-4" />}
                       onClick={() => handleVerify(selected.id, false)}
                     >
-                      Reject (False Report)
+                      Reject (False Alarm)
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {selected.syncStatus === 'verified' && (
+                <div className="p-3 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] text-xs text-[#166534] flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-[#16a34a]" />
+                  <span>
+                    Officially validated by {selected.verifiedBy || 'Dr. Rohan Goswami'} · Road sector marked as <strong>BLOCKED</strong>.
+                  </span>
                 </div>
               )}
             </motion.div>
           </AnimatePresence>
         ) : (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-sm text-[#8a8a87]">Select a field incident to triage</p>
+          <div className="h-full flex items-center justify-center p-8 text-center">
+            <p className="text-sm text-[#8a8a87]">Select an incident from the left triage queue</p>
           </div>
         )}
       </div>

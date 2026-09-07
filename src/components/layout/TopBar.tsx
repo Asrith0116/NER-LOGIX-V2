@@ -71,10 +71,10 @@ export function TopBar({ className }: TopBarProps) {
       }
     }
     if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside, true);
       document.addEventListener('keydown', handleKeyDown);
       return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('mousedown', handleClickOutside, true);
         document.removeEventListener('keydown', handleKeyDown);
       };
     }
@@ -93,7 +93,7 @@ export function TopBar({ className }: TopBarProps) {
       title: 'Driver Journey Cockpit',
       roleName: 'Driver / Field Operator',
       subtitle: 'Arjun Barua · AS-01-J-4422',
-      description: 'Journey safety, road hazards, safe continuation & reroute',
+      description: 'Journey safety & field reporting',
       icon: <Truck className="w-3.5 h-3.5 text-[#2563eb]" />,
       badgeBg: 'bg-[#eff6ff] text-[#1e40af] border-[#bfdbfe]',
       path: '/driver',
@@ -102,7 +102,7 @@ export function TopBar({ className }: TopBarProps) {
       title: 'Operations Control Center',
       roleName: 'Fleet Dispatcher',
       subtitle: `${activeVehicles.length} Active Transports · Regional Grid`,
-      description: 'Fleet surveillance, incident interventions & reroutes',
+      description: 'Fleet monitoring & response',
       icon: <Activity className="w-3.5 h-3.5 text-[#c2410c]" />,
       badgeBg: 'bg-[#fff7ed] text-[#9a3412] border-[#fed7aa]',
       path: '/dispatcher',
@@ -111,7 +111,7 @@ export function TopBar({ className }: TopBarProps) {
       title: 'Regional Accessibility & Disaster Intel',
       roleName: 'SDMA / Govt Authority',
       subtitle: 'State Disaster Management Authority',
-      description: 'Field hazard verification, highway closures & clearance',
+      description: 'Verification & road status',
       icon: <ShieldCheck className="w-3.5 h-3.5 text-[#16a34a]" />,
       badgeBg: 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]',
       path: '/sdma',
@@ -120,7 +120,7 @@ export function TopBar({ className }: TopBarProps) {
       title: 'Emergency Supply Operations',
       roleName: 'Contractor / Supply Operator',
       subtitle: 'Regional Buffer & Godown Network',
-      description: 'Emergency cold storage, buffer capacity & pickup receipt',
+      description: 'Emergency supply operations',
       icon: <Warehouse className="w-3.5 h-3.5 text-[#86198f]" />,
       badgeBg: 'bg-[#fdf4ff] text-[#86198f] border-[#f5d0fe]',
       path: '/contractor',
@@ -213,20 +213,17 @@ export function TopBar({ className }: TopBarProps) {
         <AnimatePresence>
           {menuOpen && (
             <motion.div
-              initial={{ opacity: 0, y: 6, scale: 0.98 }}
+              initial={{ opacity: 0, y: 4, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 4, scale: 0.98 }}
               transition={{ duration: 0.12 }}
               role="menu"
               aria-label="Workspace Switcher"
-              className="absolute left-0 top-full mt-1.5 w-84 sm:w-92 bg-white rounded-xl border border-[#e4e4e3] shadow-2xl py-1.5 z-50 divide-y divide-[#f4f4f3] max-h-[85vh] overflow-y-auto"
+              className="absolute left-0 top-full mt-1.5 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-xl border border-[#e4e4e3] shadow-lg py-1 z-50 overflow-hidden"
             >
-              <div className="px-3.5 py-2 bg-[#fafaf9]">
+              <div className="px-3.5 py-2 bg-[#fafaf9] border-b border-[#f4f4f3]">
                 <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider">
                   Operational Workspace
-                </p>
-                <p className="text-[11px] text-[#5a5a57] mt-0.5">
-                  Select workspace to inspect role-specific workflow:
                 </p>
               </div>
 
@@ -240,11 +237,14 @@ export function TopBar({ className }: TopBarProps) {
                       role="menuitem"
                       onClick={() => handleSelectRole(roleKey, item.path)}
                       className={cn(
-                        'w-full flex items-start gap-3 px-3.5 py-2.5 text-left transition-colors cursor-pointer',
+                        'w-full flex items-start gap-2.5 px-3.5 py-2 text-left transition-colors cursor-pointer',
                         isSelected ? 'bg-[#f4f4f3]' : 'hover:bg-[#fafaf9]'
                       )}
                     >
-                      <div className="mt-0.5 shrink-0 p-1 rounded-md bg-white border border-[#e4e4e3] shadow-2xs">
+                      <div className={cn(
+                        'mt-0.5 shrink-0 p-1.5 rounded-md border shadow-2xs',
+                        isSelected ? 'bg-white border-[#d4d4d2]' : 'bg-[#fafaf9] border-[#e4e4e3]'
+                      )}>
                         {item.icon}
                       </div>
                       <div className="flex-1 min-w-0">

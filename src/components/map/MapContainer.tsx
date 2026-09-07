@@ -353,7 +353,7 @@ export function MapContainer({
   };
 
   return (
-    <div className={cn('relative w-full h-full select-none', className)}>
+    <div className={cn('relative w-full h-full select-none isolate', className)}>
       <div ref={divRef} className="w-full h-full z-0" />
 
       {/* Top Map HUD Bar */}

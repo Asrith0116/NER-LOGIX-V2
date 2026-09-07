@@ -141,10 +141,54 @@ export interface Incident {
   photoUrl?: string;
   voiceNote?: boolean;
   voiceNoteUrl?: string;
+  voiceTranscript?: string;
+  voiceLanguage?: string;
+  aiAnalysis?: IncidentAiAnalysis;
   affectedRouteId?: string;
   verifiedBy?: string;
   verifiedAt?: string;
   notes?: string;
+}
+
+export interface IncidentAiAnalysis {
+  detectedLanguage: string;
+  originalText?: string;
+  englishSummary: string;
+  hazardCategory: IncidentType;
+  estimatedSeverity: IncidentSeverity;
+  roadImpact: 'partially_blocked' | 'fully_blocked' | 'single_lane' | 'caution' | 'bridge_impassable';
+  confidenceScore: number;
+  extractedEntities: string[];
+  recommendedAction: string;
+}
+
+export interface RiskFactorBreakdown {
+  totalScore: number;
+  riskCategory: RiskLevel;
+  factors: {
+    rainfall: { score: number; max: number; label: string; value: string };
+    slopeTerrain: { score: number; max: number; label: string; value: string };
+    historicalDisruptions: { score: number; max: number; label: string; value: string };
+    activeHazards: { score: number; max: number; label: string; value: string };
+    vehicleWeightModifier: { score: number; max: number; label: string; value: string };
+  };
+  plainLanguageExplanation: string;
+  recommendation: string;
+}
+
+export interface WeatherDataPoint {
+  locationName: string;
+  lat: number;
+  lng: number;
+  temperatureC: number;
+  precipitationMm: number;
+  rainfallCategory: 'none' | 'light' | 'moderate' | 'heavy' | 'torrential';
+  windSpeedKmh: number;
+  weatherCode: number;
+  weatherDescription: string;
+  forecast24hMm: number;
+  updatedAt: string;
+  isSimulated?: boolean;
 }
 
 // ─── Road Status ─────────────────────────────────────────────────────────────

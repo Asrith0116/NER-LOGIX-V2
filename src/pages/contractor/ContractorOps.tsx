@@ -3,7 +3,7 @@ import { MapContainer } from '@/components/map/MapContainer';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useNetworkStore } from '@/store/networkStore';
-import { Warehouse, Package, Truck, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+import { Warehouse, Package, Truck, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 export function ContractorOps() {
@@ -154,7 +154,7 @@ export function ContractorOps() {
                         <Button
                           size="sm"
                           variant="primary"
-                          className="flex-1 bg-[#86198f] hover:bg-[#701a75] text-white text-xs"
+                          className="flex-1 bg-[#86198f] hover:bg-[#701a75] text-white text-xs font-bold cursor-pointer shadow-xs"
                           onClick={() => approveEmergencyPickup(req.id)}
                           iconLeft={<CheckCircle2 className="w-3.5 h-3.5" />}
                         >
@@ -163,7 +163,7 @@ export function ContractorOps() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-xs border-[#e4e4e3]"
+                          className="text-xs border-[#e4e4e3] hover:bg-[#fef2f2] hover:text-[#dc2626] cursor-pointer"
                           onClick={() => declineEmergencyPickup(req.id)}
                         >
                           Decline
@@ -174,12 +174,22 @@ export function ContractorOps() {
                 })}
               </div>
             ) : (
-              <div className="p-4 rounded-xl bg-white border border-[#e4e4e3] text-center">
-                <CheckCircle2 className="w-6 h-6 text-[#16a34a] mx-auto mb-1.5" />
+              <div className="p-4 rounded-xl bg-white border border-[#e4e4e3] text-center space-y-2">
+                <CheckCircle2 className="w-6 h-6 text-[#16a34a] mx-auto" />
                 <p className="text-xs font-semibold text-[#1a1a19]">No Pending Emergency Pickups</p>
-                <p className="text-[11px] text-[#8a8a87] mt-0.5">
+                <p className="text-[11px] text-[#8a8a87]">
                   All regional godowns operating at normal buffer capacity.
                 </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs text-[#86198f] border-[#f5d0fe] bg-[#fdf4ff] hover:bg-[#fae8ff] mt-1"
+                  onClick={() => {
+                    useNetworkStore.getState().requestEmergencyPickup('NL-02-C-3391');
+                  }}
+                >
+                  Simulate NL-02-C-3391 Godown Fallback
+                </Button>
               </div>
             )}
           </div>
@@ -240,11 +250,11 @@ export function ContractorOps() {
             </div>
           </div>
 
-          {/* Architecture Phase Note */}
+          {/* Operational Policy Note */}
           <div className="p-4 bg-[#fafaf9] text-xs text-[#8a8a87] flex items-start gap-2.5">
-            <Clock className="w-4 h-4 text-[#8a8a87] shrink-0 mt-0.5" />
-            <p className="leading-relaxed text-[11px]">
-              Contractor workspace architecture shell enabled. Downstream emergency inventory management and relief consignment fulfillment will expand in later operational phases.
+            <CheckCircle2 className="w-4 h-4 text-[#16a34a] shrink-0 mt-0.5" />
+            <p className="leading-relaxed text-[11px] text-[#5a5a57]">
+              <strong>Autonomous Emergency Godown Protocol:</strong> When all alternative mountain passes exceed the safety threshold (&gt;85/100 risk score), in-transit freight is diverted to the closest verified regional godown to protect cargo integrity and driver safety.
             </p>
           </div>
         </div>
