@@ -114,3 +114,15 @@ export async function getAllDisruptions(): Promise<Disruption[]> {
   });
 }
 
+export async function clearAllStoredData(): Promise<void> {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_NAME, STORE_DISRUPTIONS], 'readwrite');
+    tx.objectStore(STORE_NAME).clear();
+    tx.objectStore(STORE_DISRUPTIONS).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+

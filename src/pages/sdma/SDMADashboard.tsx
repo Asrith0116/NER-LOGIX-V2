@@ -77,14 +77,14 @@ export function SDMADashboard() {
           <MetricCard
             label="Verified Active Hazards"
             value={verifiedIncidents.length.toString().padStart(2, '0')}
-            subtext="Enforced across regional routing grid"
+            subtext={verifiedIncidents.length > 0 ? 'Enforced across regional routing grid' : 'No active hazards'}
             riskLevel={verifiedIncidents.length > 0 ? 'high' : 'low'}
             icon={<AlertTriangle className="w-4 h-4 text-[#dc2626]" />}
           />
           <MetricCard
             label="Corridors Blocked / Caution"
             value={`${blockedRoads.length} / ${cautionRoads.length}`}
-            subtext={blockedRoads.length > 0 ? 'NH-2 Mao Cut active' : 'All corridors open'}
+            subtext={blockedRoads.length > 0 ? `${blockedRoads[0]?.name || 'Corridor'} blocked` : 'All corridors open'}
             riskLevel={blockedRoads.length > 0 ? 'high' : 'low'}
             icon={<Map className="w-4 h-4 text-[#5a5a57]" />}
           />

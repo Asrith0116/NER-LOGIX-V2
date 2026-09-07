@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { DEMO_DRIVER, DEMO_TRIP, DEMO_ROUTES, LOCATIONS } from '@/data/demo';
+import { DEMO_TRIP, DEMO_ROUTES, LOCATIONS } from '@/data/demo';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { MapContainer } from '@/components/map/MapContainer';
+import { DriverVehicleSelector } from '@/components/ui/DriverVehicleSelector';
 import { useAppStore } from '@/store/appStore';
 import { useNetworkStore, getReactiveDisplayRoute } from '@/store/networkStore';
 import { formatEta } from '@/utils';
@@ -26,7 +27,7 @@ import {
 } from 'lucide-react';
 
 export function DriverDashboard() {
-  const { isJourneyActive, selectedRouteId, networkStatus } = useAppStore();
+  const { isJourneyActive, selectedRouteId, networkStatus, selectedDriverVehicleId } = useAppStore();
 
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
   const activeIncidents = useNetworkStore((state) => state.activeIncidents);
@@ -43,17 +44,42 @@ export function DriverDashboard() {
     syncFromIndexedDB();
   }, [syncFromIndexedDB]);
 
-  // Driver vehicle from network store
-  const driverVehicle = activeVehicles.find((v) => v.id === DEMO_DRIVER.vehicleId);
+  // Derive active driver vehicle safely from selectedDriverVehicleId
+  const driverVehicle =
+    activeVehicles.find((v) => v.id === selectedDriverVehicleId) ||
+    activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
+    activeVehicles[0];
+
   const isDisrupted = Boolean(driverVehicle?.affectedByDisruptionId);
   const isRerouted = driverVehicle?.rerouteStatus === 'active';
   const hasNoAlternative = driverVehicle?.rerouteStatus === 'no_alternative';
   const isEmergencyPickup = driverVehicle?.status === 'emergency_pickup';
 
-  const activeRoute = DEMO_TRIP.routes.find((r) => r.id === selectedRouteId) || DEMO_ROUTES.saferRoute;
+  // Base route respecting vehicle's planned corridor
+  const activeRoute =
+    (driverVehicle?.plannedRouteId
+      ? Object.values(DEMO_ROUTES).find((r) => r.id === driverVehicle.plannedRouteId)
+      : undefined) ||
+    DEMO_TRIP.routes.find((r) => r.id === selectedRouteId) ||
+    DEMO_ROUTES.saferRoute;
+
   const reactiveRoute = driverVehicle ? getReactiveDisplayRoute(driverVehicle) : undefined;
   const displayRoutes = isRerouted && reactiveRoute ? [activeRoute, reactiveRoute] : [activeRoute];
-  const displayEta = isRerouted && driverVehicle?.etaMinutes ? driverVehicle.etaMinutes : activeRoute.etaMinutes;
+  const displayEta = isRerouted && driverVehicle?.etaMinutes
+    ? driverVehicle.etaMinutes
+    : (driverVehicle?.etaMinutes || activeRoute.etaMinutes);
+
+  const originLocation = Object.values(LOCATIONS).find(
+    (l) =>
+      l.shortName.toLowerCase() === driverVehicle?.origin?.toLowerCase() ||
+      l.name.toLowerCase().includes(driverVehicle?.origin?.toLowerCase() || '')
+  ) || LOCATIONS.guwahati;
+
+  const destLocation = Object.values(LOCATIONS).find(
+    (l) =>
+      l.shortName.toLowerCase() === driverVehicle?.destination?.toLowerCase() ||
+      l.name.toLowerCase().includes(driverVehicle?.destination?.toLowerCase() || '')
+  ) || LOCATIONS.imphal;
 
   const handleStartReroute = () => {
     if (!driverVehicle) return;
@@ -77,14 +103,14 @@ export function DriverDashboard() {
       <div className="px-5 py-3 bg-white border-b border-[#e4e4e3] shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe]">
                 Field Operator Cockpit
               </span>
-              <span className="text-xs text-[#8a8a87]">Vehicle {DEMO_DRIVER.vehicleId}</span>
+              <DriverVehicleSelector id="cockpit-driver-vehicle-selector" />
             </div>
-            <h1 className="text-base sm:text-lg font-bold text-[#1a1a19] tracking-tight mt-0.5">
-              {DEMO_DRIVER.name} · {DEMO_TRIP.origin.name} → {DEMO_TRIP.destination.name}
+            <h1 className="text-base sm:text-lg font-bold text-[#1a1a19] tracking-tight mt-1">
+              {driverVehicle?.driverName} · {driverVehicle?.origin || 'Guwahati'} → {driverVehicle?.destination || 'Imphal'}
             </h1>
           </div>
 
@@ -322,7 +348,7 @@ export function DriverDashboard() {
                       </span>
                     </div>
                     <p className="text-xs text-[#14532d] mt-0.5">
-                      No active road closures on planned route to {DEMO_TRIP.destination.name}. Next checkpoint: Nagaon Junction.
+                      No active road closures on planned route to {driverVehicle?.destination || DEMO_TRIP.destination.name}. Next checkpoint: {driverVehicle?.rerouteFromLabel || 'Nagaon Junction'}.
                     </p>
                   </div>
                 </div>
@@ -358,8 +384,8 @@ export function DriverDashboard() {
             userRole="driver"
             onRerouteVehicle={handleStartReroute}
             onRequestEmergencyPickup={handleEmergencyPickup}
-            originMarker={{ latlng: [LOCATIONS.guwahati.lat, LOCATIONS.guwahati.lng], label: DEMO_TRIP.origin.name }}
-            destinationMarker={{ latlng: [LOCATIONS.imphal.lat, LOCATIONS.imphal.lng], label: DEMO_TRIP.destination.name }}
+            originMarker={{ latlng: [originLocation.lat, originLocation.lng], label: `${driverVehicle?.origin || 'Guwahati'} Hub` }}
+            destinationMarker={{ latlng: [destLocation.lat, destLocation.lng], label: `${driverVehicle?.destination || 'Imphal'} Hub` }}
           />
         </div>
 
@@ -394,7 +420,7 @@ export function DriverDashboard() {
                   <span>Current Checkpoint:</span>
                 </span>
                 <span className="font-semibold text-[#1a1a19]">
-                  {driverVehicle?.rerouteFromLabel || 'Nagaon Bypass (KM 118)'}
+                  {driverVehicle?.rerouteFromLabel || (driverVehicle?.status === 'idle' ? `${driverVehicle?.origin || 'Guwahati'} Hub (Staged)` : 'En Route Corridor')}
                 </span>
               </div>
             </div>
@@ -416,18 +442,22 @@ export function DriverDashboard() {
             <div className="p-3 rounded-lg bg-[#f8f8f7] border border-[#e4e4e3] space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-[#8a8a87]">Consignment:</span>
-                <span className="font-semibold text-[#1a1a19]">{DEMO_TRIP.cargo.type}</span>
+                <span className="font-semibold text-[#1a1a19]">{driverVehicle?.cargoType || DEMO_TRIP.cargo.type}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#8a8a87] flex items-center gap-1">
                   <Thermometer className="w-3.5 h-3.5 text-[#2563eb]" />
-                  Reefer Temp:
+                  Cargo Temp:
                 </span>
-                <span className="font-bold text-[#2563eb]">4.2 °C (Target: 2°–8°C)</span>
+                <span className="font-bold text-[#2563eb]">
+                  {driverVehicle?.type.includes('Refrigerated') || driverVehicle?.cargoType?.includes('Vaccines') || driverVehicle?.cargoType?.includes('Pharma')
+                    ? '4.2 °C (Cold Chain)'
+                    : 'Ambient Controlled'}
+                </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#8a8a87]">Payload Weight:</span>
-                <span className="font-medium text-[#1a1a19]">{DEMO_TRIP.cargo.weight}</span>
+                <span className="text-[#8a8a87]">Vehicle Type:</span>
+                <span className="font-medium text-[#1a1a19]">{driverVehicle?.type || 'Refrigerated Truck'}</span>
               </div>
             </div>
           </div>

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DEMO_INCIDENTS } from '@/data/demo';
 import { useNetworkStore } from '@/store/networkStore';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { RiskBadge } from '@/components/ui/RiskBadge';
@@ -30,7 +29,7 @@ export function SDMAIncidents() {
   const verifyIncident = useNetworkStore((state) => state.verifyIncident);
   const syncFromIndexedDB = useNetworkStore((state) => state.syncFromIndexedDB);
 
-  const [selectedId, setSelectedId] = useState<string | null>(DEMO_INCIDENTS[0]?.id || null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
@@ -85,6 +84,18 @@ export function SDMAIncidents() {
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
+          {pendingIncidents.length === 0 && verifiedIncidents.length === 0 && (
+            <div className="p-6 text-center text-[#8a8a87]">
+              <div className="w-10 h-10 rounded-full bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center text-[#16a34a] mx-auto mb-2">
+                <CheckCircle className="w-5 h-5" />
+              </div>
+              <p className="text-xs font-semibold text-[#1a1a19]">Triage Queue Empty</p>
+              <p className="text-[11px] text-[#8a8a87] mt-1 leading-relaxed">
+                No pending field reports or active hazard alerts requiring sign-off.
+              </p>
+            </div>
+          )}
+
           {/* Pending triage */}
           {pendingIncidents.length > 0 && (
             <div>
@@ -396,8 +407,14 @@ export function SDMAIncidents() {
             </motion.div>
           </AnimatePresence>
         ) : (
-          <div className="h-full flex items-center justify-center p-8 text-center">
-            <p className="text-sm text-[#8a8a87]">Select an incident from the left triage queue</p>
+          <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-12 h-12 rounded-full bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center text-[#16a34a] mb-3">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold text-[#1a1a19]">All Corridors Operational</h3>
+            <p className="text-xs text-[#8a8a87] max-w-sm mt-1 leading-relaxed">
+              No active hazard reports in the verification queue. New incident reports filed by field drivers or highway patrol will appear here for authority triage.
+            </p>
           </div>
         )}
       </div>

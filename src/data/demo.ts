@@ -130,8 +130,8 @@ export const DEMO_TRIP: Trip = {
 };
 
 // ─── Incidents ────────────────────────────────────────────────────────────────
-
-export const DEMO_INCIDENTS: Incident[] = [
+// Scenario incidents preserved for presentation simulation triggers.
+export const SCENARIO_INCIDENTS: Incident[] = [
   {
     id: 'INC-2026-8891',
     type: 'landslide',
@@ -144,6 +144,9 @@ export const DEMO_INCIDENTS: Incident[] = [
     reportedAt: '2026-09-03T08:42:00+05:30',
     syncStatus: 'pending_verification',
     photoUrl: undefined,
+    voiceNote: true,
+    voiceTranscript: 'Bhal boroxun hoi ase, rasta bondo hoi gose Mao Gateor osorot.',
+    voiceLanguage: 'Assamese',
     affectedRouteId: 'route-b',
   },
   {
@@ -187,7 +190,11 @@ export const DEMO_INCIDENTS: Incident[] = [
   },
 ];
 
+// Clean initial state starts with 0 active incidents until created or simulated
+export const DEMO_INCIDENTS: Incident[] = [];
+
 // ─── Road Segments ────────────────────────────────────────────────────────────
+// Initial clean operational baseline: all corridors open with low risk
 
 export const DEMO_ROAD_SEGMENTS: RoadSegment[] = [
   {
@@ -195,30 +202,27 @@ export const DEMO_ROAD_SEGMENTS: RoadSegment[] = [
     name: 'NH-2 Mao Gate Segment',
     fromLocation: 'Senapati',
     toLocation: 'Mao Gate',
-    status: 'blocked',
-    riskLevel: 'blocked',
-    lastUpdated: '2026-09-03T08:50:00+05:30',
-    affectedByIncidentId: 'INC-2026-8891',
+    status: 'open',
+    riskLevel: 'low',
+    lastUpdated: '2026-09-03T07:00:00+05:30',
   },
   {
     id: 'rd-002',
     name: 'Doyyang River Bridge',
     fromLocation: 'Wokha',
     toLocation: 'Merapani',
-    status: 'caution',
-    riskLevel: 'high',
-    lastUpdated: '2026-09-03T06:20:00+05:30',
-    affectedByIncidentId: 'INC-2026-8843',
+    status: 'open',
+    riskLevel: 'low',
+    lastUpdated: '2026-09-03T07:00:00+05:30',
   },
   {
     id: 'rd-003',
     name: 'NH-39 Senapati Section',
     fromLocation: 'Maram',
     toLocation: 'Senapati',
-    status: 'caution',
-    riskLevel: 'moderate',
-    lastUpdated: '2026-09-02T17:00:00+05:30',
-    affectedByIncidentId: 'INC-2026-8802',
+    status: 'open',
+    riskLevel: 'low',
+    lastUpdated: '2026-09-03T07:00:00+05:30',
   },
   {
     id: 'rd-004',
@@ -234,14 +238,14 @@ export const DEMO_ROAD_SEGMENTS: RoadSegment[] = [
     name: 'Inner Manipur Ring Road',
     fromLocation: 'Kangpokpi',
     toLocation: 'Imphal',
-    status: 'blocked',
-    riskLevel: 'blocked',
-    lastUpdated: '2026-09-02T11:30:00+05:30',
-    affectedByIncidentId: 'INC-2026-8791',
+    status: 'open',
+    riskLevel: 'low',
+    lastUpdated: '2026-09-03T07:00:00+05:30',
   },
 ];
 
 // ─── Fleet ────────────────────────────────────────────────────────────────────
+// Initial clean operational fleet: all vehicles safe and on route or idle
 
 export const DEMO_FLEET: Vehicle[] = [
   {
@@ -263,7 +267,7 @@ export const DEMO_FLEET: Vehicle[] = [
     driverName: 'Prem Thoudam',
     type: 'Light Goods Vehicle',
     status: 'on_route',
-    riskLevel: 'moderate',
+    riskLevel: 'low',
     location: [25.3500, 93.5800],
     origin: 'Dimapur',
     destination: 'Imphal',
@@ -277,20 +281,16 @@ export const DEMO_FLEET: Vehicle[] = [
     id: 'NL-02-C-3391',
     driverName: 'Kezhakevi Sema',
     type: 'Heavy Truck',
-    status: 'disrupted',
-    riskLevel: 'high',
+    status: 'on_route',
+    riskLevel: 'low',
     location: [25.3200, 93.5500],
     origin: 'Guwahati',
     destination: 'Kohima',
-    etaMinutes: undefined,
+    etaMinutes: 195,
     cargoType: 'Relief Rations & Grain',
     plannedRouteId: 'route-b',
     assignedCorridorId: 'cor-001',
     plannedSegmentIds: ['rd-001'],
-    rerouteStatus: 'no_alternative',
-    rerouteReason: 'No alternate highway corridor from current position that avoids NH-2 Mao Gate Segment.',
-    recommendedGodownId: 'gd-dimapur',
-    recommendedGodownDistanceKm: 68,
   },
   {
     id: 'AS-03-K-7712',
@@ -327,7 +327,7 @@ export const DEMO_FLEET: Vehicle[] = [
     driverName: 'Bhuban Sharma',
     type: 'Heavy Truck',
     status: 'on_route',
-    riskLevel: 'moderate',
+    riskLevel: 'low',
     location: [25.7000, 93.8000],
     origin: 'Dimapur',
     destination: 'Kohima',
@@ -362,27 +362,27 @@ export const DEMO_CORRIDORS: Corridor[] = [
     name: 'Assam → Manipur',
     fromState: 'Assam',
     toState: 'Manipur',
-    riskLevel: 'high',
-    activeVehicles: 4,
-    incidents: 2,
+    riskLevel: 'low',
+    activeVehicles: 2,
+    incidents: 0,
   },
   {
     id: 'cor-002',
     name: 'Assam → Nagaland',
     fromState: 'Assam',
     toState: 'Nagaland',
-    riskLevel: 'moderate',
-    activeVehicles: 5,
-    incidents: 1,
+    riskLevel: 'low',
+    activeVehicles: 3,
+    incidents: 0,
   },
   {
     id: 'cor-003',
     name: 'Nagaland → Manipur',
     fromState: 'Nagaland',
     toState: 'Manipur',
-    riskLevel: 'moderate',
-    activeVehicles: 3,
-    incidents: 1,
+    riskLevel: 'low',
+    activeVehicles: 1,
+    incidents: 0,
   },
   {
     id: 'cor-004',
@@ -390,7 +390,7 @@ export const DEMO_CORRIDORS: Corridor[] = [
     fromState: 'Assam',
     toState: 'Meghalaya',
     riskLevel: 'low',
-    activeVehicles: 2,
+    activeVehicles: 0,
     incidents: 0,
   },
 ];
@@ -398,14 +398,14 @@ export const DEMO_CORRIDORS: Corridor[] = [
 // ─── System Metrics ───────────────────────────────────────────────────────────
 
 export const DEMO_METRICS: SystemMetrics = {
-  activeTrips: 14,
-  regionalRisk: 'moderate',
-  activeIncidents: 3,
+  activeTrips: 6,
+  regionalRisk: 'low',
+  activeIncidents: 0,
   connectivityStatus: 'operational',
-  vehiclesSafe: 14,
-  vehiclesModerate: 3,
-  vehiclesHighRisk: 1,
-  pendingVerifications: 2,
+  vehiclesSafe: 6,
+  vehiclesModerate: 0,
+  vehiclesHighRisk: 0,
+  pendingVerifications: 0,
 };
 
 // ─── Demo / synthetic godowns (Step 7) ──────────────────────────────────────

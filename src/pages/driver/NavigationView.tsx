@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer } from '@/components/map/MapContainer';
 import { Notification } from '@/components/ui/Notification';
 import { Button } from '@/components/ui/Button';
-import { DEMO_ROUTES, LOCATIONS, DEMO_TRIP, DEMO_DRIVER } from '@/data/demo';
+import { DriverVehicleSelector } from '@/components/ui/DriverVehicleSelector';
+import { DEMO_ROUTES, LOCATIONS, DEMO_TRIP } from '@/data/demo';
 import { formatEta } from '@/utils';
 import { useAppStore } from '@/store/appStore';
 import { useNetworkStore, getReactiveDisplayRoute } from '@/store/networkStore';
@@ -58,7 +59,14 @@ function NetworkStateDisplay({
 }
 
 export function NavigationView() {
-  const { networkStatus, setNetworkStatus, selectedRouteId, pendingIncidentsCount, setPendingIncidentsCount } = useAppStore();
+  const {
+    networkStatus,
+    setNetworkStatus,
+    selectedRouteId,
+    pendingIncidentsCount,
+    setPendingIncidentsCount,
+    selectedDriverVehicleId,
+  } = useAppStore();
   const navigate = useNavigate();
 
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
@@ -67,7 +75,11 @@ export function NavigationView() {
   const rerouteVehicle = useNetworkStore((state) => state.rerouteVehicle);
   const requestEmergencyPickup = useNetworkStore((state) => state.requestEmergencyPickup);
 
-  const driverVehicle = activeVehicles.find((v) => v.id === DEMO_DRIVER.vehicleId);
+  const driverVehicle =
+    activeVehicles.find((v) => v.id === selectedDriverVehicleId) ||
+    activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
+    activeVehicles[0];
+
   const isDriverDisrupted = Boolean(driverVehicle?.affectedByDisruptionId);
   const driverRerouted = driverVehicle?.rerouteStatus === 'active';
   const reactiveRoute = driverVehicle ? getReactiveDisplayRoute(driverVehicle) : undefined;
@@ -76,23 +88,43 @@ export function NavigationView() {
   const nl02InFallback =
     Boolean(nl02Vehicle) &&
     (nl02Vehicle?.rerouteStatus === 'no_alternative' || nl02Vehicle?.status === 'emergency_pickup');
-  const emergencyVehicle = nl02InFallback
-    ? nl02Vehicle
-    : driverVehicle &&
-        (driverVehicle.rerouteStatus === 'no_alternative' || driverVehicle.status === 'emergency_pickup')
+  const emergencyVehicle =
+    driverVehicle &&
+    (driverVehicle.rerouteStatus === 'no_alternative' || driverVehicle.status === 'emergency_pickup')
       ? driverVehicle
-      : undefined;
+      : nl02InFallback
+        ? nl02Vehicle
+        : undefined;
+
   const emergencyRequest = emergencyVehicle
     ? pickupRequests.find((r) => r.vehicleId === emergencyVehicle.id)
     : undefined;
 
-  const activeRoute = DEMO_TRIP.routes.find((r) => r.id === selectedRouteId) || DEMO_ROUTES.saferRoute;
+  const activeRoute =
+    (driverVehicle?.plannedRouteId
+      ? Object.values(DEMO_ROUTES).find((r) => r.id === driverVehicle.plannedRouteId)
+      : undefined) ||
+    DEMO_TRIP.routes.find((r) => r.id === selectedRouteId) ||
+    DEMO_ROUTES.saferRoute;
+
   const navRoutes = driverRerouted && reactiveRoute
     ? [activeRoute, reactiveRoute]
     : [activeRoute];
   const displayEta = driverRerouted && driverVehicle?.etaMinutes
     ? driverVehicle.etaMinutes
-    : activeRoute.etaMinutes;
+    : (driverVehicle?.etaMinutes || activeRoute.etaMinutes);
+
+  const originLocation = Object.values(LOCATIONS).find(
+    (l) =>
+      l.shortName.toLowerCase() === driverVehicle?.origin?.toLowerCase() ||
+      l.name.toLowerCase().includes(driverVehicle?.origin?.toLowerCase() || '')
+  ) || LOCATIONS.guwahati;
+
+  const destLocation = Object.values(LOCATIONS).find(
+    (l) =>
+      l.shortName.toLowerCase() === driverVehicle?.destination?.toLowerCase() ||
+      l.name.toLowerCase().includes(driverVehicle?.destination?.toLowerCase() || '')
+  ) || LOCATIONS.imphal;
 
   const [justSyncedCount, setJustSyncedCount] = useState(0);
   const [reroutingInProgress, setReroutingInProgress] = useState(false);
@@ -137,19 +169,17 @@ export function NavigationView() {
             <Navigation className="w-4 h-4" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-sm font-bold text-[#1a1a19]">Turn-by-Turn Guidance</h1>
-              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[#f0f0ef] text-[#5a5a57]">
-                Field Mode
-              </span>
+              <DriverVehicleSelector id="nav-driver-vehicle-selector" compact />
             </div>
-            <div className="flex items-center gap-1 text-[11px] text-[#8a8a87]">
-              <span>{driverRerouted ? (driverVehicle?.rerouteFromLabel || 'Current position') : DEMO_TRIP.origin.shortName}</span>
+            <div className="flex items-center gap-1 text-[11px] text-[#8a8a87] mt-0.5">
+              <span>{driverRerouted ? (driverVehicle?.rerouteFromLabel || 'Current position') : (driverVehicle?.origin || DEMO_TRIP.origin.shortName)}</span>
               <ChevronRight className="w-3 h-3" />
-              <span>{DEMO_TRIP.destination.shortName}</span>
+              <span>{driverVehicle?.destination || DEMO_TRIP.destination.shortName}</span>
               <span className="mx-1">·</span>
               <span className="font-medium text-[#2563eb]">
-                {driverRerouted ? 'Alternate Corridor Active (via Lumding)' : activeRoute.label}
+                {driverRerouted ? `Alternate Corridor Active (via ${driverVehicle?.rerouteTo || 'Alternate Route'})` : activeRoute.label}
               </span>
             </div>
           </div>
@@ -178,8 +208,8 @@ export function NavigationView() {
             routes={navRoutes}
             selectedRouteId={reactiveRoute?.id || activeRoute.id}
             incidents={activeIncidents}
-            originMarker={{ latlng: [LOCATIONS.guwahati.lat, LOCATIONS.guwahati.lng], label: 'Guwahati Logistics Hub' }}
-            destinationMarker={{ latlng: [LOCATIONS.imphal.lat, LOCATIONS.imphal.lng], label: 'Imphal District Hospital' }}
+            originMarker={{ latlng: [originLocation.lat, originLocation.lng], label: `${driverVehicle?.origin || 'Guwahati'} Hub` }}
+            destinationMarker={{ latlng: [destLocation.lat, destLocation.lng], label: `${driverVehicle?.destination || 'Imphal'} Hub` }}
             vehicles={driverVehicle ? [driverVehicle] : []}
             userRole="driver"
             onRerouteVehicle={handleStartReroute}
@@ -246,7 +276,7 @@ export function NavigationView() {
                     <div>
                       <p className="text-xs font-bold text-[#991b1b]">Road Disruption Ahead</p>
                       <p className="text-[11px] text-[#7f1d1d] mt-0.5">
-                        NH-2 Mao Gate blocked by landslide. Alternate corridor via Lumding ready.
+                        {driverVehicle?.impactReason || 'Corridor blocked by incident ahead. Alternate route is ready.'}
                       </p>
                     </div>
                   </div>
@@ -267,7 +297,7 @@ export function NavigationView() {
                 <Notification
                   type="info"
                   title="Detour Active"
-                  message={`${driverVehicle.rerouteFromLabel || 'Current Position'} → ${driverVehicle.rerouteTo || DEMO_TRIP.destination.shortName}. Bypassing NH-2 Mao Gate.`}
+                  message={`${driverVehicle.rerouteFromLabel || 'Current Position'} → ${driverVehicle.rerouteTo || driverVehicle.destination || DEMO_TRIP.destination.shortName}. Alternate corridor active.`}
                   visible
                 />
               )}
@@ -276,7 +306,7 @@ export function NavigationView() {
                 <Notification
                   type="error"
                   title="No Alternate Route"
-                  message="NH-2 Mao Gate is blocked. No alternate corridor is available from your current position."
+                  message={`${driverVehicle.id}: Planned corridor is blocked. No alternate route is available from current position.`}
                   visible
                 />
               )}

@@ -31,6 +31,7 @@ export function DemoSimulationBar() {
   const updateRoadSegment = useNetworkStore((state) => state.updateRoadSegment);
   const requestEmergencyPickup = useNetworkStore((state) => state.requestEmergencyPickup);
   const rerouteVehicle = useNetworkStore((state) => state.rerouteVehicle);
+  const resetToCleanState = useNetworkStore((state) => state.resetToCleanState);
 
   const navigate = useNavigate();
 
@@ -72,8 +73,10 @@ export function DemoSimulationBar() {
   };
 
   // 4. Reset All Demo State
-  const handleResetDemo = () => {
-    window.location.reload();
+  const handleResetDemo = async () => {
+    await resetToCleanState();
+    setPitchStep(null);
+    setNetworkStatus('online');
   };
 
   // Pitch Storyline Walkthrough

@@ -26,6 +26,7 @@ import {
 export function DispatcherOps() {
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
   const activeIncidents = useNetworkStore((state) => state.activeIncidents);
+  const disruptions = useNetworkStore((state) => state.disruptions);
   const godowns = useNetworkStore((state) => state.godowns);
   const pickupRequests = useNetworkStore((state) => state.pickupRequests);
 
@@ -36,6 +37,7 @@ export function DispatcherOps() {
   const [fleetFilter, setFleetFilter] = useState<'all' | 'affected' | 'rerouted'>('all');
 
   // Filtered collections
+  const activeDisruptions = disruptions.filter((d) => d.status === 'active');
   const affectedVehicles = activeVehicles.filter(
     (v) => Boolean(v.affectedByDisruptionId) && v.rerouteStatus !== 'active' && v.status !== 'emergency_pickup'
   );
@@ -95,9 +97,9 @@ export function DispatcherOps() {
           />
           <MetricCard
             label="Corridor Disruptions"
-            value={activeIncidents.length.toString().padStart(2, '0')}
-            subtext="Active highway hazard events"
-            riskLevel={activeIncidents.length > 0 ? 'high' : 'low'}
+            value={activeDisruptions.length.toString().padStart(2, '0')}
+            subtext={activeDisruptions.length > 0 ? `${activeDisruptions.length} active corridor cut${activeDisruptions.length > 1 ? 's' : ''}` : 'All corridors operational'}
+            riskLevel={activeDisruptions.length > 0 ? 'high' : 'low'}
             icon={<Activity className="w-4 h-4 text-[#ea580c]" />}
           />
           <MetricCard

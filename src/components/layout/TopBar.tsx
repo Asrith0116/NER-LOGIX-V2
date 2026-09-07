@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/store/appStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { useNavigate } from 'react-router-dom';
+import { DriverVehicleSelector } from '@/components/ui/DriverVehicleSelector';
 import {
   Wifi,
   WifiOff,
@@ -53,8 +54,12 @@ interface TopBarProps {
 }
 
 export function TopBar({ className }: TopBarProps) {
-  const { role, setRole, networkStatus, setNetworkStatus, toggleSidebar } = useAppStore();
+  const { role, setRole, networkStatus, setNetworkStatus, toggleSidebar, selectedDriverVehicleId } = useAppStore();
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
+  const currentDriverVehicle =
+    activeVehicles.find((v) => v.id === selectedDriverVehicleId) ||
+    activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
+    activeVehicles[0];
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -92,7 +97,9 @@ export function TopBar({ className }: TopBarProps) {
     driver: {
       title: 'Driver Journey Cockpit',
       roleName: 'Driver / Field Operator',
-      subtitle: 'Arjun Barua · AS-01-J-4422',
+      subtitle: currentDriverVehicle
+        ? `${currentDriverVehicle.driverName} · ${currentDriverVehicle.id}`
+        : 'Arjun Baruah · AS-01-J-4422',
       description: 'Journey safety & field reporting',
       icon: <Truck className="w-3.5 h-3.5 text-[#2563eb]" />,
       badgeBg: 'bg-[#eff6ff] text-[#1e40af] border-[#bfdbfe]',
@@ -266,6 +273,14 @@ export function TopBar({ className }: TopBarProps) {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Driver Workspace Vehicle Selector */}
+      {role === 'driver' && (
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:block h-4 w-px bg-[#e4e4e3]" />
+          <DriverVehicleSelector id="topbar-driver-vehicle-selector" />
+        </div>
+      )}
 
       <div className="flex-1" />
 

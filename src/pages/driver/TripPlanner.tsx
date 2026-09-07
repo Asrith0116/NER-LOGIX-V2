@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Notification } from '@/components/ui/Notification';
 import { MapContainer } from '@/components/map/MapContainer';
 import { RiskBreakdownCard } from '@/components/ui/RiskBreakdownCard';
+import { DriverVehicleSelector } from '@/components/ui/DriverVehicleSelector';
 import { useAppStore } from '@/store/appStore';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -112,11 +113,11 @@ export function TripPlanner() {
       <div className="px-6 py-3.5 bg-white border-b border-[#e4e4e3]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe]">
                 Layer 1: Pre-Trip Predictive Engine
               </span>
-              <span className="text-xs text-[#8a8a87]">· Trade-Off Decision Matrix</span>
+              <DriverVehicleSelector id="tripplanner-driver-vehicle-selector" compact />
             </div>
             <h1 className="text-base font-bold text-[#1a1a19] mt-0.5">
               Trip Route Planner & Risk Scorer

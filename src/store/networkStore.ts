@@ -26,7 +26,9 @@ import {
   getAllIncidents,
   saveDisruption,
   getAllDisruptions,
+  clearAllStoredData,
 } from '@/utils/idb';
+import { useAppStore } from './appStore';
 
 function incidentBlocksRoad(incident: Incident): boolean {
   return (
@@ -346,18 +348,7 @@ function mergeRerouteState(computed: Vehicle[], previous: Vehicle[]): Vehicle[] 
   });
 }
 
-const INITIAL_DISRUPTIONS: Disruption[] = [
-  {
-    id: 'DIS-INC-2026-8891',
-    incidentId: 'INC-2026-8891',
-    affectedSegmentId: 'rd-001',
-    status: 'active',
-    createdAt: '2026-09-03T08:50:00+05:30',
-    updatedAt: '2026-09-03T08:50:00+05:30',
-    affectedVehicleIds: ['MN-04-B-1121', 'NL-02-C-3391'],
-  },
-  
-];
+const INITIAL_DISRUPTIONS: Disruption[] = [];
 
 const INITIAL_ROAD_SEGMENTS: RoadSegment[] = DEMO_ROAD_SEGMENTS.map((seg) => ({ ...seg }));
 
@@ -390,6 +381,7 @@ export interface NetworkState {
   requestEmergencyPickup: (vehicleId: string) => string | undefined;
   approveEmergencyPickup: (requestId: string) => void;
   declineEmergencyPickup: (requestId: string) => void;
+  resetToCleanState: () => Promise<void>;
   syncFromIndexedDB: () => Promise<void>;
 }
 
@@ -841,6 +833,49 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
         r.id === request.id ? { ...r, status: 'declined' as const, contractorName: DEMO_CONTRACTOR_NAME } : r
       ),
     });
+  },
+
+  resetToCleanState: async () => {
+    try {
+      await clearAllStoredData();
+    } catch (err) {
+      console.warn('Failed to clear IndexedDB on reset:', err);
+    }
+
+    const cleanRoads = DEMO_ROAD_SEGMENTS.map((seg) => ({
+      ...seg,
+      status: 'open' as RoadStatus,
+      riskLevel: 'low' as RiskLevel,
+      affectedByIncidentId: undefined,
+    }));
+
+    const cleanVehicles = DEMO_FLEET.map((v) => ({
+      ...v,
+      status: v.id === 'AS-01-J-4422' ? ('idle' as const) : ('on_route' as const),
+      riskLevel: 'low' as RiskLevel,
+      affectedByDisruptionId: undefined,
+      impactReason: undefined,
+      rerouteStatus: undefined,
+      rerouteReason: undefined,
+      rerouteFrom: undefined,
+      rerouteFromLabel: undefined,
+      rerouteTo: undefined,
+      reroutedAt: undefined,
+      rerouteWaypoints: undefined,
+      recommendedGodownId: undefined,
+      recommendedGodownDistanceKm: undefined,
+    }));
+
+    set({
+      activeIncidents: [],
+      roadSegments: cleanRoads,
+      activeVehicles: cleanVehicles,
+      disruptions: [],
+      godowns: DEMO_GODOWNS.map((g) => ({ ...g })),
+      pickupRequests: [],
+    });
+
+    useAppStore.getState().setSelectedDriverVehicleId('AS-01-J-4422');
   },
 
   syncFromIndexedDB: async () => {

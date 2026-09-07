@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Notification } from '@/components/ui/Notification';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
+import { DriverVehicleSelector } from '@/components/ui/DriverVehicleSelector';
 import { DEMO_DRIVER } from '@/data/demo';
 import { useAppStore } from '@/store/appStore';
+import { useNetworkStore } from '@/store/networkStore';
 import { saveIncident, getPendingIncidents } from '@/utils/idb';
 import { analyzeIncidentReport } from '@/services/aiService';
 import type { IncidentType, IncidentSeverity, Incident, IncidentAiAnalysis } from '@/types';
@@ -63,7 +65,12 @@ const SAMPLE_VOICE_MEMOS = [
 ];
 
 export function HazardReport() {
-  const { networkStatus, activeTripId, setPendingIncidentsCount } = useAppStore();
+  const { networkStatus, activeTripId, setPendingIncidentsCount, selectedDriverVehicleId } = useAppStore();
+  const activeVehicles = useNetworkStore((state) => state.activeVehicles);
+  const currentDriverVehicle =
+    activeVehicles.find((v) => v.id === selectedDriverVehicleId) ||
+    activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
+    activeVehicles[0];
   const navigate = useNavigate();
 
   const [type, setType] = useState<IncidentType>('landslide');
@@ -168,7 +175,7 @@ export function HazardReport() {
       location: demoLocation,
       locationName: 'Doyyang River Valley, Route 39',
       description,
-      reportedBy: DEMO_DRIVER.name,
+      reportedBy: currentDriverVehicle ? `${currentDriverVehicle.driverName} (${currentDriverVehicle.id})` : DEMO_DRIVER.name,
       reportedAt: new Date().toISOString(),
       syncStatus: isOffline ? 'local_pending' : 'pending_verification',
       photoUrl: photoUrl || 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=600&q=80',
@@ -297,10 +304,13 @@ export function HazardReport() {
 
       <div className="max-w-2xl mx-auto px-6 py-5 space-y-5">
         {/* Driver identity */}
-        <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white border border-[#e4e4e3] text-xs shadow-xs">
-          <span className="text-[#5a5a57]">
-            Reporter: <strong className="text-[#1a1a19]">{DEMO_DRIVER.name}</strong> ({DEMO_DRIVER.vehicleId})
-          </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-white border border-[#e4e4e3] text-xs shadow-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[#5a5a57]">
+              Reporter: <strong className="text-[#1a1a19]">{currentDriverVehicle?.driverName || DEMO_DRIVER.name}</strong>
+            </span>
+            <DriverVehicleSelector id="hazard-driver-vehicle-selector" compact />
+          </div>
           <span className="text-[#2563eb] font-semibold">Active Trip: {activeTripId || 'TRIP-001'}</span>
         </div>
 
