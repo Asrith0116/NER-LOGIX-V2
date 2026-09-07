@@ -101,6 +101,8 @@ export function TripPlanner() {
   const disruptions = useNetworkStore((state) => state.disruptions);
   const activeIncidents = useNetworkStore((state) => state.activeIncidents);
   const setVehicleStatus = useNetworkStore((state) => state.setVehicleStatus);
+  const storeWeatherData = useNetworkStore((state) => state.weatherData);
+  const weatherSpikeActive = useNetworkStore((state) => state.weatherSpikeActive);
 
   // Active Vehicle Context
   const activeVehicle =
@@ -221,7 +223,7 @@ export function TripPlanner() {
 
   // Multi-Factor Corridor Candidates dynamically generated and scored
   const candidateRoutes: RouteCandidate[] = useMemo(() => {
-    const weatherData: Record<string, WeatherDataPoint> = {};
+    const weatherData: Record<string, WeatherDataPoint> = { ...storeWeatherData };
     if (originWeather) weatherData[originLocation.shortName] = originWeather;
     if (destWeather) weatherData[destLocation.shortName] = destWeather;
 
@@ -233,7 +235,7 @@ export function TripPlanner() {
     });
 
     return Array.isArray(candidates) ? candidates : [];
-  }, [tripRequest, roadSegments, disruptions, activeIncidents, originWeather, destWeather, originLocation.shortName, destLocation.shortName]);
+  }, [tripRequest, roadSegments, disruptions, activeIncidents, originWeather, destWeather, originLocation.shortName, destLocation.shortName, storeWeatherData]);
 
   // Selected Route ID derivation
   const selectedRouteId = useMemo(() => {
@@ -403,6 +405,15 @@ export function TripPlanner() {
                 )}
               </div>
             </div>
+
+            {weatherSpikeActive && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-[#eff6ff] border border-[#bfdbfe] text-xs text-[#1e40af]">
+                <CloudRain className="w-4 h-4 text-[#2563eb] shrink-0" />
+                <div>
+                  <span className="font-bold">Regional Cloudburst Active (45 mm/h):</span> Karbi Anglong / Doyyang corridor precipitation spike ingested into corridor risk calculations.
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Section 2: Cargo Profile & Priority Intelligence */}

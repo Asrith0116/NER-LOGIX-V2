@@ -12,6 +12,7 @@ import type {
   RerouteStatus,
   Godown,
   EmergencyPickupRequest,
+  EnvironmentalSnapshot,
 } from '@/types';
 import {
   DEMO_INCIDENTS,
@@ -28,6 +29,8 @@ import {
   getAllDisruptions,
   clearAllStoredData,
 } from '@/utils/idb';
+import { correlateIncidents } from '@/services/incidentCorrelation';
+import { getBaselineRegionalWeather, applySpikeToRegionalWeather } from '@/services/weatherService';
 import { useAppStore } from './appStore';
 
 function incidentBlocksRoad(incident: Incident): boolean {
@@ -366,6 +369,8 @@ export interface NetworkState {
   disruptions: Disruption[];
   godowns: Godown[];
   pickupRequests: EmergencyPickupRequest[];
+  weatherSpikeActive: boolean;
+  weatherData: Record<string, EnvironmentalSnapshot>;
 
   // Actions
   addIncident: (incident: Incident) => void;
@@ -381,6 +386,8 @@ export interface NetworkState {
   requestEmergencyPickup: (vehicleId: string) => string | undefined;
   approveEmergencyPickup: (requestId: string) => void;
   declineEmergencyPickup: (requestId: string) => void;
+  setWeatherSpike: (active: boolean) => void;
+  updateWeatherData: (data: Record<string, EnvironmentalSnapshot>) => void;
   resetToCleanState: () => Promise<void>;
   syncFromIndexedDB: () => Promise<void>;
 }
@@ -392,19 +399,50 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
   disruptions: INITIAL_DISRUPTIONS,
   godowns: DEMO_GODOWNS.map((g) => ({ ...g })),
   pickupRequests: [],
+  weatherSpikeActive: false,
+  weatherData: getBaselineRegionalWeather(false),
+
+  setWeatherSpike: (active: boolean) => {
+    set((state) => {
+      const updatedWeather = active
+        ? applySpikeToRegionalWeather(state.weatherData, true)
+        : getBaselineRegionalWeather(false);
+
+      const updatedSegments = state.roadSegments.map((seg) => {
+        if (seg.id === 'rd-002') {
+          return {
+            ...seg,
+            status: active ? ('caution' as RoadStatus) : ('open' as RoadStatus),
+            riskLevel: active ? ('high' as RiskLevel) : ('low' as RiskLevel),
+          };
+        }
+        return seg;
+      });
+
+      return {
+        weatherSpikeActive: active,
+        weatherData: updatedWeather,
+        roadSegments: updatedSegments,
+      };
+    });
+  },
+
+  updateWeatherData: (data: Record<string, EnvironmentalSnapshot>) => {
+    set((state) => {
+      const weatherData = state.weatherSpikeActive ? applySpikeToRegionalWeather(data, true) : data;
+      return { weatherData };
+    });
+  },
 
   addIncident: (incident: Incident) => {
     set((state) => {
       const exists = state.activeIncidents.some((i) => i.id === incident.id);
-      if (exists) {
-        return {
-          activeIncidents: state.activeIncidents.map((i) =>
-            i.id === incident.id ? incident : i
-          ),
-        };
-      }
+      const rawList = exists
+        ? state.activeIncidents.map((i) => (i.id === incident.id ? incident : i))
+        : [incident, ...state.activeIncidents];
+      const correlated = correlateIncidents(rawList);
       return {
-        activeIncidents: [incident, ...state.activeIncidents],
+        activeIncidents: correlated,
       };
     });
   },
@@ -873,6 +911,8 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       disruptions: [],
       godowns: DEMO_GODOWNS.map((g) => ({ ...g })),
       pickupRequests: [],
+      weatherSpikeActive: false,
+      weatherData: getBaselineRegionalWeather(false),
     });
 
     useAppStore.getState().setSelectedDriverVehicleId('AS-01-J-4422');
@@ -968,8 +1008,10 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
         );
         const activeVehicles = mergeRerouteState(computed, state.activeVehicles);
 
+        const correlatedIncidents = correlateIncidents(activeIncidents);
+
         return {
-          activeIncidents,
+          activeIncidents: correlatedIncidents,
           roadSegments,
           disruptions,
           activeVehicles,

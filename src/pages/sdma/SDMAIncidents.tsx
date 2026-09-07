@@ -21,7 +21,48 @@ import {
   ShieldAlert,
   Sparkles,
   Truck,
+  Copy,
+  AlertOctagon,
+  Layers,
+  Waves,
+  Mountain,
+  TreePine,
+  Car,
+  CloudLightning,
+  Construction,
+  Zap,
+  Flame,
+  Shield,
 } from 'lucide-react';
+
+function getHazardIcon(type: string) {
+  switch (type) {
+    case 'landslide':
+      return <Mountain className="w-3.5 h-3.5 text-[#dc2626]" />;
+    case 'flood':
+      return <Waves className="w-3.5 h-3.5 text-[#2563eb]" />;
+    case 'rockfall':
+      return <AlertTriangle className="w-3.5 h-3.5 text-[#d97706]" />;
+    case 'road_washout':
+      return <Layers className="w-3.5 h-3.5 text-[#991b1b]" />;
+    case 'bridge_damage':
+      return <ShieldAlert className="w-3.5 h-3.5 text-[#b91c1c]" />;
+    case 'tree_fall':
+      return <TreePine className="w-3.5 h-3.5 text-[#16a34a]" />;
+    case 'vehicle_accident':
+      return <Car className="w-3.5 h-3.5 text-[#ea580c]" />;
+    case 'severe_weather':
+      return <CloudLightning className="w-3.5 h-3.5 text-[#4f46e5]" />;
+    case 'road_closure':
+      return <Construction className="w-3.5 h-3.5 text-[#6b7280]" />;
+    case 'pothole_surface':
+      return <Zap className="w-3.5 h-3.5 text-[#ca8a04]" />;
+    case 'fire_smoke':
+      return <Flame className="w-3.5 h-3.5 text-[#dc2626]" />;
+    default:
+      return <Shield className="w-3.5 h-3.5 text-[#64748b]" />;
+  }
+}
 
 export function SDMAIncidents() {
   const incidents = useNetworkStore((state) => state.activeIncidents);
@@ -44,10 +85,23 @@ export function SDMAIncidents() {
   );
   const verifiedIncidents = incidents.filter((i) => i.syncStatus === 'verified' || i.syncStatus === 'rejected');
 
-  // Vehicles that would be affected by closing this corridor
-  const potentiallyAffectedVehicles = activeVehicles.filter(
-    (v) => v.status === 'on_route' || v.status === 'disrupted'
-  );
+  // Vehicles that would be affected by closing this specific corridor
+  const potentiallyAffectedVehicles = activeVehicles.filter((v) => {
+    if (selected?.affectedRouteId && v.plannedRouteId === selected.affectedRouteId) {
+      return true;
+    }
+    if (v.status === 'disrupted' && v.affectedByDisruptionId?.includes(selected?.id || '')) {
+      return true;
+    }
+    // NH-2 corridor check
+    const isNH2Incident =
+      selected?.locationName?.toLowerCase().includes('nh-2') ||
+      selected?.locationName?.toLowerCase().includes('mao');
+    if (isNH2Incident && (v.plannedRouteId === 'route-b' || (v.destination === 'Imphal' && v.status !== 'idle'))) {
+      return true;
+    }
+    return v.status === 'disrupted';
+  });
 
   const handleVerify = (id: string, approved: boolean) => {
     setVerifyingId(id);
@@ -67,7 +121,7 @@ export function SDMAIncidents() {
   return (
     <div className="h-full flex flex-col lg:flex-row min-h-0 bg-[#f8f8f7]">
       {/* Left Column: Triage Queue */}
-      <div className="w-full lg:w-84 border-r border-[#e4e4e3] bg-[#fafaf9] flex flex-col shrink-0">
+      <div className="w-full lg:w-88 border-r border-[#e4e4e3] bg-[#fafaf9] flex flex-col shrink-0">
         <div className="px-4 py-3.5 bg-white border-b border-[#e4e4e3]">
           <div className="flex items-center gap-2">
             <FileCheck className="w-4 h-4 text-[#2563eb]" />
@@ -114,7 +168,7 @@ export function SDMAIncidents() {
                   )}
                 >
                   <div className="w-6 h-6 rounded-full bg-[#fffbeb] flex items-center justify-center shrink-0 mt-0.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-[#d97706]" />
+                    {getHazardIcon(inc.type)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
@@ -123,11 +177,16 @@ export function SDMAIncidents() {
                     </div>
                     <p className="text-[11px] font-semibold text-[#5a5a57]">{getIncidentTypeLabel(inc.type)}</p>
                     <p className="text-[10px] text-[#8a8a87] truncate">{inc.locationName}</p>
-                    <div className="flex items-center justify-between mt-0.5">
+                    <div className="flex items-center justify-between mt-1 gap-1 flex-wrap">
                       <span className="text-[10px] text-[#8a8a87]">{formatTimeAgo(inc.reportedAt)}</span>
-                      {inc.voiceNote && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#eff6ff] text-[#2563eb]">
-                          Voice Note
+                      {inc.correlation?.isDuplicateOrCorroborating && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]">
+                          Corroborated
+                        </span>
+                      )}
+                      {inc.correlation?.isConflicting && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5]">
+                          Conflict
                         </span>
                       )}
                     </div>
@@ -199,13 +258,16 @@ export function SDMAIncidents() {
               {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-[#e4e4e3]">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h2 className="text-lg font-bold text-[#1a1a19]">{selected.id}</h2>
                     <StatusBadge syncStatus={selected.syncStatus} />
                     <span className="text-xs text-[#8a8a87]">· Layer 4 Human-in-the-Loop Triage</span>
                   </div>
-                  <p className="text-sm font-semibold text-[#5a5a57]">
-                    {getIncidentTypeLabel(selected.type)} — Severity: {selected.severity.toUpperCase()}
+                  <p className="text-sm font-semibold text-[#5a5a57] flex items-center gap-1.5">
+                    {getHazardIcon(selected.type)}
+                    <span>{getIncidentTypeLabel(selected.type)}</span>
+                    <span>—</span>
+                    <span className="font-bold uppercase text-[#1a1a19]">Severity: {selected.severity}</span>
                   </p>
                 </div>
                 <RiskBadge
@@ -221,10 +283,33 @@ export function SDMAIncidents() {
                 />
               </div>
 
+              {/* Correlation & Conflict Detection Banners */}
+              {selected.correlation?.isConflicting && (
+                <div className="p-3.5 rounded-xl bg-[#fff1f2] border border-[#fca5a5] flex items-start gap-2.5">
+                  <AlertOctagon className="w-5 h-5 text-[#dc2626] shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-bold text-[#991b1b]">Conflicting Report Contradiction Detected</p>
+                    <p className="text-[#7f1d1d] mt-0.5 leading-relaxed">{selected.correlation.conflictReason}</p>
+                  </div>
+                </div>
+              )}
+
+              {selected.correlation?.isDuplicateOrCorroborating && (
+                <div className="p-3.5 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] flex items-start gap-2.5">
+                  <Copy className="w-5 h-5 text-[#16a34a] shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-bold text-[#166534]">Spatial Report Corroboration</p>
+                    <p className="text-[#15803d] mt-0.5 leading-relaxed">
+                      {selected.correlation.correlationNotes || 'Corroborated by independent regional field observations.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Multi-Lingual Audio Player with Waveform & Bilingual Translation */}
               <div>
                 <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider mb-2">
-                  Acoustic Evidence & Speech-to-Intent
+                  Acoustic Evidence & Multilingual Speech-to-Intent
                 </p>
                 <AudioPlayer
                   language={selected.voiceLanguage || 'Assamese (অসমীয়া)'}
@@ -234,21 +319,27 @@ export function SDMAIncidents() {
                   }
                   translatedSummary={
                     selected.aiAnalysis?.englishSummary ||
-                    'Major slope collapse with shale boulders blocking both carriageways. Completely impassable.'
+                    selected.description ||
+                    'Major slope collapse with scree debris blocking both carriageways. Completely impassable.'
                   }
                 />
               </div>
 
               {/* AI Structured Entity Extraction Card */}
               <div className="p-4 rounded-xl bg-[#eff6ff] border border-[#bfdbfe] space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-[#1e40af]">
                     <Sparkles className="w-4 h-4 text-[#2563eb]" />
                     <span>AI Autonomous Triage & Extraction Engine</span>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/15 text-[#15803d]">
-                    Confidence: 94%
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white text-[#1d4ed8] border border-[#bfdbfe]">
+                      {selected.aiAnalysis?.provider || 'Deterministic Local NLP'}
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/15 text-[#15803d]">
+                      Confidence: {Math.round((selected.aiAnalysis?.confidenceScore || 0.94) * 100)}%
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
@@ -260,17 +351,20 @@ export function SDMAIncidents() {
                   </div>
                   <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">
                     <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Extracted Entities</span>
-                    <span className="font-semibold text-[#1a1a19]">
+                    <span className="font-semibold text-[#1a1a19] line-clamp-1">
                       {selected.aiAnalysis?.extractedEntities?.join(' · ') || 'NH-2 · KM 312 · Mao Pass'}
                     </span>
                   </div>
                   <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">
                     <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Recommended Action</span>
-                    <span className="font-semibold text-[#2563eb]">
+                    <span className="font-semibold text-[#2563eb] line-clamp-1">
                       {selected.aiAnalysis?.recommendedAction || 'Execute Reactive Reroute via Route A'}
                     </span>
                   </div>
                 </div>
+                <p className="text-[10px] text-[#64748b] italic border-t border-[#dbeafe] pt-1">
+                  Advisory Notice: AI classifications are preliminary and assist human operator verification.
+                </p>
               </div>
 
               {/* Location & Metadata */}
@@ -280,9 +374,9 @@ export function SDMAIncidents() {
                     <MapPin className="w-3.5 h-3.5 text-[#2563eb]" />
                     <span className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">Location</span>
                   </div>
-                  <p className="text-xs font-bold text-[#1a1a19]">{selected.locationName}</p>
+                  <p className="text-xs font-bold text-[#1a1a19] truncate">{selected.locationName}</p>
                   <p className="text-[10px] text-[#8a8a87] mt-0.5">
-                    {selected.location[0].toFixed(4)}°N, {selected.location[1].toFixed(4)}°E
+                    {selected.location[0].toFixed(4)}°N, {selected.location[1].toFixed(4)}°E ({selected.locationSource || 'DEVICE_GPS'})
                   </p>
                 </div>
                 <div className="bg-[#f8f8f7] rounded-xl p-3 border border-[#e4e4e3]">
@@ -298,7 +392,7 @@ export function SDMAIncidents() {
                     <User className="w-3.5 h-3.5 text-[#16a34a]" />
                     <span className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">Observer</span>
                   </div>
-                  <p className="text-xs font-bold text-[#1a1a19]">{selected.reportedBy}</p>
+                  <p className="text-xs font-bold text-[#1a1a19] truncate">{selected.reportedBy}</p>
                   <p className="text-[10px] text-[#8a8a87] mt-0.5">Field Transport Driver</p>
                 </div>
               </div>
@@ -318,7 +412,7 @@ export function SDMAIncidents() {
                     <span>Visual Evidence Analysis</span>
                   </div>
                   <p className="text-[#5a5a57] leading-relaxed">
-                    Geotagged image confirms heavy soil shear and scree blockage across both lanes.
+                    Geotagged image confirms heavy soil shear and debris across both lanes.
                     Approximate debris volume: ~350 m³. No light or heavy vehicle clearance without mechanized earthmovers.
                   </p>
                   <span className="inline-block text-[10px] font-semibold text-[#16a34a] bg-[#f0fdf4] px-2 py-0.5 rounded border border-[#bbf7d0]">
@@ -341,7 +435,7 @@ export function SDMAIncidents() {
                   </span>
                 </div>
                 <p className="text-xs text-[#7f1d1d] leading-snug">
-                  Official verification will immediately trigger WebSocket reroute recalculations for approaching freight:
+                  Official verification will immediately trigger automated reroute recalculations for approaching freight:
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -372,7 +466,7 @@ export function SDMAIncidents() {
                 selected.syncStatus === 'local_pending') && (
                 <div className="border-t border-[#e4e4e3] pt-4 space-y-3">
                   <p className="text-xs text-[#5a5a57]">
-                    Confirming as State Disaster Management Authority updates authoritative PostGIS layers and broadcasts automated reroute directives:
+                    Confirming as State Disaster Management Authority updates authoritative road accessibility layers and broadcasts reroute directives:
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <Button
@@ -421,3 +515,4 @@ export function SDMAIncidents() {
     </div>
   );
 }
+

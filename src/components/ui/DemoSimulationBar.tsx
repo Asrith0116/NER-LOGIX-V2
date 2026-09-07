@@ -20,6 +20,57 @@ import {
 import { Button } from '@/components/ui/Button';
 import { useNavigate } from 'react-router-dom';
 
+const PITCH_SCRIPT = [
+  {
+    title: 'Step 1: Predictive Risk Route Selection',
+    desc: 'Driver plans journey from Guwahati to Imphal. System compares Route A (18/100 Risk) vs Route B (82/100 Risk). Driver selects Route A for cargo safety.',
+    role: 'driver' as const,
+    path: '/driver/trip',
+  },
+  {
+    title: 'Step 2: Pre-Trip Offline Bundle Download',
+    desc: 'Driver caches map vector tiles, terrain waypoints, and multilingual audio alerts into IndexedDB for offline operation.',
+    role: 'driver' as const,
+    path: '/driver/trip',
+  },
+  {
+    title: 'Step 3: Entering Mountain Dead-Zone (Offline)',
+    desc: '4G/5G drops to zero bars. Service Worker transparently renders map and guidance using local hardware GPS and IndexedDB.',
+    role: 'driver' as const,
+    path: '/driver/navigation',
+  },
+  {
+    title: 'Step 4: Field Hazard Reporting & Offline Queue',
+    desc: 'Driver encounters fresh landslide at KM 182. Captures geotagged photo and records Assamese voice memo. Report queues locally in IndexedDB.',
+    role: 'driver' as const,
+    path: '/driver/report',
+  },
+  {
+    title: 'Step 5: Reconnect & Automatic Cloud Sync',
+    desc: 'Cresting mountain ridge restores momentary signal. Background Sync automatically uploads report to SDMA triage queue.',
+    role: 'sdma' as const,
+    path: '/sdma/incidents',
+  },
+  {
+    title: 'Step 6: SDMA Human-in-the-Loop Verification',
+    desc: 'District Disaster Officer inspects evidence, reviews AI transcription, and approves hazard pin. Enforces official road status.',
+    role: 'sdma' as const,
+    path: '/sdma/incidents',
+  },
+  {
+    title: 'Step 7: Real-Time Rerouting from Current Position',
+    desc: 'Approaching vehicles receive WebSocket alerts. Route recalculates dynamically from CURRENT position rather than original start point.',
+    role: 'driver' as const,
+    path: '/driver/navigation',
+  },
+  {
+    title: 'Step 8: No Safe Route & Godown Fallback',
+    desc: 'All alternate passes impassable (>85/100 risk). Vehicle safely diverted to Dimapur Emergency Relief Godown with contractor authorization.',
+    role: 'contractor' as const,
+    path: '/contractor',
+  },
+];
+
 export function DemoSimulationBar() {
   const [isOpen, setIsOpen] = useState(false);
   const [pitchStep, setPitchStep] = useState<number | null>(null);
@@ -32,12 +83,14 @@ export function DemoSimulationBar() {
   const requestEmergencyPickup = useNetworkStore((state) => state.requestEmergencyPickup);
   const rerouteVehicle = useNetworkStore((state) => state.rerouteVehicle);
   const resetToCleanState = useNetworkStore((state) => state.resetToCleanState);
+  const weatherSpikeActive = useNetworkStore((state) => state.weatherSpikeActive);
+  const setWeatherSpike = useNetworkStore((state) => state.setWeatherSpike);
 
   const navigate = useNavigate();
 
   // 1. Inject Landslide Blockage
   const handleInjectLandslide = async () => {
-    const incId = `INC-2026-${Date.now().toString().slice(-4)}`;
+    const incId = `INC-2026-LANDSLIDE`;
     const newInc = {
       id: incId,
       type: 'landslide' as const,
@@ -60,10 +113,7 @@ export function DemoSimulationBar() {
 
   // 2. Weather Escalation (Cloudburst Spike)
   const handleSimulateWeatherSpike = () => {
-    updateRoadSegment('rd-002', {
-      riskLevel: 'high',
-      status: 'caution',
-    });
+    setWeatherSpike(!weatherSpikeActive);
   };
 
   // 3. Corridor Collapse -> Godown Fallback
@@ -79,80 +129,45 @@ export function DemoSimulationBar() {
     setNetworkStatus('online');
   };
 
-  // Pitch Storyline Walkthrough
-  const PITCH_STEPS = [
-    {
-      title: 'Step 1: Predictive Risk Route Selection',
-      desc: 'Driver plans journey from Guwahati to Imphal. System compares Route A (18/100 Risk) vs Route B (82/100 Risk). Driver selects Route A for cargo safety.',
-      role: 'driver' as const,
-      path: '/driver/trip',
-      action: () => navigate('/driver/trip'),
-    },
-    {
-      title: 'Step 2: Pre-Trip Offline Bundle Download',
-      desc: 'Driver caches map vector tiles, terrain waypoints, and multilingual audio alerts into IndexedDB for offline operation.',
-      role: 'driver' as const,
-      path: '/driver/trip',
-      action: () => navigate('/driver/trip'),
-    },
-    {
-      title: 'Step 3: Entering Mountain Dead-Zone (Offline)',
-      desc: '4G/5G drops to zero bars. Service Worker transparently renders map and guidance using local hardware GPS and IndexedDB.',
-      role: 'driver' as const,
-      path: '/driver/navigation',
-      action: () => {
+  const executeStage = (stepIndex: number) => {
+    const stage = PITCH_SCRIPT[stepIndex];
+    if (!stage) return;
+    setPitchStep(stepIndex);
+    setRole(stage.role);
+
+    switch (stepIndex) {
+      case 0:
+      case 1:
+        navigate('/driver/trip');
+        break;
+      case 2:
         setNetworkStatus('offline');
         navigate('/driver/navigation');
-      },
-    },
-    {
-      title: 'Step 4: Field Hazard Reporting & Offline Queue',
-      desc: 'Driver encounters fresh landslide at KM 182. Captures geotagged photo and records Assamese voice memo. Report queues locally in IndexedDB.',
-      role: 'driver' as const,
-      path: '/driver/report',
-      action: () => navigate('/driver/report'),
-    },
-    {
-      title: 'Step 5: Reconnect & Automatic Cloud Sync',
-      desc: 'Cresting mountain ridge restores momentary signal. Background Sync automatically uploads report to SDMA triage queue.',
-      role: 'sdma' as const,
-      path: '/sdma/incidents',
-      action: () => {
+        break;
+      case 3:
+        navigate('/driver/report');
+        break;
+      case 4:
         setNetworkStatus('online');
         navigate('/sdma/incidents');
-      },
-    },
-    {
-      title: 'Step 6: SDMA Human-in-the-Loop Verification',
-      desc: 'District Disaster Officer inspects evidence, reviews AI transcription, and approves hazard pin. Enforces official road status.',
-      role: 'sdma' as const,
-      path: '/sdma/incidents',
-      action: async () => {
-        await handleInjectLandslide();
+        break;
+      case 5:
+        handleInjectLandslide();
         navigate('/sdma/incidents');
-      },
-    },
-    {
-      title: 'Step 7: Real-Time Rerouting from Current Position',
-      desc: 'Approaching vehicles receive WebSocket alerts. Route recalculates dynamically from CURRENT position rather than original start point.',
-      role: 'driver' as const,
-      path: '/driver/navigation',
-      action: () => {
+        break;
+      case 6:
         rerouteVehicle('MN-04-B-1121');
         navigate('/driver/navigation');
-      },
-    },
-    {
-      title: 'Step 8: No Safe Route & Godown Fallback',
-      desc: 'All alternate passes impassable (>85/100 risk). Vehicle safely diverted to Dimapur Emergency Relief Godown with contractor authorization.',
-      role: 'contractor' as const,
-      path: '/contractor',
-      action: () => {
+        break;
+      case 7:
         handleTriggerCorridorCollapse();
         navigate('/contractor');
-      },
-    },
-  ];
+        break;
+      default:
+        navigate(stage.path);
+        break;
+    }
+  };
 
   return (
     <div className="fixed bottom-4 right-4 z-[9999] flex flex-col items-end pointer-events-auto">
@@ -177,14 +192,14 @@ export function DemoSimulationBar() {
               </button>
             </div>
             <h3 className="text-sm font-bold text-white mb-1">
-              {PITCH_STEPS[pitchStep].title}
+              {PITCH_SCRIPT[pitchStep].title}
             </h3>
             <p className="text-xs text-white/80 leading-relaxed mb-3">
-              {PITCH_STEPS[pitchStep].desc}
+              {PITCH_SCRIPT[pitchStep].desc}
             </p>
             <div className="flex items-center justify-between pt-2 border-t border-white/10 text-xs">
               <span className="text-white/60 text-[11px]">
-                Stage {pitchStep + 1} of {PITCH_STEPS.length}
+                Stage {pitchStep + 1} of {PITCH_SCRIPT.length}
               </span>
               <div className="flex items-center gap-1.5">
                 {pitchStep > 0 && (
@@ -192,27 +207,17 @@ export function DemoSimulationBar() {
                     size="sm"
                     variant="outline"
                     className="text-white border-white/20 hover:bg-white/10 text-xs py-1 h-7"
-                    onClick={() => {
-                      const prev = pitchStep - 1;
-                      setPitchStep(prev);
-                      setRole(PITCH_STEPS[prev].role);
-                      PITCH_STEPS[prev].action();
-                    }}
+                    onClick={() => executeStage(pitchStep - 1)}
                   >
                     Previous
                   </Button>
                 )}
-                {pitchStep < PITCH_STEPS.length - 1 ? (
+                {pitchStep < PITCH_SCRIPT.length - 1 ? (
                   <Button
                     size="sm"
                     variant="primary"
                     className="bg-[#2563eb] text-xs py-1 h-7 font-semibold"
-                    onClick={() => {
-                      const next = pitchStep + 1;
-                      setPitchStep(next);
-                      setRole(PITCH_STEPS[next].role);
-                      PITCH_STEPS[next].action();
-                    }}
+                    onClick={() => executeStage(pitchStep + 1)}
                   >
                     Next Stage →
                   </Button>
@@ -262,11 +267,7 @@ export function DemoSimulationBar() {
                 variant="primary"
                 size="sm"
                 className="w-full bg-[#1e293b] hover:bg-[#0f172a] text-white flex items-center justify-center gap-2"
-                onClick={() => {
-                  setPitchStep(0);
-                  setRole('driver');
-                  PITCH_STEPS[0].action();
-                }}
+                onClick={() => executeStage(0)}
               >
                 <PlayCircle className="w-3.5 h-3.5 text-[#38bdf8]" />
                 <span>Launch Interactive Pitch Story</span>
@@ -293,12 +294,16 @@ export function DemoSimulationBar() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-[11px] h-8 justify-start px-2 hover:bg-[#eff6ff] hover:text-[#2563eb] border-[#bfdbfe]"
+                  className={`text-[11px] h-8 justify-start px-2 border transition-all ${
+                    weatherSpikeActive
+                      ? 'bg-[#2563eb] text-white border-[#1d4ed8] hover:bg-[#1d4ed8]'
+                      : 'hover:bg-[#eff6ff] hover:text-[#2563eb] border-[#bfdbfe]'
+                  }`}
                   onClick={handleSimulateWeatherSpike}
                   title="Simulates 45mm/h cloudburst over Karbi Anglong / Doyyang corridor"
                 >
-                  <CloudRain className="w-3.5 h-3.5 text-[#2563eb] shrink-0" />
-                  <span className="truncate">Rainfall Spike</span>
+                  <CloudRain className={`w-3.5 h-3.5 shrink-0 ${weatherSpikeActive ? 'text-white' : 'text-[#2563eb]'}`} />
+                  <span className="truncate">{weatherSpikeActive ? 'Rain Active (45mm)' : 'Rainfall Spike'}</span>
                 </Button>
 
                 <Button

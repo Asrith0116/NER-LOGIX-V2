@@ -187,12 +187,16 @@ export interface Vehicle {
 
 export type IncidentType =
   | 'landslide'
-  | 'rockfall'
   | 'flood'
+  | 'rockfall'
   | 'road_washout'
   | 'bridge_damage'
   | 'tree_fall'
-  | 'fog'
+  | 'vehicle_accident'
+  | 'severe_weather'
+  | 'road_closure'
+  | 'pothole_surface'
+  | 'fire_smoke'
   | 'other';
 
 export type IncidentSeverity = 'low' | 'moderate' | 'high' | 'critical';
@@ -204,26 +208,50 @@ export type IncidentSyncStatus =
   | 'verified'
   | 'rejected';
 
+export type LocationSource = 'DEVICE_GPS' | 'SIMULATED' | 'FALLBACK';
+
+export interface LocationSnapshot {
+  lat: number;
+  lng: number;
+  locationName: string;
+  accuracyMeters?: number;
+  source: LocationSource;
+  timestamp: string;
+}
+
+export interface IncidentCorrelationInfo {
+  isDuplicateOrCorroborating: boolean;
+  corroboratingIncidentIds?: string[];
+  isConflicting: boolean;
+  conflictReason?: string;
+  correlationNotes?: string;
+}
+
 export interface Incident {
   id: string;
   type: IncidentType;
   severity: IncidentSeverity;
   location: [number, number];
   locationName: string;
+  locationSource?: LocationSource;
   description: string;
   reportedBy: string;
+  reportedVehicleId?: string;
   reportedAt: string;
   syncStatus: IncidentSyncStatus;
   photoUrl?: string;
+  photoCapturedAt?: string;
   voiceNote?: boolean;
   voiceNoteUrl?: string;
   voiceTranscript?: string;
   voiceLanguage?: string;
+  voiceDurationSec?: number;
   aiAnalysis?: IncidentAiAnalysis;
   affectedRouteId?: string;
   verifiedBy?: string;
   verifiedAt?: string;
   notes?: string;
+  correlation?: IncidentCorrelationInfo;
 }
 
 export interface IncidentAiAnalysis {
@@ -233,9 +261,13 @@ export interface IncidentAiAnalysis {
   hazardCategory: IncidentType;
   estimatedSeverity: IncidentSeverity;
   roadImpact: 'partially_blocked' | 'fully_blocked' | 'single_lane' | 'caution' | 'bridge_impassable';
-  confidenceScore: number;
+  confidenceScore?: number;
+  qualitativeConfidence?: string;
   extractedEntities: string[];
   recommendedAction: string;
+  verificationPriority: 'critical' | 'high' | 'medium' | 'low';
+  provider: 'Gemini AI (Cloud Provider)' | 'Local Autonomous NLP (Deterministic Fallback)';
+  generatedAt?: string;
 }
 
 export interface RiskFactorBreakdown {
@@ -258,13 +290,26 @@ export interface WeatherDataPoint {
   lng: number;
   temperatureC: number;
   precipitationMm: number;
+  precipitationIntensity?: 'none' | 'light' | 'moderate' | 'heavy' | 'torrential';
   rainfallCategory: 'none' | 'light' | 'moderate' | 'heavy' | 'torrential';
   windSpeedKmh: number;
   weatherCode: number;
   weatherDescription: string;
   forecast24hMm: number;
   updatedAt: string;
+  observedAt?: string;
+  source?: 'Open-Meteo' | 'Fallback / Demo';
+  freshness?: string;
+  availabilityState?: 'live' | 'cached' | 'fallback';
   isSimulated?: boolean;
+}
+
+export interface EnvironmentalSnapshot extends WeatherDataPoint {
+  observedAt: string;
+  source: 'Open-Meteo' | 'Fallback / Demo';
+  freshness: string;
+  availabilityState: 'live' | 'cached' | 'fallback';
+  precipitationIntensity: 'none' | 'light' | 'moderate' | 'heavy' | 'torrential';
 }
 
 // ─── Road Status ─────────────────────────────────────────────────────────────

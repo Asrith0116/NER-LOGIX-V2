@@ -15,6 +15,13 @@ function getPairKey(origin: Location, dest: Location): string {
   return `${o}-${d}`;
 }
 
+const CORRIDOR_WEATHER_NODES: Record<string, string[]> = {
+  valley_low_risk: ['Karbi Anglong', 'Doyyang', 'Dimapur', 'Guwahati'],
+  nh2_mountain_direct: ['Kohima', 'Mao Pass', 'Imphal'],
+  southern_bypass: ['Halflong', 'Silchar', 'Shillong', 'Imphal'],
+  wokha_ridge: ['Wokha', 'Mokokchung', 'Dimapur'],
+};
+
 export function evaluateCorridorFeatures(
   template: CorridorTemplate,
   request: TripRequest,
@@ -58,12 +65,26 @@ export function evaluateCorridorFeatures(
     activeIncidentCount += linkedIncidents.length;
   }
 
-  // 2. Weather rainfall impact (Open-Meteo or simulated wet conditions)
+  // 2. Sample weather along this specific corridor's geographic stations
   let rainfallMmPerHour = 6.5; // baseline moderate precipitation in season
   if (context.weatherData) {
-    const vals = Object.values(context.weatherData);
-    if (vals.length > 0) {
-      rainfallMmPerHour = Math.round(vals.reduce((acc, w) => acc + (w.precipitationMm || 0), 0) / vals.length);
+    const nodes = CORRIDOR_WEATHER_NODES[template.corridorKey] || ['Guwahati', 'Imphal'];
+    let maxRain = 0;
+    let found = false;
+    for (const node of nodes) {
+      const snap = context.weatherData[node];
+      if (snap && typeof snap.precipitationMm === 'number') {
+        maxRain = Math.max(maxRain, snap.precipitationMm);
+        found = true;
+      }
+    }
+    if (found) {
+      rainfallMmPerHour = Math.round(maxRain * 10) / 10;
+    } else {
+      const vals = Object.values(context.weatherData);
+      if (vals.length > 0) {
+        rainfallMmPerHour = Math.round(vals.reduce((acc, w) => acc + (w.precipitationMm || 0), 0) / vals.length);
+      }
     }
   }
 
@@ -75,10 +96,10 @@ export function evaluateCorridorFeatures(
   if (vType.includes('heavy') || vType.includes('10-wheeler') || vType.includes('multi-axle')) {
     if (template.corridorKey === 'wokha_ridge') {
       vehicleSuitability = 'restricted';
-      vehicleRiskPenalty = 18;
+      vehicleRiskPenalty = 8;
     } else if (template.corridorKey === 'nh2_mountain_direct') {
       vehicleSuitability = 'penalized';
-      vehicleRiskPenalty = 12;
+      vehicleRiskPenalty = 6;
     } else {
       vehicleSuitability = 'optimal';
       vehicleRiskPenalty = 0;
@@ -86,7 +107,7 @@ export function evaluateCorridorFeatures(
   } else if (vType.includes('light') || vType.includes('van') || vType.includes('mini')) {
     if (template.corridorKey === 'wokha_ridge') {
       vehicleSuitability = 'optimal';
-      vehicleRiskPenalty = -4; // agility bonus
+      vehicleRiskPenalty = 0;
     } else {
       vehicleSuitability = 'acceptable';
       vehicleRiskPenalty = 0;
@@ -94,7 +115,7 @@ export function evaluateCorridorFeatures(
   } else if (vType.includes('refrigerated') || vType.includes('reefer') || request.constraints.requireColdChain) {
     if (template.corridorKey === 'wokha_ridge' || template.corridorKey === 'nh2_mountain_direct') {
       vehicleSuitability = 'penalized';
-      vehicleRiskPenalty = 8;
+      vehicleRiskPenalty = 4;
     } else {
       vehicleSuitability = 'optimal';
       vehicleRiskPenalty = 0;
@@ -137,13 +158,14 @@ export function evaluateCorridorFeatures(
       break;
   }
 
-  // Component risk breakdown
-  const terrainComponent = Math.round((template.baseSlopeDegrees / 30) * 25);
-  const weatherComponent = Math.min(25, Math.round(rainfallMmPerHour * 1.5));
-  const historicalComponent = Math.min(20, template.historicalDisruptionsCount * 2.8);
-  const incidentComponent = activeBlockedCount > 0 ? 50 : activeIncidentCount * 12;
-  const vehicleComponent = Math.max(0, vehicleRiskPenalty);
-  const cargoComponent = Math.round(cargoVulnerabilityScore * 0.4);
+  // Component risk breakdown (mathematically capped and scaled to 100)
+  // Max weights: weather=35, terrain=25, historical=20, incidents=30, vehicle+cargo=15
+  const terrainComponent = Math.min(25, Math.round((template.baseSlopeDegrees / 30) * 25));
+  const weatherComponent = Math.min(35, Math.round((rainfallMmPerHour / 50) * 35));
+  const historicalComponent = Math.min(20, Math.round(template.historicalDisruptionsCount * 2));
+  const incidentComponent = activeBlockedCount > 0 ? 30 : Math.min(25, activeIncidentCount * 8);
+  const vehicleComponent = Math.min(10, Math.max(0, vehicleRiskPenalty));
+  const cargoComponent = Math.min(5, Math.max(1, Math.round((cargoVulnerabilityScore / 35) * 5)));
 
   const features: RouteFeatureBreakdown = {
     terrainSlopeDegrees: template.baseSlopeDegrees,
@@ -157,7 +179,7 @@ export function evaluateCorridorFeatures(
     riskComponents: {
       terrain: terrainComponent,
       weather: weatherComponent,
-      historical: Math.round(historicalComponent),
+      historical: historicalComponent,
       incidents: incidentComponent,
       vehicle: vehicleComponent,
       cargo: cargoComponent,
@@ -176,7 +198,7 @@ export function evaluateCorridorFeatures(
 export function computeRiskScore(
   features: RouteFeatureBreakdown,
   isBlocked: boolean,
-  baseRisk: number
+  _baseRisk?: number
 ): { riskScore: number; riskLevel: RiskLevel } {
   if (isBlocked) {
     return { riskScore: 98, riskLevel: 'blocked' };
@@ -184,12 +206,10 @@ export function computeRiskScore(
 
   const { terrain, weather, historical, incidents, vehicle, cargo } = features.riskComponents;
   const rawSum = terrain + weather + historical + incidents + vehicle + cargo;
-  // Blend base risk with dynamic components
-  const blended = Math.round(baseRisk * 0.35 + rawSum * 0.65);
-  const clamped = Math.min(92, Math.max(12, blended));
+  const clamped = Math.min(95, Math.max(8, rawSum));
 
   let riskLevel: RiskLevel = 'low';
-  if (clamped >= 75) riskLevel = 'high';
+  if (clamped >= 66) riskLevel = 'high';
   else if (clamped >= 35) riskLevel = 'moderate';
   else riskLevel = 'low';
 

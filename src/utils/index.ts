@@ -116,13 +116,18 @@ export function getVehicleStatusLabel(status: VehicleStatus): string {
 
 export function getIncidentTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    landslide: 'Landslide',
-    rockfall: 'Rockfall',
-    flood: 'Flooding',
-    road_washout: 'Road Washout',
-    bridge_damage: 'Bridge Damage',
-    tree_fall: 'Tree Fall',
-    fog: 'Dense Fog',
+    landslide: 'Landslide / Mudslip',
+    flood: 'Flood / Waterlogging',
+    rockfall: 'Rockfall / Debris',
+    road_washout: 'Road Washout / Erosion',
+    bridge_damage: 'Bridge Structural Damage',
+    tree_fall: 'Fallen Tree / Powerline',
+    vehicle_accident: 'Vehicle Accident / Obstruction',
+    severe_weather: 'Severe Weather / Dense Fog',
+    road_closure: 'Administrative Road Closure',
+    pothole_surface: 'Severe Pothole / Surface Damage',
+    fire_smoke: 'Forest Fire / Smoke Obstruction',
+    fog: 'Dense Mountain Fog',
     other: 'Other Hazard',
   };
   return labels[type] ?? type;
