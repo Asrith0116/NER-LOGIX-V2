@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import type { UserRole, NetworkStatus, Route } from '@/types';
+import { checkBackendHealth, BackendHealthInfo } from '@/services/api/backendHealthService';
+
+export type BackendConnectionStatus = 'connected' | 'disconnected' | 'checking';
 
 interface AppState {
   role: UserRole;
@@ -12,6 +15,8 @@ interface AppState {
   isJourneyActive: boolean;
   pendingIncidentsCount: number;
   selectedDriverVehicleId: string;
+  backendStatus: BackendConnectionStatus;
+  backendInfo: BackendHealthInfo | null;
   
   setRole: (role: UserRole) => void;
   setNetworkStatus: (status: NetworkStatus) => void;
@@ -20,6 +25,7 @@ interface AppState {
   setSelectedCustomRoute: (route: Route | null) => void;
   setPendingIncidentsCount: (count: number) => void;
   setSelectedDriverVehicleId: (id: string) => void;
+  checkBackendConnection: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -33,6 +39,8 @@ export const useAppStore = create<AppState>((set) => ({
   isJourneyActive: false,
   pendingIncidentsCount: 0,
   selectedDriverVehicleId: 'AS-01-J-4422',
+  backendStatus: 'checking',
+  backendInfo: null,
   
   setRole: (role) => set({ role }),
   setNetworkStatus: (networkStatus) => set({ networkStatus }),
@@ -41,4 +49,25 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedCustomRoute: (selectedCustomRoute) => set({ selectedCustomRoute }),
   setPendingIncidentsCount: (count) => set({ pendingIncidentsCount: count }),
   setSelectedDriverVehicleId: (selectedDriverVehicleId) => set({ selectedDriverVehicleId }),
+  checkBackendConnection: async () => {
+    set({ backendStatus: 'checking' });
+    try {
+      const { connected, data } = await checkBackendHealth(2500);
+      set({
+        backendStatus: connected ? 'connected' : 'disconnected',
+        backendInfo: data,
+      });
+    } catch {
+      set({
+        backendStatus: 'disconnected',
+        backendInfo: null,
+      });
+    }
+  },
 }));
+
+// Run initial non-blocking backend health probe on startup in browser environment
+if (typeof window !== 'undefined') {
+  useAppStore.getState().checkBackendConnection();
+}
+

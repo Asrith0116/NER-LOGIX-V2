@@ -54,7 +54,16 @@ interface TopBarProps {
 }
 
 export function TopBar({ className }: TopBarProps) {
-  const { role, setRole, networkStatus, setNetworkStatus, toggleSidebar, selectedDriverVehicleId } = useAppStore();
+  const {
+    role,
+    setRole,
+    networkStatus,
+    setNetworkStatus,
+    toggleSidebar,
+    selectedDriverVehicleId,
+    backendStatus,
+    checkBackendConnection,
+  } = useAppStore();
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
   const currentDriverVehicle =
     activeVehicles.find((v) => v.id === selectedDriverVehicleId) ||
@@ -292,6 +301,38 @@ export function TopBar({ className }: TopBarProps) {
             <span>{affectedCount} Disruption Impact{affectedCount > 1 ? 's' : ''}</span>
           </div>
         )}
+
+        {/* Backend Connectivity Status (Subtle) */}
+        <button
+          onClick={() => checkBackendConnection()}
+          className={cn(
+            'hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium border transition-all cursor-pointer shadow-2xs',
+            backendStatus === 'connected'
+              ? 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]'
+              : backendStatus === 'checking'
+              ? 'bg-[#fffbeb] text-[#92400e] border-[#fde68a]'
+              : 'bg-[#fafaf9] text-[#52525b] border-[#e4e4e7]'
+          )}
+          title="FastAPI Backend Status (Click to test connectivity)"
+        >
+          <span
+            className={cn(
+              'w-1.5 h-1.5 rounded-full shrink-0',
+              backendStatus === 'connected'
+                ? 'bg-[#16a34a] animate-pulse'
+                : backendStatus === 'checking'
+                ? 'bg-[#d97706] animate-spin'
+                : 'bg-[#a1a1aa]'
+            )}
+          />
+          <span>
+            {backendStatus === 'connected'
+              ? 'Backend: Connected'
+              : backendStatus === 'checking'
+              ? 'Probing API...'
+              : 'Local Engine (Active)'}
+          </span>
+        </button>
 
         {/* Network Toggle */}
         <AnimatePresence mode="wait">
