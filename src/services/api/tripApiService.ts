@@ -13,6 +13,13 @@ export interface BackendTripResponse {
   provider: string;
 }
 
+export interface BackendComputeRoutingResponse {
+  provider_status: 'google_live' | 'fallback_local' | 'error';
+  candidates_count: number;
+  routes: Route[];
+  message: string;
+}
+
 export async function requestBackendTripPlan(
   tripRequest: TripRequest
 ): Promise<ApiResponse<BackendTripResponse>> {
@@ -22,3 +29,24 @@ export async function requestBackendTripPlan(
     timeoutMs: 4000,
   });
 }
+
+export async function computeBackendRouting(
+  origin: { lat: number; lng: number; name: string },
+  destination: { lat: number; lng: number; name: string },
+  vehicleType: string = '10-wheeler',
+  cargoCategory: string = 'general_cargo',
+  priority: string = 'standard'
+): Promise<ApiResponse<BackendComputeRoutingResponse>> {
+  return apiRequest<BackendComputeRoutingResponse>('/api/v1/trips/compute', {
+    method: 'POST',
+    body: JSON.stringify({
+      origin: { name: origin.name, short_name: origin.name, lat: origin.lat, lng: origin.lng },
+      destination: { name: destination.name, short_name: destination.name, lat: destination.lat, lng: destination.lng },
+      vehicle_type: vehicleType,
+      cargo_category: cargoCategory,
+      priority,
+    }),
+    timeoutMs: 4000,
+  });
+}
+

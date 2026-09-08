@@ -62,3 +62,20 @@ class TripResponse(BaseModel):
     routes: List[RouteSchema]
     generated_at: str
     provider: str = "FastAPI Trip Engine (Foundation)"
+
+
+class ComputeRoutingRequest(BaseModel):
+    origin: LocationSchema
+    destination: LocationSchema
+    vehicle_type: Optional[str] = "10-wheeler"
+    cargo_category: Optional[str] = "general_cargo"
+    cargo_sensitivity: Optional[str] = "medium"
+    priority: Optional[str] = "standard"
+
+
+class ComputeRoutingResponse(BaseModel):
+    provider_status: str = Field(description="google_live, fallback_local, or error")
+    candidates_count: int
+    routes: List[RouteSchema]
+    message: str
+

@@ -24,6 +24,8 @@ import {
   Clock,
   Truck,
   Thermometer,
+  Warehouse,
+  ShieldAlert,
 } from 'lucide-react';
 import { fetchLiveWeather } from '@/services/weatherService';
 import { calculateTripCandidates } from '@/services/routing/tripIntelligence';
@@ -692,40 +694,62 @@ export function TripPlanner() {
 
           {/* Action Dock */}
           <div className="p-4 border-t border-[#e4e4e3] bg-white space-y-2 sticky bottom-0 z-10 shadow-lg">
-            {prepState === 'idle' && (
-              <Button
-                variant="primary"
-                className="w-full font-semibold"
-                onClick={handleConfirm}
-                disabled={!selectedRouteId || selectedCandidate?.isBlocked}
-                iconLeft={<ShieldCheck className="w-4 h-4" />}
-              >
-                {selectedCandidate?.isBlocked
-                  ? 'Selected Corridor Is Blocked'
-                  : 'Prepare & Cache Offline Bundle'}
-              </Button>
-            )}
+            {candidateRoutes.length > 0 && candidateRoutes.every((r) => r.isBlocked) ? (
+              <div className="p-3 bg-[#fef2f2] border border-[#fca5a5] rounded-xl space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#dc2626]">
+                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                  <span>NO SAFE CORRIDOR AVAILABLE (All Corridors Blocked)</span>
+                </div>
+                <p className="text-[11px] text-[#991b1b]">
+                  Verified disaster incidents affect all evaluated routes between {originLocation.shortName} and {destLocation.shortName}.
+                </p>
+                <Button
+                  variant="primary"
+                  className="w-full bg-[#ea580c] hover:bg-[#c2410c] border-[#ea580c] text-xs font-bold"
+                  onClick={() => navigate('/contractor/godowns')}
+                  iconLeft={<Warehouse className="w-4 h-4" />}
+                >
+                  All Corridors Blocked — Emergency Relief Godown Diversion
+                </Button>
+              </div>
+            ) : (
+              <>
+                {prepState === 'idle' && (
+                  <Button
+                    variant="primary"
+                    className="w-full font-semibold"
+                    onClick={handleConfirm}
+                    disabled={!selectedRouteId || selectedCandidate?.isBlocked}
+                    iconLeft={<ShieldCheck className="w-4 h-4" />}
+                  >
+                    {selectedCandidate?.isBlocked
+                      ? 'Selected Corridor Is Blocked'
+                      : 'Prepare & Cache Offline Bundle'}
+                  </Button>
+                )}
 
-            {(prepState === 'preparing' || prepState === 'saving') && (
-              <Button
-                variant="outline"
-                className="w-full font-semibold"
-                disabled
-                iconLeft={<Loader2 className="w-4 h-4 animate-spin text-[#2563eb]" />}
-              >
-                Building Offline Bundle...
-              </Button>
-            )}
+                {(prepState === 'preparing' || prepState === 'saving') && (
+                  <Button
+                    variant="outline"
+                    className="w-full font-semibold"
+                    disabled
+                    iconLeft={<Loader2 className="w-4 h-4 animate-spin text-[#2563eb]" />}
+                  >
+                    Building Offline Bundle...
+                  </Button>
+                )}
 
-            {prepState === 'ready' && (
-              <Button
-                variant="primary"
-                className="w-full bg-[#16a34a] hover:bg-[#15803d] border-[#16a34a] font-semibold shadow-sm"
-                onClick={handleConfirm}
-                iconLeft={<Navigation className="w-4 h-4" />}
-              >
-                Start Journey & Navigate
-              </Button>
+                {prepState === 'ready' && (
+                  <Button
+                    variant="primary"
+                    className="w-full bg-[#16a34a] hover:bg-[#15803d] border-[#16a34a] font-semibold shadow-sm"
+                    onClick={handleConfirm}
+                    iconLeft={<Navigation className="w-4 h-4" />}
+                  >
+                    Start Journey & Navigate
+                  </Button>
+                )}
+              </>
             )}
 
             <p className="text-[10px] text-[#8a8a87] text-center">
@@ -741,6 +765,10 @@ export function TripPlanner() {
             zoom={7}
             routes={candidateRoutes}
             selectedRouteId={selectedRouteId}
+            onSelectRoute={(id) => {
+              setUserSelectedRouteId(id);
+              setPrepState('idle');
+            }}
             incidents={activeIncidents}
             originMarker={{
               latlng: [originLocation.lat, originLocation.lng],
