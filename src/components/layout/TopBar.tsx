@@ -38,7 +38,7 @@ function NetworkIndicator({
     <button
       onClick={onToggle}
       className={cn(
-        'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border transition-all cursor-pointer shadow-xs',
+        'flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shadow-2xs',
         cfg.color
       )}
       title="Toggle Network Simulation (Online / Offline IDB cache)"
@@ -60,7 +60,6 @@ export function TopBar({ className }: TopBarProps) {
   const setNetworkStatus = useAppStore((state) => state.setNetworkStatus);
   const toggleSidebar = useAppStore((state) => state.toggleSidebar);
   const selectedDriverVehicleId = useAppStore((state) => state.selectedDriverVehicleId);
-  const vehicleTripContexts = useAppStore((state) => state.vehicleTripContexts);
   const backendStatus = useAppStore((state) => state.backendStatus);
   const checkBackendConnection = useAppStore((state) => state.checkBackendConnection);
 
@@ -70,7 +69,6 @@ export function TopBar({ className }: TopBarProps) {
     activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
     activeVehicles[0];
 
-  const currentTripContext = currentDriverVehicle ? vehicleTripContexts[currentDriverVehicle.id] : undefined;
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -96,12 +94,6 @@ export function TopBar({ className }: TopBarProps) {
     }
   }, [menuOpen]);
 
-  const driverSubtitle = currentDriverVehicle
-    ? currentTripContext
-      ? `${currentDriverVehicle.driverName} · ${currentDriverVehicle.id} (${currentTripContext.originName} → ${currentTripContext.destinationName})`
-      : `${currentDriverVehicle.driverName} · ${currentDriverVehicle.id} (${currentDriverVehicle.origin || 'Guwahati'} → ${currentDriverVehicle.destination || 'Imphal'})`
-    : 'Arjun Baruah · AS-01-J-4422';
-
   const roleConfigs: Record<UserRole, {
     title: string;
     roleName: string;
@@ -112,36 +104,36 @@ export function TopBar({ className }: TopBarProps) {
     path: string;
   }> = {
     driver: {
-      title: 'Driver Journey Cockpit',
+      title: 'Driver Cockpit',
       roleName: 'Driver / Field Operator',
-      subtitle: driverSubtitle,
+      subtitle: currentDriverVehicle ? `${currentDriverVehicle.id} · ${currentDriverVehicle.driverName}` : 'AS-01-J-4422',
       description: 'Journey safety & field reporting',
       icon: <Truck className="w-3.5 h-3.5 text-[#2563eb]" />,
       badgeBg: 'bg-[#eff6ff] text-[#1e40af] border-[#bfdbfe]',
       path: '/driver',
     },
     dispatcher: {
-      title: 'Operations Control Center',
+      title: 'Operations Control',
       roleName: 'Fleet Dispatcher',
-      subtitle: `${activeVehicles.length} Active Transports · Regional Grid`,
+      subtitle: `${activeVehicles.length} Transports Active`,
       description: 'Fleet monitoring & response',
       icon: <Activity className="w-3.5 h-3.5 text-[#c2410c]" />,
       badgeBg: 'bg-[#fff7ed] text-[#9a3412] border-[#fed7aa]',
       path: '/dispatcher',
     },
     sdma: {
-      title: 'Regional Accessibility & Disaster Intel',
+      title: 'SDMA Authority',
       roleName: 'SDMA / Govt Authority',
-      subtitle: 'State Disaster Management Authority',
+      subtitle: 'Disaster Management Authority',
       description: 'Verification & road status',
       icon: <ShieldCheck className="w-3.5 h-3.5 text-[#16a34a]" />,
       badgeBg: 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]',
       path: '/sdma',
     },
     contractor: {
-      title: 'Emergency Supply Operations',
+      title: 'Supply Operations',
       roleName: 'Contractor / Supply Operator',
-      subtitle: 'Regional Buffer & Godown Network',
+      subtitle: 'Godown & Relief Buffer',
       description: 'Emergency supply operations',
       icon: <Warehouse className="w-3.5 h-3.5 text-[#86198f]" />,
       badgeBg: 'bg-[#fdf4ff] text-[#86198f] border-[#f5d0fe]',
@@ -211,24 +203,26 @@ export function TopBar({ className }: TopBarProps) {
       </div>
 
       {/* Role Context & Secondary Workspace Switcher */}
-      <div className="relative" ref={menuRef}>
+      <div className="relative shrink-0" ref={menuRef}>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           className={cn(
-            'flex items-center gap-2 px-2.5 py-1 rounded-lg border text-xs font-semibold transition-all cursor-pointer',
+            'flex items-center gap-2 h-8 px-2.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shadow-2xs',
             currentWorkspace.badgeBg,
-            'hover:opacity-90 hover:shadow-xs'
+            'hover:opacity-90'
           )}
           title="Switch operational workspace"
         >
           {currentWorkspace.icon}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
             <span className="font-semibold">{currentWorkspace.title}</span>
-            <span className="hidden md:inline font-normal opacity-70">· {currentWorkspace.subtitle}</span>
+            <span className="hidden md:inline font-normal opacity-75 truncate max-w-[140px] lg:max-w-[200px]">
+              · {currentWorkspace.subtitle}
+            </span>
           </div>
-          <ChevronDown className={cn('w-3.5 h-3.5 opacity-60 transition-transform ml-0.5', menuOpen && 'rotate-180')} />
+          <ChevronDown className={cn('w-3.5 h-3.5 opacity-60 transition-transform ml-0.5 shrink-0', menuOpen && 'rotate-180')} />
         </button>
 
         {/* Floating Switcher Dropdown */}
@@ -302,7 +296,7 @@ export function TopBar({ className }: TopBarProps) {
       {/* Global Status Bar */}
       <div className="flex items-center gap-2.5">
         {affectedCount > 0 && (
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#fef2f2] border border-[#fecaca] text-[#dc2626] text-xs font-semibold">
+          <div className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-[#fef2f2] border border-[#fecaca] text-[#dc2626] text-xs font-semibold whitespace-nowrap shadow-2xs">
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>{affectedCount} Disruption Impact{affectedCount > 1 ? 's' : ''}</span>
           </div>
@@ -312,7 +306,7 @@ export function TopBar({ className }: TopBarProps) {
         <button
           onClick={() => checkBackendConnection()}
           className={cn(
-            'hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium border transition-all cursor-pointer shadow-2xs',
+            'hidden lg:flex items-center gap-1.5 h-8 px-2.5 rounded-md text-[11px] font-medium border transition-all cursor-pointer shadow-2xs whitespace-nowrap',
             backendStatus === 'connected'
               ? 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]'
               : backendStatus === 'checking'

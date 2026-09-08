@@ -108,7 +108,7 @@ export function DriverVehicleSelector({
         aria-expanded={isOpen}
         aria-label={`Select Driver Vehicle. Currently selected: ${currentVehicle.id} driven by ${currentVehicle.driverName}`}
         className={cn(
-          'flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs transition-all cursor-pointer shadow-2xs select-none',
+          'flex items-center gap-2 h-8 px-2.5 rounded-lg border text-xs transition-all cursor-pointer shadow-2xs select-none whitespace-nowrap',
           isCurrentAffected
             ? 'bg-[#fef2f2] border-[#fca5a5] text-[#991b1b] hover:bg-[#fee2e2]'
             : 'bg-white border-[#e4e4e3] text-[#1a1a19] hover:bg-[#fafaf9] hover:border-[#d4d4d2]'
