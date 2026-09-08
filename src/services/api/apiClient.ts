@@ -19,8 +19,13 @@ export interface RequestOptions extends RequestInit {
 const DEFAULT_TIMEOUT_MS = 3000;
 
 export const getApiBaseUrl = (): string => {
-  // Use VITE_API_BASE_URL if configured, otherwise default to local FastAPI port 8000
-  return (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8000';
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL as string;
+  }
+  if (typeof window !== 'undefined') {
+    return '';
+  }
+  return 'http://localhost:3000';
 };
 
 export async function apiRequest<T>(

@@ -31,6 +31,16 @@ import {
 } from '@/utils/idb';
 import { correlateIncidents } from '@/services/incidentCorrelation';
 import { getBaselineRegionalWeather, applySpikeToRegionalWeather } from '@/services/weatherService';
+import {
+  fetchOperationalSnapshot,
+  submitOperationalIncident,
+  verifyOperationalIncident,
+  updateOperationalRoadSegment,
+  updateOperationalVehicle,
+  resetBackendOperationalState,
+  checkBackendHealth,
+  type BackendHealthInfo,
+} from '@/services/api';
 import { useAppStore } from './appStore';
 
 function incidentBlocksRoad(incident: Incident): boolean {
@@ -371,6 +381,9 @@ export interface NetworkState {
   pickupRequests: EmergencyPickupRequest[];
   weatherSpikeActive: boolean;
   weatherData: Record<string, EnvironmentalSnapshot>;
+  backendSyncStatus: 'connected' | 'local_fallback' | 'offline';
+  backendHealth: BackendHealthInfo | null;
+  lastBackendSyncAt: string | null;
 
   // Actions
   addIncident: (incident: Incident) => void;
@@ -390,6 +403,7 @@ export interface NetworkState {
   updateWeatherData: (data: Record<string, EnvironmentalSnapshot>) => void;
   resetToCleanState: () => Promise<void>;
   syncFromIndexedDB: () => Promise<void>;
+  syncWithBackend: () => Promise<void>;
 }
 
 export const useNetworkStore = create<NetworkState>((set, get) => ({
@@ -401,6 +415,9 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
   pickupRequests: [],
   weatherSpikeActive: false,
   weatherData: getBaselineRegionalWeather(false),
+  backendSyncStatus: 'offline',
+  backendHealth: null,
+  lastBackendSyncAt: null,
 
   setWeatherSpike: (active: boolean) => {
     set((state) => {
@@ -444,6 +461,14 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       return {
         activeIncidents: correlated,
       };
+    });
+
+    // Asynchronously submit to authoritative backend API and IndexedDB
+    submitOperationalIncident(incident).catch((err) => {
+      console.warn('[OperationalBackend] Failed to submit incident to backend:', err);
+    });
+    saveIncident(incident).catch((err) => {
+      console.warn('[IndexedDB] Failed to save incident locally:', err);
     });
   },
 
@@ -566,6 +591,11 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
     } catch (err) {
       console.warn('Could not persist verified incident to IndexedDB:', err);
     }
+
+    // Authoritative backend verification sync
+    verifyOperationalIncident(id, approved, verifiedBy).catch((err) => {
+      console.warn('[OperationalBackend] Failed to verify incident on backend:', err);
+    });
   },
 
   updateRoadSegment: (id: string, patch: Partial<RoadSegment>) => {
@@ -581,6 +611,10 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       );
       return { roadSegments, activeVehicles };
     });
+
+    updateOperationalRoadSegment(id, patch).catch((err) => {
+      console.warn('[OperationalBackend] Failed to patch road segment on backend:', err);
+    });
   },
 
   setVehicleStatus: (vehicleId: string, patch: Partial<Vehicle>) => {
@@ -589,6 +623,10 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
         v.id === vehicleId ? { ...v, ...patch } : v
       ),
     }));
+
+    updateOperationalVehicle(vehicleId, patch).catch((err) => {
+      console.warn('[OperationalBackend] Failed to patch vehicle status on backend:', err);
+    });
   },
 
   addDisruption: (disruption: Disruption) => {
@@ -875,6 +913,12 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
 
   resetToCleanState: async () => {
     try {
+      await resetBackendOperationalState();
+    } catch (err) {
+      console.warn('[OperationalBackend] Failed to reset backend state:', err);
+    }
+
+    try {
       await clearAllStoredData();
     } catch (err) {
       console.warn('Failed to clear IndexedDB on reset:', err);
@@ -913,6 +957,7 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       pickupRequests: [],
       weatherSpikeActive: false,
       weatherData: getBaselineRegionalWeather(false),
+      lastBackendSyncAt: new Date().toISOString(),
     });
 
     useAppStore.getState().setSelectedDriverVehicleId('AS-01-J-4422');
@@ -1021,9 +1066,77 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       console.warn('Error syncing networkStore from IndexedDB:', err);
     }
   },
+
+  syncWithBackend: async () => {
+    try {
+      const healthRes = await checkBackendHealth(2500);
+      if (healthRes.connected && healthRes.data) {
+        const snapshotRes = await fetchOperationalSnapshot();
+        if (snapshotRes.ok && snapshotRes.data?.data) {
+          const snapshot = snapshotRes.data.data;
+          
+          set((state) => {
+            const rawIncidents = snapshot.incidents && snapshot.incidents.length > 0
+              ? snapshot.incidents
+              : state.activeIncidents;
+            const correlatedIncidents = correlateIncidents(rawIncidents);
+
+            const roadSegments = snapshot.roads && snapshot.roads.length > 0
+              ? snapshot.roads
+              : state.roadSegments;
+
+            const disruptions = snapshot.disruptions || state.disruptions;
+
+            const computedFleet = computeFleetImpact(
+              snapshot.vehicles && snapshot.vehicles.length > 0 ? snapshot.vehicles : state.activeVehicles,
+              roadSegments,
+              disruptions,
+              correlatedIncidents
+            );
+            const activeVehicles = mergeRerouteState(computedFleet, state.activeVehicles);
+
+            const pickupRequests = snapshot.emergencyPickups && snapshot.emergencyPickups.length > 0
+              ? snapshot.emergencyPickups
+              : state.pickupRequests;
+
+            return {
+              activeIncidents: correlatedIncidents,
+              roadSegments,
+              disruptions,
+              activeVehicles,
+              pickupRequests,
+              backendSyncStatus: 'connected',
+              backendHealth: healthRes.data,
+              lastBackendSyncAt: new Date().toISOString(),
+            };
+          });
+
+          // Also mirror to IndexedDB for offline resilience
+          if (snapshot.incidents) {
+            for (const inc of snapshot.incidents) {
+              await saveIncident(inc).catch(() => {});
+            }
+          }
+          if (snapshot.disruptions) {
+            for (const dis of snapshot.disruptions) {
+              await saveDisruption(dis).catch(() => {});
+            }
+          }
+          return;
+        }
+      }
+      // If health or snapshot check failed, fall back gracefully to local IndexedDB
+      set({ backendSyncStatus: 'local_fallback' });
+      await get().syncFromIndexedDB();
+    } catch (err) {
+      console.warn('[OperationalBackend] Backend synchronization failed, using IndexedDB fallback:', err);
+      set({ backendSyncStatus: 'local_fallback' });
+      await get().syncFromIndexedDB();
+    }
+  },
 }));
 
 // Automatically trigger sync on module load in browser
 if (typeof window !== 'undefined') {
-  useNetworkStore.getState().syncFromIndexedDB();
+  useNetworkStore.getState().syncWithBackend();
 }

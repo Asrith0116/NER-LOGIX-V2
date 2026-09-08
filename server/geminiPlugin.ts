@@ -1,6 +1,7 @@
 import type { Plugin } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { GoogleGenAI, Type } from '@google/genai';
+import { handleOperationsRequest } from './routes/operationsRouter.ts';
 
 interface IncidentAnalysisPayload {
   typed_description?: string;
@@ -359,15 +360,21 @@ export function geminiAiServerPlugin(): Plugin {
         if (req.method === 'OPTIONS') {
           res.writeHead(204, {
             'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Accept',
+            'Access-Control-Allow-Methods': 'POST, GET, PATCH, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization, X-Requested-With',
           });
           res.end();
           return;
         }
 
-        // Health endpoint
-        if (req.method === 'GET' && (url === '/api/v1/ai/health' || url === '/api/health')) {
+        // 1. Shared Operational Backend Routes
+        const isHandled = await handleOperationsRequest(req, res);
+        if (isHandled) {
+          return;
+        }
+
+        // 2. Gemini AI Health endpoint
+        if (req.method === 'GET' && url === '/api/v1/ai/health') {
           const hasKey = Boolean(process.env.GEMINI_API_KEY);
           sendJsonResponse(res, 200, {
             status: 'ok',
@@ -379,7 +386,7 @@ export function geminiAiServerPlugin(): Plugin {
           return;
         }
 
-        // Incident Analysis endpoint
+        // 3. Incident Analysis endpoint (Step 7 Live Gemini)
         if (
           req.method === 'POST' &&
           (url === '/api/v1/ai/analyze-incident' || url === '/api/analyze-incident')
@@ -398,14 +405,19 @@ export function geminiAiServerPlugin(): Plugin {
         if (req.method === 'OPTIONS') {
           res.writeHead(204, {
             'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Accept',
+            'Access-Control-Allow-Methods': 'POST, GET, PATCH, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization, X-Requested-With',
           });
           res.end();
           return;
         }
 
-        if (req.method === 'GET' && (url === '/api/v1/ai/health' || url === '/api/health')) {
+        const isHandled = await handleOperationsRequest(req, res);
+        if (isHandled) {
+          return;
+        }
+
+        if (req.method === 'GET' && url === '/api/v1/ai/health') {
           sendJsonResponse(res, 200, {
             status: 'ok',
             service: 'ner-logix-gemini-server',

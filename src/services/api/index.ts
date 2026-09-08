@@ -10,3 +10,4 @@ export * from './incidentApiService';
 export * from './roadApiService';
 export * from './weatherApiService';
 export * from './emergencyApiService';
+export * from './operationalApiService';
