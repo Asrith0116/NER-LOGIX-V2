@@ -22,7 +22,9 @@ export class GoogleRoutesProvider implements RouteProvider {
         { lat: request.destination.lat, lng: request.destination.lng, name: request.destination.name },
         request.vehicleType,
         request.cargoCategory,
-        request.priority
+        request.priority,
+        request.cargoSensitivity,
+        request.constraints
       );
 
       if (response.data && response.data.provider_status === 'google_live') {

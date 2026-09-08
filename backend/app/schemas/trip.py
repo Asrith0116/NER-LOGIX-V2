@@ -71,6 +71,7 @@ class ComputeRoutingRequest(BaseModel):
     cargo_category: Optional[str] = "general_cargo"
     cargo_sensitivity: Optional[str] = "medium"
     priority: Optional[str] = "standard"
+    constraints: Optional[OperationalConstraintsSchema] = None
 
 
 class ComputeRoutingResponse(BaseModel):

@@ -35,7 +35,9 @@ export async function computeBackendRouting(
   destination: { lat: number; lng: number; name: string },
   vehicleType: string = '10-wheeler',
   cargoCategory: string = 'general_cargo',
-  priority: string = 'standard'
+  priority: string = 'standard',
+  cargoSensitivity: string = 'medium',
+  constraints?: any
 ): Promise<ApiResponse<BackendComputeRoutingResponse>> {
   return apiRequest<BackendComputeRoutingResponse>('/api/v1/trips/compute', {
     method: 'POST',
@@ -44,7 +46,9 @@ export async function computeBackendRouting(
       destination: { name: destination.name, short_name: destination.name, lat: destination.lat, lng: destination.lng },
       vehicle_type: vehicleType,
       cargo_category: cargoCategory,
+      cargo_sensitivity: cargoSensitivity,
       priority,
+      constraints,
     }),
     timeoutMs: 4000,
   });
