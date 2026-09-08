@@ -1,12 +1,24 @@
-import { Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { TopBar } from './TopBar';
 import { Sidebar } from './Sidebar';
 import { DemoSimulationBar } from '@/components/ui/DemoSimulationBar';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { useAppStore } from '@/store/appStore';
+import type { UserRole } from '@/types';
 
 export function AppShell() {
   const location = useLocation();
+  const role = useAppStore((state) => state.role);
+  const setRole = useAppStore((state) => state.setRole);
+
+  useEffect(() => {
+    const pathSegments = location.pathname.split('/');
+    const pathRole = pathSegments[1] as UserRole;
+    if (['driver', 'dispatcher', 'sdma', 'contractor'].includes(pathRole) && pathRole !== role) {
+      setRole(pathRole);
+    }
+  }, [location.pathname, role, setRole]);
 
   return (
     <div className="h-full flex flex-col bg-[#f8f8f7]">
