@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 
 export function DriverDashboard() {
-  const { isJourneyActive, selectedRouteId, networkStatus, selectedDriverVehicleId } = useAppStore();
+  const { isJourneyActive, selectedRouteId, networkStatus, selectedDriverVehicleId, vehicleTripContexts } = useAppStore();
 
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
   const activeIncidents = useNetworkStore((state) => state.activeIncidents);
@@ -50,13 +50,17 @@ export function DriverDashboard() {
     activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
     activeVehicles[0];
 
+  const driverTripCtx = driverVehicle ? vehicleTripContexts[driverVehicle.id] : undefined;
+
   const isDisrupted = Boolean(driverVehicle?.affectedByDisruptionId);
   const isRerouted = driverVehicle?.rerouteStatus === 'active';
   const hasNoAlternative = driverVehicle?.rerouteStatus === 'no_alternative';
   const isEmergencyPickup = driverVehicle?.status === 'emergency_pickup';
 
-  // Base route respecting vehicle's planned corridor
+  // Base route respecting committed trip context or vehicle's planned corridor
   const activeRoute =
+    driverTripCtx?.committedRoute ||
+    driverTripCtx?.selectedRoute ||
     (driverVehicle?.plannedRouteId
       ? Object.values(DEMO_ROUTES).find((r) => r.id === driverVehicle.plannedRouteId)
       : undefined) ||
@@ -69,17 +73,27 @@ export function DriverDashboard() {
     ? driverVehicle.etaMinutes
     : (driverVehicle?.etaMinutes || activeRoute.etaMinutes);
 
-  const originLocation = Object.values(LOCATIONS).find(
-    (l) =>
-      l.shortName.toLowerCase() === driverVehicle?.origin?.toLowerCase() ||
-      l.name.toLowerCase().includes(driverVehicle?.origin?.toLowerCase() || '')
-  ) || LOCATIONS.guwahati;
+  const locDict = LOCATIONS as Record<string, typeof LOCATIONS.guwahati>;
+  const originLocation = (driverTripCtx?.originKey && locDict[driverTripCtx.originKey])
+    ? locDict[driverTripCtx.originKey]
+    : Object.values(LOCATIONS).find(
+        (l) =>
+          l.shortName.toLowerCase() === driverVehicle?.origin?.toLowerCase() ||
+          l.name.toLowerCase().includes(driverVehicle?.origin?.toLowerCase() || '')
+      ) || LOCATIONS.guwahati;
 
-  const destLocation = Object.values(LOCATIONS).find(
-    (l) =>
-      l.shortName.toLowerCase() === driverVehicle?.destination?.toLowerCase() ||
-      l.name.toLowerCase().includes(driverVehicle?.destination?.toLowerCase() || '')
-  ) || LOCATIONS.imphal;
+  const destKey = driverTripCtx?.destKey || driverTripCtx?.destinationKey;
+  const destLocation = (destKey && locDict[destKey])
+    ? locDict[destKey]
+    : Object.values(LOCATIONS).find(
+        (l) =>
+          l.shortName.toLowerCase() === driverVehicle?.destination?.toLowerCase() ||
+          l.name.toLowerCase().includes(driverVehicle?.destination?.toLowerCase() || '')
+      ) || LOCATIONS.imphal;
+
+  const originDisplayName = driverTripCtx?.originName || driverVehicle?.origin || originLocation.shortName;
+  const destDisplayName = driverTripCtx?.destinationName || driverVehicle?.destination || destLocation.shortName;
+  const cargoDisplayName = driverTripCtx?.cargoType || driverTripCtx?.cargoCategory || driverVehicle?.cargoType || 'Essential Supplies';
 
   const handleStartReroute = () => {
     if (!driverVehicle) return;
@@ -110,7 +124,7 @@ export function DriverDashboard() {
               <DriverVehicleSelector id="cockpit-driver-vehicle-selector" />
             </div>
             <h1 className="text-base sm:text-lg font-bold text-[#1a1a19] tracking-tight mt-1">
-              {driverVehicle?.driverName} · {driverVehicle?.origin || 'Guwahati'} → {driverVehicle?.destination || 'Imphal'}
+              {driverVehicle?.driverName} · {originDisplayName} → {destDisplayName}
             </h1>
           </div>
 
@@ -442,7 +456,7 @@ export function DriverDashboard() {
             <div className="p-3 rounded-lg bg-[#f8f8f7] border border-[#e4e4e3] space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-[#8a8a87]">Consignment:</span>
-                <span className="font-semibold text-[#1a1a19]">{driverVehicle?.cargoType || DEMO_TRIP.cargo.type}</span>
+                <span className="font-semibold text-[#1a1a19]">{cargoDisplayName}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#8a8a87] flex items-center gap-1">

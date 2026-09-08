@@ -12,6 +12,7 @@ import { HazardReport } from '@/pages/driver/HazardReport';
 import { DispatcherOps } from '@/pages/dispatcher/DispatcherOps';
 import { DispatcherFleet } from '@/pages/dispatcher/DispatcherFleet';
 import { DispatcherIncidents } from '@/pages/dispatcher/DispatcherIncidents';
+import { DispatcherLogistics } from '@/pages/dispatcher/DispatcherLogistics';
 import { DispatcherMap } from '@/pages/dispatcher/DispatcherMap';
 
 // SDMA Pages
@@ -46,6 +47,7 @@ function App() {
           <Route path="/dispatcher" element={<DispatcherOps />} />
           <Route path="/dispatcher/fleet" element={<DispatcherFleet />} />
           <Route path="/dispatcher/incidents" element={<DispatcherIncidents />} />
+          <Route path="/dispatcher/logistics" element={<DispatcherLogistics />} />
           <Route path="/dispatcher/map" element={<DispatcherMap />} />
           
           {/* SDMA Routes */}

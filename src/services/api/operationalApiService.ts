@@ -6,6 +6,8 @@ import type {
   Disruption,
   EmergencyPickupRequest,
   Godown,
+  Shipment,
+  ShipmentImpactResult,
 } from '@/types';
 
 export interface OperationalSnapshot {
@@ -14,6 +16,8 @@ export interface OperationalSnapshot {
   vehicles: Vehicle[];
   disruptions: Disruption[];
   emergencyPickups: EmergencyPickupRequest[];
+  shipments?: Shipment[];
+  godowns?: Godown[];
   storageHealth: {
     type: string;
     location: string;
@@ -24,6 +28,8 @@ export interface OperationalSnapshot {
       vehicles: number;
       disruptions: number;
       emergencyRequests: number;
+      shipments?: number;
+      godowns?: number;
     };
   };
 }
@@ -165,5 +171,48 @@ export async function submitOperationalEmergencyRequest(
     method: 'POST',
     body: JSON.stringify(request),
     timeoutMs: 4000,
+  });
+}
+
+export async function approveOperationalEmergencyRequest(
+  requestId: string,
+  contractorName: string = 'North East Logistics Contractor'
+): Promise<ApiResponse<{ ok: boolean; request: EmergencyPickupRequest; godown: Godown; vehicle?: Vehicle; shipment?: Shipment }>> {
+  return apiRequest<{ ok: boolean; request: EmergencyPickupRequest; godown: Godown; vehicle?: Vehicle; shipment?: Shipment }>(
+    `/api/v1/operations/emergency-logistics/requests/${encodeURIComponent(requestId)}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ contractorName }),
+      timeoutMs: 4000,
+    }
+  );
+}
+
+export async function declineOperationalEmergencyRequest(
+  requestId: string,
+  declineReason?: string,
+  contractorName: string = 'North East Logistics Contractor'
+): Promise<ApiResponse<{ ok: boolean; request: EmergencyPickupRequest; alternativeGodown?: Godown }>> {
+  return apiRequest<{ ok: boolean; request: EmergencyPickupRequest; alternativeGodown?: Godown }>(
+    `/api/v1/operations/emergency-logistics/requests/${encodeURIComponent(requestId)}/decline`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ declineReason, contractorName }),
+      timeoutMs: 4000,
+    }
+  );
+}
+
+export async function fetchOperationalShipments(): Promise<ApiResponse<Shipment[]>> {
+  return apiRequest<Shipment[]>('/api/v1/operations/shipments', {
+    method: 'GET',
+    timeoutMs: 3000,
+  });
+}
+
+export async function fetchOperationalShipmentImpacts(): Promise<ApiResponse<ShipmentImpactResult>> {
+  return apiRequest<ShipmentImpactResult>('/api/v1/operations/shipment-impacts', {
+    method: 'GET',
+    timeoutMs: 3000,
   });
 }

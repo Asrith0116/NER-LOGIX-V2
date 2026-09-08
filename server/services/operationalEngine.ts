@@ -5,8 +5,16 @@ import type {
   Disruption,
   RiskLevel,
   VehicleStatus,
+  Shipment,
+  Godown,
+  EmergencyPickupRequest,
+  ShipmentImpactResult,
 } from '../../src/types/index.ts';
 import { opDb } from '../db/sqliteStorage.ts';
+import {
+  computeShipmentImpacts,
+  findSuitableGodownForShipment,
+} from '../../src/services/logisticsEngine.ts';
 
 export function incidentBlocksRoad(incident: Incident): boolean {
   return (
@@ -286,12 +294,51 @@ export class OperationalEngine {
       opDb.saveVehicle(v);
     }
 
+    // Recompute shipment impacts
+    this.syncShipmentImpacts();
+
     return {
       incident,
       affectedRoad,
       disruption,
       affectedVehicles,
     };
+  }
+
+  public syncShipmentImpacts(): ShipmentImpactResult {
+    const shipments = opDb.getAllShipments();
+    const vehicles = opDb.getAllVehicles();
+    const roads = opDb.getAllRoadSegments();
+    const disruptions = opDb.getAllDisruptions();
+    const incidents = opDb.getAllIncidents();
+    const pickups = opDb.getAllEmergencyPickups();
+
+    const result = computeShipmentImpacts(
+      shipments,
+      vehicles,
+      roads,
+      disruptions,
+      incidents,
+      pickups
+    );
+
+    for (const s of result.affectedShipments) {
+      opDb.saveShipment(s);
+    }
+    // Also save all updated shipments to maintain state
+    const allComputed = computeShipmentImpacts(shipments, vehicles, roads, disruptions, incidents, pickups);
+    // update all
+    const allShipmentsList = shipments.map((shp) => {
+      const match = allComputed.affectedShipments.find((a: Shipment) => a.id === shp.id);
+      if (match) return match;
+      // re-evaluate on-track shipment
+      return shp;
+    });
+    for (const shp of allShipmentsList) {
+      opDb.saveShipment(shp);
+    }
+
+    return result;
   }
 
   public getAllRoadSegments(): RoadSegment[] {
@@ -322,6 +369,7 @@ export class OperationalEngine {
     for (const v of recomputed) {
       opDb.saveVehicle(v);
     }
+    this.syncShipmentImpacts();
 
     return updated;
   }
@@ -347,6 +395,7 @@ export class OperationalEngine {
     };
 
     opDb.saveVehicle(updated);
+    this.syncShipmentImpacts();
     return updated;
   }
 
@@ -378,17 +427,197 @@ export class OperationalEngine {
     };
   }
 
+  // ── Shipments & Logistics Continuity (Step 9) ──────────────────────────────
+  public getAllShipments(): Shipment[] {
+    return opDb.getAllShipments();
+  }
+
+  public getShipmentById(id: string): Shipment | null {
+    return opDb.getShipmentById(id);
+  }
+
+  public getShipmentImpacts(): ShipmentImpactResult {
+    return this.syncShipmentImpacts();
+  }
+
+  public getAllGodowns(): Godown[] {
+    return opDb.getAllGodowns();
+  }
+
+  public getGodownById(id: string): Godown | null {
+    return opDb.getGodownById(id);
+  }
+
+  public getAllPickupRequests(): EmergencyPickupRequest[] {
+    return opDb.getAllEmergencyPickups();
+  }
+
+  public createPickupRequest(data: Partial<EmergencyPickupRequest>): EmergencyPickupRequest {
+    const vehicleId = data.vehicleId || 'AS-01-J-4422';
+    const vehicle = opDb.getVehicleById(vehicleId);
+    const godowns = opDb.getAllGodowns();
+    const shipment = opDb.getShipmentByVehicleId(vehicleId);
+
+    let godownId = data.godownId;
+    let godownName = data.godownName;
+
+    if (!godownId && vehicle && shipment) {
+      const match = findSuitableGodownForShipment(vehicle, shipment, godowns, data.quantity || 20);
+      if (match) {
+        godownId = match.godown.id;
+        godownName = match.godown.name;
+      }
+    }
+
+    if (!godownId) {
+      godownId = 'gd-dimapur';
+      godownName = 'Dimapur Regional Relief Godown';
+    }
+
+    const reqId = data.id || `EPK-${vehicleId}`;
+    const newReq: EmergencyPickupRequest = {
+      id: reqId,
+      vehicleId,
+      driverName: data.driverName || vehicle?.driverName || 'Driver',
+      cargoType: data.cargoType || shipment?.cargoCategory || vehicle?.cargoType || 'Emergency Relief Supplies',
+      destination: data.destination || vehicle?.destination || 'Strategic Destination',
+      godownId,
+      godownName: godownName || 'Strategic Relief Depot',
+      status: 'requested',
+      requestedAt: data.requestedAt || new Date().toISOString(),
+      quantity: data.quantity ?? 20,
+      reason: data.reason || 'No viable alternate highway corridor available due to active road block.',
+      destinationNotified: data.destinationNotified ?? true,
+    };
+
+    opDb.saveEmergencyPickup(newReq);
+
+    // Update vehicle to no_alternative
+    if (vehicle) {
+      vehicle.rerouteStatus = 'no_alternative';
+      vehicle.recommendedGodownId = godownId;
+      vehicle.rerouteReason = 'No alternate highway corridor from current position. Strategic godown buffer requested.';
+      opDb.saveVehicle(vehicle);
+    }
+
+    this.syncShipmentImpacts();
+    return newReq;
+  }
+
+  public approvePickupRequest(
+    requestId: string,
+    contractorName: string = 'North East Logistics Contractor'
+  ): {
+    request: EmergencyPickupRequest;
+    godown: Godown;
+    vehicle?: Vehicle;
+    shipment?: Shipment;
+  } {
+    const req = opDb.getEmergencyPickupById(requestId);
+    if (!req) {
+      throw new Error(`Emergency pickup request with ID "${requestId}" not found.`);
+    }
+
+    const godown = opDb.getGodownById(req.godownId);
+    if (!godown) {
+      throw new Error(`Designated godown "${req.godownId}" not found.`);
+    }
+
+    if (godown.availableStock < req.quantity) {
+      throw new Error(
+        `Insufficient available buffer stock in ${godown.name}. Available: ${godown.availableStock}, requested: ${req.quantity}.`
+      );
+    }
+
+    // Reserve stock atomically
+    const updatedGodown = opDb.updateGodownStock(godown.id, req.quantity);
+    if (!updatedGodown) {
+      throw new Error(`Failed to update godown stock.`);
+    }
+
+    const now = new Date().toISOString();
+    req.status = 'dispatched';
+    req.approvedAt = now;
+    req.dispatchedAt = now;
+    req.contractorName = contractorName;
+    req.destinationNotified = true;
+    opDb.saveEmergencyPickup(req);
+
+    // Update vehicle
+    const vehicle = opDb.getVehicleById(req.vehicleId);
+    if (vehicle) {
+      vehicle.status = 'emergency_pickup';
+      vehicle.riskLevel = 'moderate';
+      vehicle.destination = `${godown.name} (Emergency Buffer Storage)`;
+      vehicle.affectedByDisruptionId = undefined;
+      vehicle.impactReason = undefined;
+      vehicle.rerouteReason = `Emergency buffer stock secured at ${godown.name}. Reserved by ${contractorName}.`;
+      opDb.saveVehicle(vehicle);
+    }
+
+    this.syncShipmentImpacts();
+
+    const shipment = opDb.getShipmentByVehicleId(req.vehicleId);
+
+    return {
+      request: req,
+      godown: updatedGodown,
+      vehicle: vehicle || undefined,
+      shipment: shipment || undefined,
+    };
+  }
+
+  public declinePickupRequest(
+    requestId: string,
+    declineReason?: string,
+    contractorName: string = 'North East Logistics Contractor'
+  ): {
+    request: EmergencyPickupRequest;
+    alternativeGodown?: Godown;
+  } {
+    const req = opDb.getEmergencyPickupById(requestId);
+    if (!req) {
+      throw new Error(`Emergency pickup request with ID "${requestId}" not found.`);
+    }
+
+    const allGodowns = opDb.getAllGodowns();
+
+    // Check for next available alternative godown
+    const alternatives = allGodowns.filter(
+      (g) => g.id !== req.godownId && g.availableStock >= req.quantity
+    );
+    const altGodown = alternatives[0];
+
+    req.status = 'declined';
+    req.contractorName = contractorName;
+    req.declineReason = declineReason || 'Warehouse buffer bay fully allocated for critical district relief.';
+    if (altGodown) {
+      req.alternativeGodownId = altGodown.id;
+    }
+    opDb.saveEmergencyPickup(req);
+
+    this.syncShipmentImpacts();
+
+    return {
+      request: req,
+      alternativeGodown: altGodown,
+    };
+  }
+
   public resetToCleanState(): void {
     opDb.resetToBaseline();
   }
 
   public getSnapshot() {
+    this.syncShipmentImpacts();
     return {
       incidents: opDb.getAllIncidents(),
       roads: opDb.getAllRoadSegments(),
       vehicles: opDb.getAllVehicles(),
       disruptions: opDb.getAllDisruptions(),
       emergencyPickups: opDb.getAllEmergencyPickups(),
+      shipments: opDb.getAllShipments(),
+      godowns: opDb.getAllGodowns(),
       storageHealth: opDb.getHealthInfo(),
     };
   }

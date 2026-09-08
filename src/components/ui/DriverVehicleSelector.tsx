@@ -28,6 +28,7 @@ export function DriverVehicleSelector({
 
   const selectedDriverVehicleId = useAppStore((state) => state.selectedDriverVehicleId);
   const setSelectedDriverVehicleId = useAppStore((state) => state.setSelectedDriverVehicleId);
+  const vehicleTripContexts = useAppStore((state) => state.vehicleTripContexts);
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
 
   // Fallback safely to existing vehicle if selected is invalid
@@ -273,14 +274,23 @@ export function DriverVehicleSelector({
                       </div>
 
                       {/* Corridor / Cargo info */}
-                      <div className="mt-1 flex items-center justify-between text-[11px] text-[#5a5a57]">
-                        <span className="truncate">
-                          {v.origin || 'Guwahati'} → {v.destination || 'Imphal'}
-                        </span>
-                        <span className="text-[10px] text-[#8a8a87] shrink-0 font-medium ml-2">
-                          {v.cargoType ? v.cargoType.slice(0, 24) : v.type}
-                        </span>
-                      </div>
+                      {(() => {
+                        const tripCtx = vehicleTripContexts[v.id];
+                        const origin = tripCtx ? tripCtx.originName : (v.origin || 'Guwahati');
+                        const destination = tripCtx ? tripCtx.destinationName : (v.destination || 'Imphal');
+                        const cargo = tripCtx ? (tripCtx.cargoType || tripCtx.cargoCategory) : (v.cargoType ? v.cargoType.slice(0, 24) : v.type);
+
+                        return (
+                          <div className="mt-1 flex items-center justify-between text-[11px] text-[#5a5a57]">
+                            <span className="truncate">
+                              {origin} → {destination}
+                            </span>
+                            <span className="text-[10px] text-[#8a8a87] shrink-0 font-medium ml-2">
+                              {cargo}
+                            </span>
+                          </div>
+                        );
+                      })()}
 
                       {/* Specific Disruption reason note */}
                       {isAffected && v.impactReason && (

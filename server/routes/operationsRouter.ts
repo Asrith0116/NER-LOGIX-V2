@@ -215,87 +215,112 @@ export async function handleOperationsRequest(
     return true;
   }
 
-  // 9. Emergency Logistics
+  // 9. Shipments & Logistics Continuity (Step 9)
   if (
-    (url === '/api/v1/emergency-logistics/godowns' ||
-      url === '/api/v1/operations/emergency-logistics/godowns') &&
+    (url === '/api/v1/shipments' || url === '/api/v1/operations/shipments') &&
     method === 'GET'
   ) {
-    const DEMO_GODOWNS = [
-      {
-        id: 'godown-001',
-        name: 'Dimapur Buffer Depot',
-        location: [25.9093, 93.7265],
-        locationLabel: 'Dimapur Supply Node',
-        suitableCargoTypes: [
-          'Cold-Chain Medical Supplies',
-          'Emergency Pharmaceuticals',
-          'Diagnostic Lab Samples',
-        ],
-        availableStock: 5000,
-      },
-      {
-        id: 'godown-002',
-        name: 'Kohima Strategic Buffer',
-        location: [25.6751, 94.1086],
-        locationLabel: 'Kohima Relief Camp',
-        suitableCargoTypes: [
-          'Relief Rations & Grain',
-          'Disaster Shelter Materials',
-          'Water Purification Tablets',
-        ],
-        availableStock: 3200,
-      },
-      {
-        id: 'godown-003',
-        name: 'Silchar Medical Depot',
-        location: [24.8268, 92.7981],
-        locationLabel: 'Silchar Logistics Hub',
-        suitableCargoTypes: [
-          'Cold-Chain Medical Supplies',
-          'Surgical Consumables',
-          'Emergency Pharmaceuticals',
-        ],
-        availableStock: 4500,
-      },
-    ];
-    sendJson(res, 200, DEMO_GODOWNS);
+    const shipments = operationalEngine.getAllShipments();
+    sendJson(res, 200, shipments);
+    return true;
+  }
+
+  if (
+    (url === '/api/v1/shipments/impacts' ||
+      url === '/api/v1/operations/shipments/impacts' ||
+      url === '/api/v1/operations/shipment-impacts') &&
+    method === 'GET'
+  ) {
+    const impacts = operationalEngine.getShipmentImpacts();
+    sendJson(res, 200, impacts);
+    return true;
+  }
+
+  const shipmentMatch = url.match(/^\/api\/v1\/(?:operations\/)?shipments\/([^/?]+)$/);
+  if (shipmentMatch && method === 'GET') {
+    const id = shipmentMatch[1];
+    const shipment = operationalEngine.getShipmentById(id);
+    if (!shipment) {
+      sendJson(res, 404, { ok: false, error: `Shipment "${id}" not found` });
+      return true;
+    }
+    sendJson(res, 200, shipment);
+    return true;
+  }
+
+  // 10. Emergency Logistics & Strategic Godowns
+  if (
+    (url === '/api/v1/emergency-logistics/godowns' ||
+      url === '/api/v1/operations/emergency-logistics/godowns' ||
+      url === '/api/v1/godowns' ||
+      url === '/api/v1/operations/godowns') &&
+    method === 'GET'
+  ) {
+    const godowns = operationalEngine.getAllGodowns();
+    sendJson(res, 200, godowns);
     return true;
   }
 
   if (
     (url === '/api/v1/emergency-logistics/requests' ||
-      url === '/api/v1/operations/emergency-logistics/requests') &&
+      url === '/api/v1/operations/emergency-logistics/requests' ||
+      url === '/api/v1/pickup-requests') &&
     method === 'GET'
   ) {
-    const requests = opDb.getAllEmergencyPickups();
+    const requests = operationalEngine.getAllPickupRequests();
     sendJson(res, 200, requests);
     return true;
   }
 
   if (
     (url === '/api/v1/emergency-logistics/requests' ||
-      url === '/api/v1/operations/emergency-logistics/requests') &&
+      url === '/api/v1/operations/emergency-logistics/requests' ||
+      url === '/api/v1/pickup-requests') &&
     method === 'POST'
   ) {
     try {
       const body = (await parseJsonBody(req)) as Record<string, any>;
-      const reqId = String(body.id || `REQ-EMG-${Math.floor(1000 + Math.random() * 9000)}`);
-      const saved = opDb.saveEmergencyPickup({
-        id: reqId,
-        vehicleId: String(body.vehicleId || 'AS-01-J-4422'),
-        driverName: String(body.driverName || 'Arjun Baruah'),
-        cargoType: String(body.cargoType || 'Cold-Chain Medical Supplies'),
-        destination: String(body.destination || 'Imphal District Hospital'),
-        godownId: String(body.godownId || 'godown-001'),
-        godownName: String(body.godownName || 'Dimapur Buffer Depot'),
-        status: (body.status || 'requested') as any,
-        requestedAt: String(body.requestedAt || new Date().toISOString()),
-        quantity: typeof body.quantity === 'number' ? body.quantity : 1200,
-        reason: String(body.reason || 'No alternate route from current position.'),
-        destinationNotified: typeof body.destinationNotified === 'boolean' ? body.destinationNotified : true,
-      });
-      sendJson(res, 201, saved);
+      const created = operationalEngine.createPickupRequest(body);
+      sendJson(res, 201, created);
+    } catch (err) {
+      sendJson(res, 400, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  // Approve Emergency Pickup
+  const approveMatch = url.match(
+    /^\/api\/v1\/(?:operations\/)?(?:emergency-logistics\/)?(?:requests|pickup-requests)\/([^/?]+)\/approve$/
+  );
+  if (approveMatch && method === 'POST') {
+    try {
+      const id = approveMatch[1];
+      const body = (await parseJsonBody(req).catch(() => ({}))) as Record<string, any>;
+      const result = operationalEngine.approvePickupRequest(
+        id,
+        body.contractorName || 'North East Logistics Contractor'
+      );
+      sendJson(res, 200, { ok: true, ...result });
+    } catch (err) {
+      sendJson(res, 400, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  // Decline Emergency Pickup
+  const declineMatch = url.match(
+    /^\/api\/v1\/(?:operations\/)?(?:emergency-logistics\/)?(?:requests|pickup-requests)\/([^/?]+)\/decline$/
+  );
+  if (declineMatch && method === 'POST') {
+    try {
+      const id = declineMatch[1];
+      const body = (await parseJsonBody(req).catch(() => ({}))) as Record<string, any>;
+      const result = operationalEngine.declinePickupRequest(
+        id,
+        body.declineReason,
+        body.contractorName
+      );
+      sendJson(res, 200, { ok: true, ...result });
     } catch (err) {
       sendJson(res, 400, { ok: false, error: (err as Error).message });
     }

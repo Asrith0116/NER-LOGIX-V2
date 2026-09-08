@@ -13,6 +13,7 @@ import type {
   Godown,
   EmergencyPickupRequest,
   EnvironmentalSnapshot,
+  Shipment,
 } from '@/types';
 import {
   DEMO_INCIDENTS,
@@ -21,6 +22,7 @@ import {
   DEMO_ROUTES,
   LOCATIONS,
   DEMO_GODOWNS,
+  DEMO_SHIPMENTS,
 } from '@/data/demo';
 import {
   saveIncident,
@@ -31,6 +33,7 @@ import {
 } from '@/utils/idb';
 import { correlateIncidents } from '@/services/incidentCorrelation';
 import { getBaselineRegionalWeather, applySpikeToRegionalWeather } from '@/services/weatherService';
+import { computeShipmentImpacts } from '@/services/logisticsEngine';
 import {
   fetchOperationalSnapshot,
   submitOperationalIncident,
@@ -361,6 +364,48 @@ function mergeRerouteState(computed: Vehicle[], previous: Vehicle[]): Vehicle[] 
   });
 }
 
+function computeUpdatedShipments(
+  baseShipments: Shipment[],
+  vehicles: Vehicle[],
+  roads: RoadSegment[],
+  disruptions: Disruption[],
+  incidents: Incident[],
+  pickups: EmergencyPickupRequest[]
+): Shipment[] {
+  const result = computeShipmentImpacts(baseShipments, vehicles, roads, disruptions, incidents, pickups);
+  return baseShipments.map((s) => {
+    const match = result.affectedShipments.find((a) => a.id === s.id);
+    if (match) return match;
+    const v = vehicles.find((veh) => veh.id === s.vehicleId);
+    if (v?.status === 'emergency_pickup') {
+      return {
+        ...s,
+        currentStatus: 'relief_buffered',
+        continuityStatus: 'relief_secured',
+        affected: false,
+        recommendedAction: `Consignment diverted to buffer godown node (${v.destination || 'Strategic Buffer Node'}).`,
+      };
+    }
+    if (v?.rerouteStatus === 'active') {
+      return {
+        ...s,
+        currentStatus: 'rerouted',
+        continuityStatus: 'rerouting',
+        affected: false,
+        delayMinutes: (v.etaMinutes ?? 45) + 30,
+        recommendedAction: `Active corridor detour engaged via ${v.currentRoute || 'alternative corridor'}.`,
+      };
+    }
+    return {
+      ...s,
+      affected: false,
+      continuityStatus: 'on_track',
+      disruptionId: undefined,
+      impactReason: undefined,
+    };
+  });
+}
+
 const INITIAL_DISRUPTIONS: Disruption[] = [];
 
 const INITIAL_ROAD_SEGMENTS: RoadSegment[] = DEMO_ROAD_SEGMENTS.map((seg) => ({ ...seg }));
@@ -372,6 +417,15 @@ const INITIAL_VEHICLES: Vehicle[] = computeFleetImpact(
   DEMO_INCIDENTS
 );
 
+const INITIAL_SHIPMENTS: Shipment[] = computeUpdatedShipments(
+  DEMO_SHIPMENTS.map((s) => ({ ...s })),
+  INITIAL_VEHICLES,
+  INITIAL_ROAD_SEGMENTS,
+  INITIAL_DISRUPTIONS,
+  DEMO_INCIDENTS,
+  []
+);
+
 export interface NetworkState {
   activeIncidents: Incident[];
   roadSegments: RoadSegment[];
@@ -379,6 +433,7 @@ export interface NetworkState {
   disruptions: Disruption[];
   godowns: Godown[];
   pickupRequests: EmergencyPickupRequest[];
+  shipments: Shipment[];
   weatherSpikeActive: boolean;
   weatherData: Record<string, EnvironmentalSnapshot>;
   backendSyncStatus: 'connected' | 'local_fallback' | 'offline';
@@ -413,6 +468,7 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
   disruptions: INITIAL_DISRUPTIONS,
   godowns: DEMO_GODOWNS.map((g) => ({ ...g })),
   pickupRequests: [],
+  shipments: INITIAL_SHIPMENTS,
   weatherSpikeActive: false,
   weatherData: getBaselineRegionalWeather(false),
   backendSyncStatus: 'offline',
@@ -579,11 +635,21 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
         .map((v) => v.id),
     }));
 
+    const updatedShipments = computeUpdatedShipments(
+      state.shipments,
+      updatedVehicles,
+      updatedSegments,
+      updatedDisruptions,
+      updatedIncidents,
+      state.pickupRequests
+    );
+
     set({
       activeIncidents: updatedIncidents,
       roadSegments: updatedSegments,
       activeVehicles: updatedVehicles,
       disruptions: updatedDisruptions,
+      shipments: updatedShipments,
     });
 
     try {
@@ -641,7 +707,15 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
         disruptions,
         state.activeIncidents
       );
-      return { disruptions, activeVehicles };
+      const shipments = computeUpdatedShipments(
+        state.shipments,
+        activeVehicles,
+        state.roadSegments,
+        disruptions,
+        state.activeIncidents,
+        state.pickupRequests
+      );
+      return { disruptions, activeVehicles, shipments };
     });
   },
 
@@ -654,7 +728,15 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
         disruptions,
         state.activeIncidents
       );
-      return { disruptions, activeVehicles };
+      const shipments = computeUpdatedShipments(
+        state.shipments,
+        activeVehicles,
+        state.roadSegments,
+        disruptions,
+        state.activeIncidents,
+        state.pickupRequests
+      );
+      return { disruptions, activeVehicles, shipments };
     });
   },
 
@@ -675,9 +757,19 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       d.id === disruptionId ? { ...d, affectedVehicleIds: affectedIds } : d
     );
 
+    const updatedShipments = computeUpdatedShipments(
+      state.shipments,
+      updatedVehicles,
+      state.roadSegments,
+      updatedDisruptions,
+      state.activeIncidents,
+      state.pickupRequests
+    );
+
     set({
       activeVehicles: updatedVehicles,
       disruptions: updatedDisruptions,
+      shipments: updatedShipments,
     });
 
     return affectedIds;
@@ -764,8 +856,19 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       rerouteReason: `Reactive reroute from ${fromLabel} via ${alternate.label}, avoiding ${segment?.name || 'blocked corridor'}.`,
     };
 
+    const activeVehicles = state.activeVehicles.map((v) => (v.id === vehicleId ? updated : v));
+    const shipments = computeUpdatedShipments(
+      state.shipments,
+      activeVehicles,
+      state.roadSegments,
+      state.disruptions,
+      state.activeIncidents,
+      state.pickupRequests
+    );
+
     set({
-      activeVehicles: state.activeVehicles.map((v) => (v.id === vehicleId ? updated : v)),
+      activeVehicles,
+      shipments,
     });
 
     return 'active';
@@ -836,19 +939,31 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       reason: 'No viable alternate corridor from current position.',
     };
 
+    const updatedPickups = [request, ...state.pickupRequests.filter((r) => r.vehicleId !== vehicleId)];
+    const activeVehicles: Vehicle[] = state.activeVehicles.map((v) =>
+      v.id === vehicleId
+        ? {
+            ...v,
+            rerouteStatus: 'no_alternative' as RerouteStatus,
+            rerouteReason: 'No alternate highway corridor from current position.',
+            recommendedGodownId: godown.id,
+            recommendedGodownDistanceKm: distanceKm,
+          }
+        : v
+    );
+    const shipments = computeUpdatedShipments(
+      state.shipments,
+      activeVehicles,
+      state.roadSegments,
+      state.disruptions,
+      state.activeIncidents,
+      updatedPickups
+    );
+
     set({
-      pickupRequests: [request, ...state.pickupRequests.filter((r) => r.vehicleId !== vehicleId)],
-      activeVehicles: state.activeVehicles.map((v) =>
-        v.id === vehicleId
-          ? {
-              ...v,
-              rerouteStatus: 'no_alternative',
-              rerouteReason: 'No alternate highway corridor from current position.',
-              recommendedGodownId: godown.id,
-              recommendedGodownDistanceKm: distanceKm,
-            }
-          : v
-      ),
+      pickupRequests: updatedPickups,
+      activeVehicles,
+      shipments,
     });
 
     return request.id;
@@ -874,26 +989,38 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       destinationNotified: true,
     };
 
+    const updatedPickups = state.pickupRequests.map((r) => (r.id === request.id ? updatedRequest : r));
+    const activeVehicles: Vehicle[] = state.activeVehicles.map((v) =>
+      v.id === request.vehicleId
+        ? {
+            ...v,
+            status: 'emergency_pickup' as VehicleStatus,
+            riskLevel: 'moderate' as RiskLevel,
+            destination: `${request.godownName} (Emergency Storage)`,
+            affectedByDisruptionId: undefined,
+            impactReason: undefined,
+            rerouteReason: `Emergency storage secured at ${request.godownName}. Buffer stock reserved by ${DEMO_CONTRACTOR_NAME}.`,
+          }
+        : v
+    );
+    const shipments = computeUpdatedShipments(
+      state.shipments,
+      activeVehicles,
+      state.roadSegments,
+      state.disruptions,
+      state.activeIncidents,
+      updatedPickups
+    );
+
     set({
-      pickupRequests: state.pickupRequests.map((r) => (r.id === request.id ? updatedRequest : r)),
+      pickupRequests: updatedPickups,
       godowns: state.godowns.map((g) =>
         g.id === request.godownId
           ? { ...g, availableStock: g.availableStock - request.quantity }
           : g
       ),
-      activeVehicles: state.activeVehicles.map((v) =>
-        v.id === request.vehicleId
-          ? {
-              ...v,
-              status: 'emergency_pickup' as VehicleStatus,
-              riskLevel: 'moderate',
-              destination: `${request.godownName} (Emergency Storage)`,
-              affectedByDisruptionId: undefined,
-              impactReason: undefined,
-              rerouteReason: `Emergency storage secured at ${request.godownName}. Buffer stock reserved by ${DEMO_CONTRACTOR_NAME}.`,
-            }
-          : v
-      ),
+      activeVehicles,
+      shipments,
     });
   },
 
@@ -904,10 +1031,21 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
     );
     if (!request || request.status === 'dispatched') return;
 
+    const updatedPickups = state.pickupRequests.map((r) =>
+      r.id === request.id ? { ...r, status: 'declined' as const, contractorName: DEMO_CONTRACTOR_NAME } : r
+    );
+    const shipments = computeUpdatedShipments(
+      state.shipments,
+      state.activeVehicles,
+      state.roadSegments,
+      state.disruptions,
+      state.activeIncidents,
+      updatedPickups
+    );
+
     set({
-      pickupRequests: state.pickupRequests.map((r) =>
-        r.id === request.id ? { ...r, status: 'declined' as const, contractorName: DEMO_CONTRACTOR_NAME } : r
-      ),
+      pickupRequests: updatedPickups,
+      shipments,
     });
   },
 
@@ -948,6 +1086,14 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       recommendedGodownDistanceKm: undefined,
     }));
 
+    const cleanShipments = DEMO_SHIPMENTS.map((s) => ({
+      ...s,
+      affected: false,
+      continuityStatus: 'on_track' as const,
+      disruptionId: undefined,
+      disruptionReason: undefined,
+    }));
+
     set({
       activeIncidents: [],
       roadSegments: cleanRoads,
@@ -955,6 +1101,7 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       disruptions: [],
       godowns: DEMO_GODOWNS.map((g) => ({ ...g })),
       pickupRequests: [],
+      shipments: cleanShipments,
       weatherSpikeActive: false,
       weatherData: getBaselineRegionalWeather(false),
       lastBackendSyncAt: new Date().toISOString(),
@@ -1054,12 +1201,21 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
         const activeVehicles = mergeRerouteState(computed, state.activeVehicles);
 
         const correlatedIncidents = correlateIncidents(activeIncidents);
+        const shipments = computeUpdatedShipments(
+          state.shipments,
+          activeVehicles,
+          roadSegments,
+          disruptions,
+          correlatedIncidents,
+          state.pickupRequests
+        );
 
         return {
           activeIncidents: correlatedIncidents,
           roadSegments,
           disruptions,
           activeVehicles,
+          shipments,
         };
       });
     } catch (err) {
@@ -1099,12 +1255,26 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
               ? snapshot.emergencyPickups
               : state.pickupRequests;
 
+            const baseShipments = snapshot.shipments && snapshot.shipments.length > 0
+              ? snapshot.shipments
+              : state.shipments;
+
+            const shipments = computeUpdatedShipments(
+              baseShipments,
+              activeVehicles,
+              roadSegments,
+              disruptions,
+              correlatedIncidents,
+              pickupRequests
+            );
+
             return {
               activeIncidents: correlatedIncidents,
               roadSegments,
               disruptions,
               activeVehicles,
               pickupRequests,
+              shipments,
               backendSyncStatus: 'connected',
               backendHealth: healthRes.data,
               lastBackendSyncAt: new Date().toISOString(),

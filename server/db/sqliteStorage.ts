@@ -7,6 +7,8 @@ import type {
   Vehicle,
   Disruption,
   EmergencyPickupRequest,
+  Shipment,
+  Godown,
 } from '../../src/types/index.ts';
 
 const DATA_DIR = path.resolve(process.cwd(), '.data');
@@ -22,6 +24,8 @@ export interface StorageHealthInfo {
     vehicles: number;
     disruptions: number;
     emergencyRequests: number;
+    shipments: number;
+    godowns: number;
   };
 }
 
@@ -139,6 +143,48 @@ class OperationalDatabase {
         quantity REAL NOT NULL,
         reason TEXT NOT NULL,
         destination_notified INTEGER,
+        alternative_godown_id TEXT,
+        decline_reason TEXT,
+        raw_json TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS shipments (
+        id TEXT PRIMARY KEY,
+        vehicle_id TEXT NOT NULL,
+        driver_name TEXT NOT NULL,
+        origin TEXT NOT NULL,
+        destination TEXT NOT NULL,
+        cargo_category TEXT NOT NULL,
+        cargo_sensitivity TEXT NOT NULL,
+        priority TEXT NOT NULL,
+        priority_score REAL NOT NULL,
+        priority_explanation TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        unit TEXT NOT NULL,
+        cold_chain_required INTEGER NOT NULL,
+        current_temperature_c REAL,
+        current_status TEXT NOT NULL,
+        affected INTEGER NOT NULL,
+        disruption_id TEXT,
+        delay_minutes REAL,
+        continuity_status TEXT NOT NULL,
+        impact_reason TEXT,
+        recommended_action TEXT,
+        assigned_godown_id TEXT,
+        pickup_request_id TEXT,
+        last_updated TEXT NOT NULL,
+        raw_json TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS godowns (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        location_json TEXT NOT NULL,
+        location_label TEXT NOT NULL,
+        suitable_cargo_types_json TEXT NOT NULL,
+        available_stock REAL NOT NULL,
+        total_capacity REAL,
+        status TEXT,
         raw_json TEXT NOT NULL
       );
     `);
@@ -160,6 +206,8 @@ class OperationalDatabase {
     this.db.exec('DELETE FROM vehicles;');
     this.db.exec('DELETE FROM disruptions;');
     this.db.exec('DELETE FROM emergency_pickups;');
+    this.db.exec('DELETE FROM shipments;');
+    this.db.exec('DELETE FROM godowns;');
 
     const baselineRoads: RoadSegment[] = [
       {
@@ -373,6 +421,248 @@ class OperationalDatabase {
         v.recommendedGodownId || null,
         v.recommendedGodownDistanceKm || null,
         JSON.stringify(v)
+      );
+    }
+
+    const baselineGodowns: Godown[] = [
+      {
+        id: 'gd-dimapur',
+        name: 'Dimapur Regional Relief Godown',
+        location: [25.9093, 93.7265],
+        locationLabel: 'Dimapur Strategic Supply Node, Nagaland',
+        suitableCargoTypes: ['relief', 'rations', 'grain', 'general', 'medical', 'pharmaceuticals', 'cold-chain'],
+        availableStock: 120,
+        totalCapacity: 500,
+        status: 'operational',
+      },
+      {
+        id: 'gd-kohima',
+        name: 'Kohima Emergency Logistics Godown',
+        location: [25.6751, 94.1086],
+        locationLabel: 'Kohima Relief Camp Depot, Nagaland',
+        suitableCargoTypes: ['pharmaceuticals', 'relief', 'medical', 'cold-chain', 'surgical'],
+        availableStock: 80,
+        totalCapacity: 300,
+        status: 'operational',
+      },
+      {
+        id: 'gd-imphal',
+        name: 'Imphal Medical Buffer Godown',
+        location: [24.8170, 93.9368],
+        locationLabel: 'Imphal Valley Health Buffer Depot, Manipur',
+        suitableCargoTypes: ['medical', 'pharmaceuticals', 'cold-chain', 'diagnostic', 'surgical'],
+        availableStock: 60,
+        totalCapacity: 250,
+        status: 'operational',
+      },
+      {
+        id: 'gd-guwahati',
+        name: 'Guwahati Apex Distribution Godown',
+        location: [26.1445, 91.7362],
+        locationLabel: 'Guwahati Central Logistics Hub, Assam',
+        suitableCargoTypes: ['all', 'general', 'medical', 'relief', 'grain', 'pharmaceuticals', 'cold-chain'],
+        availableStock: 350,
+        totalCapacity: 1000,
+        status: 'operational',
+      },
+    ];
+
+    const insertGodown = this.db.prepare(`
+      INSERT INTO godowns (
+        id, name, location_json, location_label, suitable_cargo_types_json, available_stock, total_capacity, status, raw_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const g of baselineGodowns) {
+      insertGodown.run(
+        g.id,
+        g.name,
+        JSON.stringify(g.location),
+        g.locationLabel,
+        JSON.stringify(g.suitableCargoTypes),
+        g.availableStock,
+        g.totalCapacity || null,
+        g.status || 'operational',
+        JSON.stringify(g)
+      );
+    }
+
+    const baselineShipments: Shipment[] = [
+      {
+        id: 'SHP-MN04-1121',
+        vehicleId: 'MN-04-B-1121',
+        driverName: 'Prem Thoudam',
+        origin: 'Dimapur',
+        destination: 'Imphal',
+        cargoCategory: 'Emergency Pharmaceuticals',
+        cargoSensitivity: 'critical',
+        priority: 'critical',
+        priorityScore: 92,
+        priorityExplanation: 'CRITICAL (92/100) — Emergency pharmaceuticals + cold-chain temperature control required (2–8°C)',
+        quantity: 850,
+        unit: 'vials',
+        coldChainRequired: true,
+        currentTemperatureC: 4.2,
+        currentStatus: 'in_transit',
+        affected: false,
+        continuityStatus: 'on_track',
+        lastUpdated: new Date().toISOString(),
+      },
+      {
+        id: 'SHP-NL02-3391',
+        vehicleId: 'NL-02-C-3391',
+        driverName: 'Kezhakevi Sema',
+        origin: 'Guwahati',
+        destination: 'Kohima',
+        cargoCategory: 'Relief Rations & Grain',
+        cargoSensitivity: 'high',
+        priority: 'high',
+        priorityScore: 75,
+        priorityExplanation: 'HIGH (75/100) — Essential community food grain & disaster relief rations',
+        quantity: 2400,
+        unit: 'kg',
+        coldChainRequired: false,
+        currentStatus: 'in_transit',
+        affected: false,
+        continuityStatus: 'on_track',
+        lastUpdated: new Date().toISOString(),
+      },
+      {
+        id: 'SHP-AS01-4422',
+        vehicleId: 'AS-01-J-4422',
+        driverName: 'Arjun Baruah',
+        origin: 'Guwahati',
+        destination: 'Imphal',
+        cargoCategory: 'Cold-Chain Medical Supplies',
+        cargoSensitivity: 'critical',
+        priority: 'critical',
+        priorityScore: 95,
+        priorityExplanation: 'CRITICAL (95/100) — Life-saving vaccines & insulin under active cold-chain monitoring (2–8°C)',
+        quantity: 1240,
+        unit: 'kg',
+        coldChainRequired: true,
+        currentTemperatureC: 3.8,
+        currentStatus: 'scheduled',
+        affected: false,
+        continuityStatus: 'on_track',
+        lastUpdated: new Date().toISOString(),
+      },
+      {
+        id: 'SHP-AS03-7712',
+        vehicleId: 'AS-03-K-7712',
+        driverName: 'Rina Gogoi',
+        origin: 'Guwahati',
+        destination: 'Dimapur',
+        cargoCategory: 'Diagnostic Lab Samples',
+        cargoSensitivity: 'high',
+        priority: 'high',
+        priorityScore: 78,
+        priorityExplanation: 'HIGH (78/100) — Time-critical pathology samples under deep freeze (-18°C)',
+        quantity: 350,
+        unit: 'specimens',
+        coldChainRequired: true,
+        currentTemperatureC: -18.2,
+        currentStatus: 'in_transit',
+        affected: false,
+        continuityStatus: 'on_track',
+        lastUpdated: new Date().toISOString(),
+      },
+      {
+        id: 'SHP-MN01-9934',
+        vehicleId: 'MN-01-A-9934',
+        driverName: 'Tomcha Singh',
+        origin: 'Kohima',
+        destination: 'Imphal',
+        cargoCategory: 'Surgical Consumables',
+        cargoSensitivity: 'medium',
+        priority: 'normal',
+        priorityScore: 55,
+        priorityExplanation: 'NORMAL (55/100) — Hospital operation theater sterile consumable kits',
+        quantity: 420,
+        unit: 'kits',
+        coldChainRequired: false,
+        currentStatus: 'in_transit',
+        affected: false,
+        continuityStatus: 'on_track',
+        lastUpdated: new Date().toISOString(),
+      },
+      {
+        id: 'SHP-AS07-2245',
+        vehicleId: 'AS-07-D-2245',
+        driverName: 'Bhuban Sharma',
+        origin: 'Dimapur',
+        destination: 'Kohima',
+        cargoCategory: 'Disaster Shelter Materials',
+        cargoSensitivity: 'medium',
+        priority: 'normal',
+        priorityScore: 48,
+        priorityExplanation: 'NORMAL (48/100) — Tarpaulins, all-weather emergency family tents, and bedding',
+        quantity: 180,
+        unit: 'tents',
+        coldChainRequired: false,
+        currentStatus: 'in_transit',
+        affected: false,
+        continuityStatus: 'on_track',
+        lastUpdated: new Date().toISOString(),
+      },
+      {
+        id: 'SHP-NL05-4481',
+        vehicleId: 'NL-05-H-4481',
+        driverName: 'Vikato Angami',
+        origin: 'Silchar',
+        destination: 'Dimapur',
+        cargoCategory: 'Water Purification Units',
+        cargoSensitivity: 'medium',
+        priority: 'normal',
+        priorityScore: 52,
+        priorityExplanation: 'NORMAL (52/100) — Chlorine water purification tablets & filtration packs',
+        quantity: 50000,
+        unit: 'tablets',
+        coldChainRequired: false,
+        currentStatus: 'in_transit',
+        affected: false,
+        continuityStatus: 'on_track',
+        lastUpdated: new Date().toISOString(),
+      },
+    ];
+
+    const insertShipment = this.db.prepare(`
+      INSERT INTO shipments (
+        id, vehicle_id, driver_name, origin, destination, cargo_category, cargo_sensitivity,
+        priority, priority_score, priority_explanation, quantity, unit, cold_chain_required,
+        current_temperature_c, current_status, affected, disruption_id, delay_minutes,
+        continuity_status, impact_reason, recommended_action, assigned_godown_id,
+        pickup_request_id, last_updated, raw_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const s of baselineShipments) {
+      insertShipment.run(
+        s.id,
+        s.vehicleId,
+        s.driverName,
+        s.origin,
+        s.destination,
+        s.cargoCategory,
+        s.cargoSensitivity,
+        s.priority,
+        s.priorityScore,
+        s.priorityExplanation,
+        s.quantity,
+        s.unit,
+        s.coldChainRequired ? 1 : 0,
+        s.currentTemperatureC ?? null,
+        s.currentStatus,
+        s.affected ? 1 : 0,
+        s.disruptionId || null,
+        s.delayMinutes || null,
+        s.continuityStatus,
+        s.impactReason || null,
+        s.recommendedAction || null,
+        s.assignedGodownId || null,
+        s.pickupRequestId || null,
+        s.lastUpdated,
+        JSON.stringify(s)
       );
     }
   }
@@ -589,13 +879,19 @@ class OperationalDatabase {
     return rows.map((r) => JSON.parse(r.raw_json) as EmergencyPickupRequest);
   }
 
+  public getEmergencyPickupById(id: string): EmergencyPickupRequest | null {
+    const stmt = this.db.prepare('SELECT raw_json FROM emergency_pickups WHERE id = ?');
+    const row = stmt.get(id) as { raw_json: string } | undefined;
+    return row ? (JSON.parse(row.raw_json) as EmergencyPickupRequest) : null;
+  }
+
   public saveEmergencyPickup(req: EmergencyPickupRequest): EmergencyPickupRequest {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO emergency_pickups (
         id, vehicle_id, driver_name, cargo_type, destination, godown_id, godown_name,
         status, requested_at, approved_at, dispatched_at, contractor_name,
-        quantity, reason, destination_notified, raw_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        quantity, reason, destination_notified, alternative_godown_id, decline_reason, raw_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       req.id,
@@ -613,9 +909,111 @@ class OperationalDatabase {
       req.quantity,
       req.reason,
       req.destinationNotified ? 1 : 0,
+      req.alternativeGodownId || null,
+      req.declineReason || null,
       JSON.stringify(req)
     );
     return req;
+  }
+
+  // ── Shipments (Step 9) ────────────────────────────────────────────────────
+  public getAllShipments(): Shipment[] {
+    const stmt = this.db.prepare('SELECT raw_json FROM shipments ORDER BY id ASC');
+    const rows = stmt.all() as { raw_json: string }[];
+    return rows.map((r) => JSON.parse(r.raw_json) as Shipment);
+  }
+
+  public getShipmentById(id: string): Shipment | null {
+    const stmt = this.db.prepare('SELECT raw_json FROM shipments WHERE id = ?');
+    const row = stmt.get(id) as { raw_json: string } | undefined;
+    return row ? (JSON.parse(row.raw_json) as Shipment) : null;
+  }
+
+  public getShipmentByVehicleId(vehicleId: string): Shipment | null {
+    const stmt = this.db.prepare('SELECT raw_json FROM shipments WHERE vehicle_id = ?');
+    const row = stmt.get(vehicleId) as { raw_json: string } | undefined;
+    return row ? (JSON.parse(row.raw_json) as Shipment) : null;
+  }
+
+  public saveShipment(shipment: Shipment): Shipment {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO shipments (
+        id, vehicle_id, driver_name, origin, destination, cargo_category, cargo_sensitivity,
+        priority, priority_score, priority_explanation, quantity, unit, cold_chain_required,
+        current_temperature_c, current_status, affected, disruption_id, delay_minutes,
+        continuity_status, impact_reason, recommended_action, assigned_godown_id,
+        pickup_request_id, last_updated, raw_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      shipment.id,
+      shipment.vehicleId,
+      shipment.driverName,
+      shipment.origin,
+      shipment.destination,
+      shipment.cargoCategory,
+      shipment.cargoSensitivity,
+      shipment.priority,
+      shipment.priorityScore,
+      shipment.priorityExplanation,
+      shipment.quantity,
+      shipment.unit,
+      shipment.coldChainRequired ? 1 : 0,
+      shipment.currentTemperatureC ?? null,
+      shipment.currentStatus,
+      shipment.affected ? 1 : 0,
+      shipment.disruptionId || null,
+      shipment.delayMinutes || null,
+      shipment.continuityStatus,
+      shipment.impactReason || null,
+      shipment.recommendedAction || null,
+      shipment.assignedGodownId || null,
+      shipment.pickupRequestId || null,
+      shipment.lastUpdated,
+      JSON.stringify(shipment)
+    );
+    return shipment;
+  }
+
+  // ── Godowns & Buffer Inventory (Step 9) ───────────────────────────────────
+  public getAllGodowns(): Godown[] {
+    const stmt = this.db.prepare('SELECT raw_json FROM godowns ORDER BY id ASC');
+    const rows = stmt.all() as { raw_json: string }[];
+    return rows.map((r) => JSON.parse(r.raw_json) as Godown);
+  }
+
+  public getGodownById(id: string): Godown | null {
+    const stmt = this.db.prepare('SELECT raw_json FROM godowns WHERE id = ?');
+    const row = stmt.get(id) as { raw_json: string } | undefined;
+    return row ? (JSON.parse(row.raw_json) as Godown) : null;
+  }
+
+  public saveGodown(godown: Godown): Godown {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO godowns (
+        id, name, location_json, location_label, suitable_cargo_types_json, available_stock, total_capacity, status, raw_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      godown.id,
+      godown.name,
+      JSON.stringify(godown.location),
+      godown.locationLabel,
+      JSON.stringify(godown.suitableCargoTypes),
+      godown.availableStock,
+      godown.totalCapacity || null,
+      godown.status || 'operational',
+      JSON.stringify(godown)
+    );
+    return godown;
+  }
+
+  public updateGodownStock(godownId: string, decrementBy: number): Godown | null {
+    const godown = this.getGodownById(godownId);
+    if (!godown) return null;
+    const newStock = Math.max(0, godown.availableStock - decrementBy);
+    godown.availableStock = newStock;
+    return this.saveGodown(godown);
   }
 
   // ── Health / Stats ────────────────────────────────────────────────────────
@@ -625,6 +1023,8 @@ class OperationalDatabase {
     const vehiclesCount = (this.db.prepare('SELECT COUNT(*) as c FROM vehicles').get() as { c: number }).c;
     const disruptionsCount = (this.db.prepare('SELECT COUNT(*) as c FROM disruptions').get() as { c: number }).c;
     const emergencyCount = (this.db.prepare('SELECT COUNT(*) as c FROM emergency_pickups').get() as { c: number }).c;
+    const shipmentsCount = (this.db.prepare('SELECT COUNT(*) as c FROM shipments').get() as { c: number }).c;
+    const godownsCount = (this.db.prepare('SELECT COUNT(*) as c FROM godowns').get() as { c: number }).c;
 
     return {
       type: this.isMemory ? 'SQLite (in-memory)' : 'SQLite (node:sqlite local demo file)',
@@ -636,6 +1036,8 @@ class OperationalDatabase {
         vehicles: vehiclesCount,
         disruptions: disruptionsCount,
         emergencyRequests: emergencyCount,
+        shipments: shipmentsCount,
+        godowns: godownsCount,
       },
     };
   }

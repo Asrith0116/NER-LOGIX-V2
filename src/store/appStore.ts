@@ -4,6 +4,25 @@ import { checkBackendHealth, BackendHealthInfo } from '@/services/api/backendHea
 
 export type BackendConnectionStatus = 'connected' | 'disconnected' | 'checking';
 
+export interface DriverTripContext {
+  tripId?: string;
+  vehicleId: string;
+  originKey: string;
+  originName: string;
+  destinationKey: string;
+  destKey?: string;
+  destinationName: string;
+  cargoCategory?: string;
+  cargoType?: string;
+  priority?: string;
+  selectedRouteId?: string | null;
+  selectedRoute?: Route | null;
+  committedRoute?: Route | null;
+  isCommitted: boolean;
+  isJourneyActive: boolean;
+  etaMinutes?: number;
+}
+
 interface AppState {
   role: UserRole;
   networkStatus: NetworkStatus;
@@ -17,6 +36,7 @@ interface AppState {
   selectedDriverVehicleId: string;
   backendStatus: BackendConnectionStatus;
   backendInfo: BackendHealthInfo | null;
+  vehicleTripContexts: Record<string, DriverTripContext>;
   
   setRole: (role: UserRole) => void;
   setNetworkStatus: (status: NetworkStatus) => void;
@@ -25,6 +45,8 @@ interface AppState {
   setSelectedCustomRoute: (route: Route | null) => void;
   setPendingIncidentsCount: (count: number) => void;
   setSelectedDriverVehicleId: (id: string) => void;
+  setVehicleTripDraft: (vehicleId: string, draft: Partial<DriverTripContext>) => void;
+  commitVehicleTrip: (vehicleId: string, trip: Partial<DriverTripContext>) => void;
   checkBackendConnection: () => Promise<void>;
 }
 
@@ -41,6 +63,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedDriverVehicleId: 'AS-01-J-4422',
   backendStatus: 'checking',
   backendInfo: null,
+  vehicleTripContexts: {},
   
   setRole: (role) => set({ role }),
   setNetworkStatus: (networkStatus) => set({ networkStatus }),
@@ -49,6 +72,66 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedCustomRoute: (selectedCustomRoute) => set({ selectedCustomRoute }),
   setPendingIncidentsCount: (count) => set({ pendingIncidentsCount: count }),
   setSelectedDriverVehicleId: (selectedDriverVehicleId) => set({ selectedDriverVehicleId }),
+  
+  setVehicleTripDraft: (vehicleId: string, draft: Partial<DriverTripContext>) => {
+    set((state) => {
+      const existing = state.vehicleTripContexts[vehicleId] || {
+        vehicleId,
+        originKey: 'guwahati',
+        originName: 'Guwahati Logistics Hub',
+        destinationKey: 'imphal',
+        destinationName: 'Imphal District Hospital',
+        isCommitted: false,
+        isJourneyActive: false,
+      };
+      return {
+        vehicleTripContexts: {
+          ...state.vehicleTripContexts,
+          [vehicleId]: {
+            ...existing,
+            ...draft,
+            vehicleId,
+          },
+        },
+      };
+    });
+  },
+
+  commitVehicleTrip: (vehicleId: string, trip: Partial<DriverTripContext>) => {
+    set((state) => {
+      const existing = state.vehicleTripContexts[vehicleId] || {
+        vehicleId,
+        originKey: 'guwahati',
+        originName: 'Guwahati',
+        destinationKey: 'imphal',
+        destKey: 'imphal',
+        destinationName: 'Imphal',
+        isCommitted: false,
+        isJourneyActive: false,
+      };
+      const updated: DriverTripContext = {
+        ...existing,
+        ...trip,
+        destKey: trip.destKey || trip.destinationKey || existing.destKey || existing.destinationKey || 'imphal',
+        destinationKey: trip.destinationKey || trip.destKey || existing.destinationKey || existing.destKey || 'imphal',
+        vehicleId,
+        isCommitted: true,
+        isJourneyActive: true,
+      };
+      return {
+        activeTripId: updated.tripId || 'TRIP-DEMO-001',
+        selectedRouteId: updated.selectedRouteId || null,
+        selectedCustomRoute: updated.committedRoute || updated.selectedRoute || null,
+        isOfflineReady: true,
+        isJourneyActive: true,
+        vehicleTripContexts: {
+          ...state.vehicleTripContexts,
+          [vehicleId]: updated,
+        },
+      };
+    });
+  },
+
   checkBackendConnection: async () => {
     set({ backendStatus: 'checking' });
     try {

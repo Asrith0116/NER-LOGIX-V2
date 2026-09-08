@@ -54,21 +54,23 @@ interface TopBarProps {
 }
 
 export function TopBar({ className }: TopBarProps) {
-  const {
-    role,
-    setRole,
-    networkStatus,
-    setNetworkStatus,
-    toggleSidebar,
-    selectedDriverVehicleId,
-    backendStatus,
-    checkBackendConnection,
-  } = useAppStore();
+  const role = useAppStore((state) => state.role);
+  const setRole = useAppStore((state) => state.setRole);
+  const networkStatus = useAppStore((state) => state.networkStatus);
+  const setNetworkStatus = useAppStore((state) => state.setNetworkStatus);
+  const toggleSidebar = useAppStore((state) => state.toggleSidebar);
+  const selectedDriverVehicleId = useAppStore((state) => state.selectedDriverVehicleId);
+  const vehicleTripContexts = useAppStore((state) => state.vehicleTripContexts);
+  const backendStatus = useAppStore((state) => state.backendStatus);
+  const checkBackendConnection = useAppStore((state) => state.checkBackendConnection);
+
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
   const currentDriverVehicle =
     activeVehicles.find((v) => v.id === selectedDriverVehicleId) ||
     activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
     activeVehicles[0];
+
+  const currentTripContext = currentDriverVehicle ? vehicleTripContexts[currentDriverVehicle.id] : undefined;
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -94,6 +96,12 @@ export function TopBar({ className }: TopBarProps) {
     }
   }, [menuOpen]);
 
+  const driverSubtitle = currentDriverVehicle
+    ? currentTripContext
+      ? `${currentDriverVehicle.driverName} · ${currentDriverVehicle.id} (${currentTripContext.originName} → ${currentTripContext.destinationName})`
+      : `${currentDriverVehicle.driverName} · ${currentDriverVehicle.id} (${currentDriverVehicle.origin || 'Guwahati'} → ${currentDriverVehicle.destination || 'Imphal'})`
+    : 'Arjun Baruah · AS-01-J-4422';
+
   const roleConfigs: Record<UserRole, {
     title: string;
     roleName: string;
@@ -106,9 +114,7 @@ export function TopBar({ className }: TopBarProps) {
     driver: {
       title: 'Driver Journey Cockpit',
       roleName: 'Driver / Field Operator',
-      subtitle: currentDriverVehicle
-        ? `${currentDriverVehicle.driverName} · ${currentDriverVehicle.id}`
-        : 'Arjun Baruah · AS-01-J-4422',
+      subtitle: driverSubtitle,
       description: 'Journey safety & field reporting',
       icon: <Truck className="w-3.5 h-3.5 text-[#2563eb]" />,
       badgeBg: 'bg-[#eff6ff] text-[#1e40af] border-[#bfdbfe]',

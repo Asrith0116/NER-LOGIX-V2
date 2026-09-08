@@ -39,6 +39,7 @@ export function Sidebar() {
 
   const activeIncidents = useNetworkStore((state) => state.activeIncidents);
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
+  const shipments = useNetworkStore((state) => state.shipments);
 
   const pendingVerificationCount = activeIncidents.filter(
     (i) => i.syncStatus === 'pending_verification' || i.syncStatus === 'synced'
@@ -46,6 +47,10 @@ export function Sidebar() {
 
   const affectedVehiclesCount = activeVehicles.filter(
     (v) => Boolean(v.affectedByDisruptionId) && v.rerouteStatus !== 'active' && v.status !== 'emergency_pickup'
+  ).length;
+
+  const disruptedShipmentsCount = shipments.filter(
+    (s) => s.currentStatus === 'disrupted' || s.continuityStatus === 'at_risk' || s.continuityStatus === 'escalated' || (s.affected && s.continuityStatus !== 'relief_secured' && s.currentStatus !== 'rerouted')
   ).length;
 
   const emergencyPickupsCount = activeVehicles.filter(
@@ -96,6 +101,18 @@ export function Sidebar() {
             icon: <AlertTriangle className="w-4 h-4" />,
             badge: activeIncidents.length > 0 ? activeIncidents.length : undefined,
             badgeVariant: 'warning',
+          },
+        ],
+      },
+      {
+        title: 'Logistics Continuity',
+        items: [
+          {
+            to: '/dispatcher/logistics',
+            label: 'Logistics Intelligence',
+            icon: <Package className="w-4 h-4" />,
+            badge: disruptedShipmentsCount > 0 ? disruptedShipmentsCount : undefined,
+            badgeVariant: 'danger',
           },
         ],
       },

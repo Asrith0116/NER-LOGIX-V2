@@ -67,6 +67,7 @@ export function NavigationView() {
     pendingIncidentsCount,
     setPendingIncidentsCount,
     selectedDriverVehicleId,
+    vehicleTripContexts,
   } = useAppStore();
   const navigate = useNavigate();
 
@@ -80,6 +81,8 @@ export function NavigationView() {
     activeVehicles.find((v) => v.id === selectedDriverVehicleId) ||
     activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
     activeVehicles[0];
+
+  const driverTripCtx = driverVehicle ? vehicleTripContexts[driverVehicle.id] : undefined;
 
   const isDriverDisrupted = Boolean(driverVehicle?.affectedByDisruptionId);
   const driverRerouted = driverVehicle?.rerouteStatus === 'active';
@@ -102,10 +105,12 @@ export function NavigationView() {
     : undefined;
 
   const activeRoute =
-    selectedCustomRoute ||
+    driverTripCtx?.committedRoute ||
+    driverTripCtx?.selectedRoute ||
     (driverVehicle?.plannedRouteId
       ? Object.values(DEMO_ROUTES).find((r) => r.id === driverVehicle.plannedRouteId)
       : undefined) ||
+    selectedCustomRoute ||
     DEMO_TRIP.routes.find((r) => r.id === selectedRouteId) ||
     DEMO_ROUTES.saferRoute;
 
@@ -116,17 +121,26 @@ export function NavigationView() {
     ? driverVehicle.etaMinutes
     : (driverVehicle?.etaMinutes || activeRoute.etaMinutes);
 
-  const originLocation = Object.values(LOCATIONS).find(
-    (l) =>
-      l.shortName.toLowerCase() === driverVehicle?.origin?.toLowerCase() ||
-      l.name.toLowerCase().includes(driverVehicle?.origin?.toLowerCase() || '')
-  ) || LOCATIONS.guwahati;
+  const locDict = LOCATIONS as Record<string, typeof LOCATIONS.guwahati>;
+  const originLocation = (driverTripCtx?.originKey && locDict[driverTripCtx.originKey])
+    ? locDict[driverTripCtx.originKey]
+    : Object.values(LOCATIONS).find(
+        (l) =>
+          l.shortName.toLowerCase() === driverVehicle?.origin?.toLowerCase() ||
+          l.name.toLowerCase().includes(driverVehicle?.origin?.toLowerCase() || '')
+      ) || LOCATIONS.guwahati;
 
-  const destLocation = Object.values(LOCATIONS).find(
-    (l) =>
-      l.shortName.toLowerCase() === driverVehicle?.destination?.toLowerCase() ||
-      l.name.toLowerCase().includes(driverVehicle?.destination?.toLowerCase() || '')
-  ) || LOCATIONS.imphal;
+  const destKey = driverTripCtx?.destKey || driverTripCtx?.destinationKey;
+  const destLocation = (destKey && locDict[destKey])
+    ? locDict[destKey]
+    : Object.values(LOCATIONS).find(
+        (l) =>
+          l.shortName.toLowerCase() === driverVehicle?.destination?.toLowerCase() ||
+          l.name.toLowerCase().includes(driverVehicle?.destination?.toLowerCase() || '')
+      ) || LOCATIONS.imphal;
+
+  const originDisplayName = driverTripCtx?.originName || driverVehicle?.origin || originLocation.shortName;
+  const destDisplayName = driverTripCtx?.destinationName || driverVehicle?.destination || destLocation.shortName;
 
   const [justSyncedCount, setJustSyncedCount] = useState(0);
   const [reroutingInProgress, setReroutingInProgress] = useState(false);
@@ -176,9 +190,9 @@ export function NavigationView() {
               <DriverVehicleSelector id="nav-driver-vehicle-selector" compact />
             </div>
             <div className="flex items-center gap-1 text-[11px] text-[#8a8a87] mt-0.5">
-              <span>{driverRerouted ? (driverVehicle?.rerouteFromLabel || 'Current position') : (driverVehicle?.origin || DEMO_TRIP.origin.shortName)}</span>
+              <span>{driverRerouted ? (driverVehicle?.rerouteFromLabel || 'Current position') : originDisplayName}</span>
               <ChevronRight className="w-3 h-3" />
-              <span>{driverVehicle?.destination || DEMO_TRIP.destination.shortName}</span>
+              <span>{destDisplayName}</span>
               <span className="mx-1">·</span>
               <span className="font-medium text-[#2563eb]">
                 {driverRerouted ? `Alternate Corridor Active (via ${driverVehicle?.rerouteTo || 'Alternate Route'})` : activeRoute.label}
@@ -210,8 +224,8 @@ export function NavigationView() {
             routes={navRoutes}
             selectedRouteId={reactiveRoute?.id || activeRoute.id}
             incidents={activeIncidents}
-            originMarker={{ latlng: [originLocation.lat, originLocation.lng], label: `${driverVehicle?.origin || 'Guwahati'} Hub` }}
-            destinationMarker={{ latlng: [destLocation.lat, destLocation.lng], label: `${driverVehicle?.destination || 'Imphal'} Hub` }}
+            originMarker={{ latlng: [originLocation.lat, originLocation.lng], label: `${originDisplayName} Hub` }}
+            destinationMarker={{ latlng: [destLocation.lat, destLocation.lng], label: `${destDisplayName} Hub` }}
             vehicles={driverVehicle ? [driverVehicle] : []}
             userRole="driver"
             onRerouteVehicle={handleStartReroute}

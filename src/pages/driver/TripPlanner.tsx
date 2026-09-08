@@ -96,7 +96,7 @@ const CARGO_CATALOG = [
 
 export function TripPlanner() {
   const navigate = useNavigate();
-  const { setTripState, selectedDriverVehicleId } = useAppStore();
+  const { setTripState, commitVehicleTrip, vehicleTripContexts, selectedDriverVehicleId } = useAppStore();
 
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
   const roadSegments = useNetworkStore((state) => state.roadSegments);
@@ -112,8 +112,11 @@ export function TripPlanner() {
     activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
     activeVehicles[0];
 
-  // Journey origin and destination nodes (with driver vehicle defaults)
+  const vehicleTripCtx = activeVehicle ? vehicleTripContexts[activeVehicle.id] : undefined;
+
+  // Journey origin and destination nodes (with driver vehicle defaults or active trip context)
   const defaultOrigin = useMemo(() => {
+    if (vehicleTripCtx?.originKey) return vehicleTripCtx.originKey;
     if (activeVehicle?.origin) {
       const match = Object.keys(LOCATIONS).find((k) =>
         LOCATIONS[k as keyof typeof LOCATIONS].shortName.toLowerCase() ===
@@ -122,9 +125,11 @@ export function TripPlanner() {
       if (match) return match;
     }
     return 'guwahati';
-  }, [activeVehicle]);
+  }, [activeVehicle, vehicleTripCtx]);
 
   const defaultDest = useMemo(() => {
+    const destK = vehicleTripCtx?.destKey || vehicleTripCtx?.destinationKey;
+    if (destK) return destK;
     if (activeVehicle?.destination) {
       const match = Object.keys(LOCATIONS).find((k) =>
         LOCATIONS[k as keyof typeof LOCATIONS].shortName.toLowerCase() ===
@@ -133,10 +138,12 @@ export function TripPlanner() {
       if (match) return match;
     }
     return 'imphal';
-  }, [activeVehicle]);
+  }, [activeVehicle, vehicleTripCtx]);
 
   const [originKey, setOriginKey] = useState<string>(defaultOrigin);
   const [destKey, setDestKey] = useState<string>(defaultDest);
+  const [userSelectedRouteId, setUserSelectedRouteId] = useState<string | null>(null);
+  const [prepState, setPrepState] = useState<PrepState>('idle');
 
   // Synchronize when active vehicle context switches
   const [prevVehicleId, setPrevVehicleId] = useState<string>(activeVehicle?.id || '');
@@ -144,6 +151,8 @@ export function TripPlanner() {
     setPrevVehicleId(activeVehicle.id);
     setOriginKey(defaultOrigin);
     setDestKey(defaultDest);
+    setUserSelectedRouteId(null);
+    setPrepState('idle');
   }
 
   // Trip Configuration Inputs
@@ -159,8 +168,6 @@ export function TripPlanner() {
   const [showAdvancedConstraints, setShowAdvancedConstraints] = useState<boolean>(false);
 
   // State Management
-  const [userSelectedRouteId, setUserSelectedRouteId] = useState<string | null>(null);
-  const [prepState, setPrepState] = useState<PrepState>('idle');
   const [activeTab, setActiveTab] = useState<'routes' | 'risk_breakdown'>('routes');
 
   // Weather data ingestion
@@ -261,30 +268,51 @@ export function TripPlanner() {
   // Handle Journey Confirmation
   const handleConfirm = () => {
     if (prepState === 'ready' && selectedCandidate) {
-      // 1. Update app store with selected route
+      const tripId = `TRIP-${(activeVehicle?.id || 'DRV').replace(/[^A-Z0-9]/gi, '')}-${Date.now().toString().slice(-4)}`;
+
+      // 1. Commit active vehicle trip in app store (source of truth for active navigation)
+      if (activeVehicle?.id) {
+        commitVehicleTrip(activeVehicle.id, {
+          tripId,
+          vehicleId: activeVehicle.id,
+          originKey,
+          originName: originLocation.shortName,
+          destKey,
+          destinationKey: destKey,
+          destinationName: destLocation.shortName,
+          cargoCategory: selectedCargoOption.category,
+          cargoType: selectedCargoOption.category,
+          priority: tripPriority,
+          selectedRouteId: selectedCandidate.id,
+          selectedRoute: selectedCandidate,
+          committedRoute: selectedCandidate,
+          isCommitted: true,
+          isJourneyActive: true,
+          etaMinutes: selectedCandidate.etaMinutes,
+        });
+      }
+
+      // 2. Update global app state for backwards compatibility
       setTripState({
-        activeTripId: DEMO_TRIP.id,
+        activeTripId: tripId,
         selectedRouteId: selectedCandidate.id,
         selectedCustomRoute: selectedCandidate,
         isOfflineReady: true,
         isJourneyActive: true,
       });
 
-      // 2. Commit route to active vehicle in network store
+      // 3. Update vehicle operational status without corrupting permanent seeded profile
       if (activeVehicle?.id) {
         setVehicleStatus(activeVehicle.id, {
           plannedRouteId: selectedCandidate.id,
           currentRoute: selectedCandidate.id,
           plannedSegmentIds: selectedCandidate.segmentIds ? [...selectedCandidate.segmentIds] : undefined,
-          origin: originLocation.shortName,
-          destination: destLocation.shortName,
-          cargoType: selectedCargoOption.category,
           etaMinutes: selectedCandidate.etaMinutes,
           status: 'on_route',
         });
       }
 
-      // 3. Navigate to Cockpit
+      // 4. Navigate to Cockpit
       navigate('/driver/navigation');
       return;
     }

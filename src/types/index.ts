@@ -387,6 +387,8 @@ export interface Godown {
   locationLabel: string;
   suitableCargoTypes: string[];
   availableStock: number;
+  totalCapacity?: number;
+  status?: 'operational' | 'congested' | 'offline';
 }
 
 export type EmergencyPickupStatus = 'requested' | 'approved' | 'declined' | 'dispatched';
@@ -407,4 +409,66 @@ export interface EmergencyPickupRequest {
   quantity: number;
   reason: string;
   destinationNotified?: boolean;
+  alternativeGodownId?: string;
+  declineReason?: string;
 }
+
+// ─── Shipment & Logistics Continuity (Step 9) ─────────────────────────────────
+
+export type ShipmentPriority = 'low' | 'normal' | 'high' | 'critical';
+
+export type ShipmentStatus =
+  | 'scheduled'
+  | 'in_transit'
+  | 'delayed'
+  | 'rerouted'
+  | 'disrupted'
+  | 'relief_buffered'
+  | 'delivered';
+
+export type ContinuityStatus =
+  | 'on_track'
+  | 'monitored'
+  | 'at_risk'
+  | 'rerouting'
+  | 'relief_requested'
+  | 'relief_secured'
+  | 'escalated';
+
+export interface Shipment {
+  id: string;
+  vehicleId: string;
+  driverName: string;
+  origin: string;
+  destination: string;
+  cargoCategory: string;
+  cargoSensitivity: CargoSensitivity;
+  priority: ShipmentPriority;
+  priorityScore: number;
+  priorityExplanation: string;
+  quantity: number;
+  unit: string;
+  coldChainRequired: boolean;
+  currentTemperatureC?: number;
+  currentStatus: ShipmentStatus;
+  affected: boolean;
+  disruptionId?: string;
+  delayMinutes?: number;
+  continuityStatus: ContinuityStatus;
+  impactReason?: string;
+  recommendedAction?: string;
+  assignedGodownId?: string;
+  pickupRequestId?: string;
+  lastUpdated: string;
+}
+
+export interface ShipmentImpactResult {
+  totalShipments: number;
+  affectedShipments: Shipment[];
+  affectedCount: number;
+  criticalCount: number;
+  coldChainAtRiskCount: number;
+  activeContinuityRequests: number;
+  timestamp: string;
+}
+
