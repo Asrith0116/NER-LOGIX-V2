@@ -902,12 +902,6 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
     const vehicle = state.activeVehicles.find((v) => v.id === vehicleId);
     if (!vehicle) return undefined;
 
-    // If vehicle doesn't already have no_alternative, ensure it truly cannot reroute
-    if (vehicle.rerouteStatus !== 'no_alternative') {
-      const alternate = findAlternateRoute(vehicle, 'rd-001');
-      if (alternate) return undefined;
-    }
-
     let godownId = vehicle.recommendedGodownId;
     let distanceKm = vehicle.recommendedGodownDistanceKm;
     if (!godownId) {

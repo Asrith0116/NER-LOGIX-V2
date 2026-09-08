@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNetworkStore } from '@/store/networkStore';
+import { useNetworkStore, findNearestSuitableGodown } from '@/store/networkStore';
 import { useAppStore } from '@/store/appStore';
 import { useNavigate } from 'react-router-dom';
 import { MetricCard } from '@/components/ui/MetricCard';
@@ -18,6 +18,9 @@ import {
   RotateCw,
   Send,
   Building2,
+  X,
+  ShieldCheck,
+  MapPin,
 } from 'lucide-react';
 
 export function DispatcherLogistics() {
@@ -35,6 +38,8 @@ export function DispatcherLogistics() {
   const [priorityFilter, setPriorityFilter] = useState<'all' | ShipmentPriority>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'on_track' | 'disrupted' | 'detoured' | 'buffered'>('all');
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+  const [godownModalShipment, setGodownModalShipment] = useState<Shipment | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
   // Computed metrics
   const totalShipments = shipments.length;
@@ -80,8 +85,15 @@ export function DispatcherLogistics() {
   };
 
   const handleEmergencyPickup = (shipment: Shipment) => {
+    setGodownModalShipment(shipment);
+  };
+
+  const handleConfirmEmergencyPickup = (shipment: Shipment) => {
     if (!shipment.vehicleId) return;
-    requestEmergencyPickup(shipment.vehicleId);
+    const reqId = requestEmergencyPickup(shipment.vehicleId);
+    setGodownModalShipment(null);
+    setActionFeedback(`Emergency Pickup Request ${reqId || 'EPK-' + shipment.vehicleId} submitted to contractor. Dispatcher buffer reserved.`);
+    setTimeout(() => setActionFeedback(null), 6000);
   };
 
   const handleInspectVehicleInCockpit = (vehicleId: string) => {
@@ -221,6 +233,19 @@ export function DispatcherLogistics() {
           />
         </div>
       </div>
+
+      {/* Action Feedback Banner */}
+      {actionFeedback && (
+        <div className="mx-6 mt-3 p-3 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] text-xs font-semibold text-[#166534] flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-[#16a34a] shrink-0" />
+            <span>{actionFeedback}</span>
+          </div>
+          <button onClick={() => setActionFeedback(null)} className="text-[#166534] hover:text-[#14532d]">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Main Grid: Shipments List + Side Inspection / Godown Network */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
@@ -579,6 +604,119 @@ export function DispatcherLogistics() {
           </div>
         </div>
       </div>
+
+      {/* Emergency Godown Recommendation Modal */}
+      {godownModalShipment && (() => {
+        const assignedV = activeVehicles.find((v) => v.id === godownModalShipment.vehicleId);
+        const bestGodownMatch = assignedV ? findNearestSuitableGodown(assignedV, godowns) : undefined;
+        const targetGodown = assignedV?.recommendedGodownId
+          ? godowns.find((g) => g.id === assignedV.recommendedGodownId) || bestGodownMatch?.godown || godowns[0]
+          : bestGodownMatch?.godown || godowns[0];
+        const distKm = assignedV?.recommendedGodownDistanceKm ?? bestGodownMatch?.distanceKm ?? 45;
+
+        return (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-lg w-full border border-[#e4e4e3] shadow-xl overflow-hidden animate-in fade-in duration-200">
+              <div className="p-4 bg-[#f0fdf4] border-b border-[#bbf7d0] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Warehouse className="w-5 h-5 text-[#166534]" />
+                  <div>
+                    <h3 className="font-bold text-sm text-[#166534]">Emergency Godown Recommendation</h3>
+                    <p className="text-[11px] text-[#15803d]">Relief Storage Allocation & Pickup Request</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setGodownModalShipment(null)}
+                  className="p-1 rounded-lg hover:bg-[#dcfce7] text-[#166534] transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Target Shipment Summary */}
+                <div className="p-3 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-xs space-y-1">
+                  <div className="flex items-center justify-between font-bold text-[#0f172a]">
+                    <span>Consignment {godownModalShipment.id}</span>
+                    <span className="font-mono text-[#2563eb]">{godownModalShipment.vehicleId}</span>
+                  </div>
+                  <p className="text-[#475569]">{godownModalShipment.cargoCategory} · {godownModalShipment.quantity} {godownModalShipment.unit}</p>
+                  <p className="text-[#64748b] text-[11px]">{godownModalShipment.origin} → {godownModalShipment.destination}</p>
+                </div>
+
+                {/* Godown Recommendation Card */}
+                {targetGodown ? (
+                  <div className="p-4 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] text-xs space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#166534] flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Optimal Emergency Storage Node
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#dcfce7] text-[#166534] border border-[#86efac]">
+                        {targetGodown.availableStock} Units Stock Available
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-bold text-sm text-[#14532d]">{targetGodown.name}</h4>
+                      <p className="text-[#166534] text-[11px] flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" />
+                        {targetGodown.locationLabel}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#bbf7d0]/60 text-[11px]">
+                      <div>
+                        <span className="text-[#15803d] font-medium">Proximity / Distance:</span>
+                        <p className="font-bold text-[#14532d]">~{distKm} km from current position</p>
+                      </div>
+                      <div>
+                        <span className="text-[#15803d] font-medium">Cargo Compatibility:</span>
+                        <p className="font-bold text-[#14532d]">
+                          {godownModalShipment.coldChainRequired ? 'Cold-Chain Refrigerated' : 'Relief Rations Compatible'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-[#15803d] font-medium">Shipment Urgency:</span>
+                        <p className="font-bold text-[#dc2626]">
+                          {godownModalShipment.priority === 'critical' ? 'P1 Critical Allocation' : 'P2 High Allocation'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-[#15803d] font-medium">Corridor Accessibility:</span>
+                        <p className="font-bold text-[#14532d]">Open Feeder Access</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-[#fef2f2] border border-[#fca5a5] text-xs text-[#991b1b]">
+                    No suitable godown found matching cargo requirements.
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setGodownModalShipment(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => handleConfirmEmergencyPickup(godownModalShipment)}
+                    iconLeft={<Send className="w-3.5 h-3.5" />}
+                    className="bg-[#166534] hover:bg-[#14532d] text-white font-bold cursor-pointer"
+                  >
+                    Request Emergency Pickup & Allocation
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

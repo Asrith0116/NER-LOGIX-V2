@@ -241,14 +241,37 @@ export function MapInspector({
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#8a8a87]">Segment Classification:</span>
-                <span className="font-medium text-[#1a1a19]">Regional Mountain Corridor</span>
+                <span className="text-[#8a8a87]">Accessibility Priority:</span>
+                <span className="font-bold text-[#dc2626]">
+                  {entity.data.status === 'blocked' ? '95/100 (HIGH)' : entity.data.status === 'caution' ? '45/100 (MEDIUM)' : '10/100 (LOW)'}
+                </span>
               </div>
+
               {entity.data.affectedByIncidentId && (
-                <div className="p-2.5 rounded-lg bg-[#fff8f8] border border-[#fca5a5] text-[#991b1b] text-[11px]">
-                  <strong>Active Disruption:</strong> Blocked by official SDMA report ({entity.data.affectedByIncidentId})
+                <div className="p-2.5 rounded-lg bg-[#fff8f8] border border-[#fca5a5] text-[#991b1b] text-[11px] space-y-1">
+                  <div className="font-bold flex items-center gap-1">
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    Official SDMA Verified Blockage ({entity.data.affectedByIncidentId})
+                  </div>
+                  <p className="text-[10px] opacity-90">
+                    Contributing Factors: +30 Verified Disruption, +25 Corridor Blocked, +20 Affected Cargo Impact, +20 Critical Relief Exposure.
+                  </p>
                 </div>
               )}
+
+              <div className="p-2 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] text-[11px] text-[#334155] space-y-1">
+                <div className="font-semibold text-[#0f172a]">Government Decision Support Advisory:</div>
+                <p className="text-[10px] text-[#475569]">
+                  {entity.data.status === 'blocked'
+                    ? 'Priority Corridor — Immediate Clearance & Verification Required.'
+                    : entity.data.status === 'caution'
+                      ? 'Monitor Clearance Operations — Heavy Rains/Debris Risk.'
+                      : 'Standard Feeder Corridor — Open Traffic.'}
+                </p>
+                <p className="text-[9px] text-[#64748b] italic pt-1 border-t border-[#cbd5e1]">
+                  Decision support — final action requires authorized government operator.
+                </p>
+              </div>
             </>
           )}
 
