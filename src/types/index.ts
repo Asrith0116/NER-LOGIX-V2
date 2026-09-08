@@ -260,7 +260,7 @@ export interface IncidentAiAnalysis {
   englishSummary: string;
   hazardCategory: IncidentType;
   estimatedSeverity: IncidentSeverity;
-  roadImpact: 'partially_blocked' | 'fully_blocked' | 'single_lane' | 'caution' | 'bridge_impassable';
+  roadImpact: 'partially_blocked' | 'fully_blocked' | 'single_lane' | 'caution' | 'bridge_impassable' | 'none';
   confidenceScore?: number | null;
   qualitativeConfidence?: string;
   extractedEntities: string[];
@@ -268,8 +268,10 @@ export interface IncidentAiAnalysis {
   verificationPriority: 'critical' | 'high' | 'medium' | 'low';
   provider: string;
   model?: string;
-  statusLabel?: 'Gemini AI · Live' | 'Local NLP · Deterministic Fallback' | string;
+  statusLabel?: 'Gemini AI · Live' | 'Groq · Live' | 'NER-LOGIX Heuristic · Offline' | string;
   isLiveGemini?: boolean;
+  isLiveGroq?: boolean;
+  isAiDriven?: boolean;
   generatedAt?: string;
   diagnostics?: {
     endpoint?: string;

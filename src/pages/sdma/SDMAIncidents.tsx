@@ -362,8 +362,8 @@ export function SDMAIncidents() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
                   <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">
                     <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Road Impact</span>
-                    <span className="font-bold text-[#dc2626]">
-                      {selected.aiAnalysis?.roadImpact ? selected.aiAnalysis.roadImpact.replace('_', ' ').toUpperCase() : 'FULLY BLOCKED'}
+                    <span className={selected.aiAnalysis?.roadImpact === 'none' ? "font-bold text-[#166534]" : "font-bold text-[#dc2626]"}>
+                      {selected.aiAnalysis?.roadImpact ? (selected.aiAnalysis.roadImpact === 'none' ? 'NONE (NO OPERATIONAL ROAD IMPACT)' : selected.aiAnalysis.roadImpact.replace('_', ' ').toUpperCase()) : 'FULLY BLOCKED'}
                     </span>
                   </div>
                   <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">

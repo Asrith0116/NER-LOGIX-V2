@@ -11,7 +11,6 @@ import { useNetworkStore } from '@/store/networkStore';
 import { saveIncident, getPendingIncidents } from '@/utils/idb';
 import {
   analyzeIncidentReport,
-  DeterministicFallbackIncidentIntelligenceProvider,
   type IncidentIntelligenceRequest,
 } from '@/services/aiService';
 import { locationProvider } from '@/services/locationService';
@@ -172,7 +171,6 @@ export function HazardReport() {
   }, [currentDriverVehicle]);
 
   // Auto-run AI parsing advisory preview when user types substantial description
-  // Uses deterministic fallback provider for responsive pre-submission preview without consuming quota
   useEffect(() => {
     let isCancelled = false;
     const trimmed = description.trim();
@@ -180,8 +178,7 @@ export function HazardReport() {
       const timer = setTimeout(async () => {
         setIsAnalyzingLive(true);
         try {
-          const fallbackProvider = new DeterministicFallbackIncidentIntelligenceProvider();
-          const analysis = await fallbackProvider.analyze({
+          const analysis = await analyzeIncidentReport({
             typedDescription: trimmed,
             hazardCategory: type,
             reportedSeverity: severity,
@@ -197,7 +194,7 @@ export function HazardReport() {
             setIsAnalyzingLive(false);
           }
         }
-      }, 350);
+      }, 400);
       return () => {
         isCancelled = true;
         clearTimeout(timer);
@@ -441,12 +438,12 @@ export function HazardReport() {
                     <span
                       className={cn(
                         'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
-                        ticketAnalysis.isLiveGemini
+                        ticketAnalysis.isAiDriven || ticketAnalysis.isLiveGemini || ticketAnalysis.isLiveGroq
                           ? 'bg-white text-[#1d4ed8] border-[#bfdbfe]'
                           : 'bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]'
                       )}
                     >
-                      {ticketAnalysis.statusLabel || (ticketAnalysis.isLiveGemini ? 'Gemini AI · Live' : 'Local NLP · Deterministic Fallback')}
+                      {ticketAnalysis.statusLabel || (ticketAnalysis.isLiveGemini ? 'Gemini AI · Live' : ticketAnalysis.isLiveGroq ? 'Groq · Live' : 'Local NLP · Deterministic Fallback')}
                     </span>
                     {ticketAnalysis.model && (
                       <span className="text-[10px] font-mono text-[#1e40af] bg-white px-1.5 py-0.5 rounded border border-[#bfdbfe]">
@@ -458,7 +455,7 @@ export function HazardReport() {
                 <p className="text-[11px] leading-tight text-[#1e3a8a]">{ticketAnalysis.englishSummary}</p>
                 <div className="flex items-center justify-between text-[10px] pt-1 border-t border-[#bfdbfe]/60">
                   <span className="text-[#5a5a57]">
-                    Road Impact: <strong className="text-[#dc2626] uppercase">{ticketAnalysis.roadImpact.replace('_', ' ')}</strong>
+                    Road Impact: <strong className={ticketAnalysis.roadImpact === 'none' ? "text-[#166534] uppercase font-bold" : "text-[#dc2626] uppercase font-bold"}>{ticketAnalysis.roadImpact === 'none' ? 'NONE (NO OPERATIONAL ROAD IMPACT)' : ticketAnalysis.roadImpact.replace('_', ' ')}</strong>
                   </span>
                   {ticketAnalysis.confidenceScore !== null && ticketAnalysis.confidenceScore !== undefined ? (
                     <span className="font-bold text-[#15803d]">
@@ -725,12 +722,12 @@ export function HazardReport() {
                     <span
                       className={cn(
                         'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
-                        aiAnalysis.isLiveGemini
+                        aiAnalysis.isAiDriven || aiAnalysis.isLiveGemini || aiAnalysis.isLiveGroq
                           ? 'bg-white text-[#1d4ed8] border-[#bfdbfe]'
                           : 'bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]'
                       )}
                     >
-                      {aiAnalysis.statusLabel || (aiAnalysis.isLiveGemini ? 'Gemini AI · Live' : 'Local NLP · Deterministic Fallback')}
+                      {aiAnalysis.statusLabel || (aiAnalysis.isLiveGemini ? 'Gemini AI · Live' : aiAnalysis.isLiveGroq ? 'Groq · Live' : 'Local NLP · Deterministic Fallback')}
                     </span>
                     {aiAnalysis.model && (
                       <span className="text-[10px] font-mono text-[#1e40af] bg-white px-1.5 py-0.5 rounded border border-[#bfdbfe]">
@@ -761,8 +758,8 @@ export function HazardReport() {
                       {ent}
                     </span>
                   ))}
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5]">
-                    Road Impact: {aiAnalysis.roadImpact.replace('_', ' ').toUpperCase()}
+                  <span className={aiAnalysis.roadImpact === 'none' ? "text-[10px] font-bold px-2 py-0.5 rounded bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0]" : "text-[10px] font-bold px-2 py-0.5 rounded bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5]"}>
+                    Road Impact: {aiAnalysis.roadImpact === 'none' ? 'NONE (NO OPERATIONAL ROAD IMPACT)' : aiAnalysis.roadImpact.replace('_', ' ').toUpperCase()}
                   </span>
                 </div>
                 <p className="text-[10px] text-[#64748b] italic border-t border-[#dbeafe] pt-1">

@@ -169,14 +169,14 @@ export class DeterministicFallbackIncidentIntelligenceProvider
       { type: 'road_washout', terms: /washout|washed|erosion|sinkhole/i },
       { type: 'flood', terms: /flood|waterlog|river\s+overflow|overflow|ইশিং|পানী|बाढ़/i },
       { type: 'bridge_damage', terms: /bridge|cracked\s+pier|abutment|থোং|দলং|पुल/i },
-      { type: 'rockfall', terms: /rockfall|boulder|falling\s+rocks|scree|নুং|শিল|पत्थर/i },
+      { type: 'rockfall', terms: /rockfall|boulder|falling\s+rocks|scree|rocks?|shale|নুং|শিল|पत्थर/i },
       { type: 'tree_fall', terms: /tree\s*fall|fallen\s+tree|tree|branch|powerline|electric\s+pole/i },
       { type: 'vehicle_accident', terms: /accident|collision|overturn|truck\s+breakdown/i },
       { type: 'fire_smoke', terms: /forest\s+fire|smoke|blaze|fire/i },
-      { type: 'road_closure', terms: /curfew|strike|blockade|checkpoint|bandh/i },
+      { type: 'road_closure', terms: /curfew|strike|blockade|checkpoint|bandh|road\s*block/i },
       { type: 'pothole_surface', terms: /pothole|crater|surface\s+damage/i },
       { type: 'severe_weather', terms: /dense\s+fog|cloudburst|cyclone|storm/i },
-      { type: 'landslide', terms: /landslide|mudslip|slope\s+failure|পাহাৰ|লৈবাক|भूस्खलन|ধল/i },
+      { type: 'landslide', terms: /landslide|mudslip|slope\s+failure|rock\s*slide|পাহাৰ|লৈবাক|भूस्खलन|ধল/i },
     ];
 
     let classifiedCategory: IncidentType = 'other';
@@ -217,6 +217,9 @@ export class DeterministicFallbackIncidentIntelligenceProvider
       lower.includes('bridge collapsed') ||
       lower.includes('both lanes') ||
       lower.includes('closed') ||
+      lower.includes('road block') ||
+      lower.includes('roadblock') ||
+      lower.includes('blocked') ||
       lower.includes('বন্ধ') ||
       lower.includes('থিংজিন') ||
       lower.includes('बंद');
@@ -231,7 +234,7 @@ export class DeterministicFallbackIncidentIntelligenceProvider
 
     if (classifiedCategory === 'other') {
       severity = 'low';
-      roadImpact = 'caution';
+      roadImpact = 'none';
     } else if (isCompleteBlock || classifiedCategory === 'bridge_damage' || classifiedCategory === 'road_washout') {
       severity = 'critical';
       roadImpact = classifiedCategory === 'bridge_damage' ? 'bridge_impassable' : 'fully_blocked';
@@ -368,7 +371,27 @@ export class GeminiIncidentIntelligenceProvider implements IncidentIntelligenceP
         const json = await res.json();
         if (json && json.ok && json.data) {
           const d = json.data;
-          const conf = typeof d.confidence_score === 'number' ? d.confidence_score : 0.95;
+          const providerName = json.provider || d.provider || 'AI Gateway';
+          const modelName = json.model || d.model || 'gemini-3.6-flash';
+          const statusLabel =
+            json.status_label ||
+            d.status_label ||
+            (providerName.includes('Groq')
+              ? 'Groq · Live'
+              : providerName.includes('Gemini')
+              ? 'Gemini AI · Live'
+              : 'NER-LOGIX Heuristic · Offline');
+
+          const isLiveGemini = providerName === 'Gemini AI';
+          const isLiveGroq = providerName === 'Groq AI';
+          const isAiDriven = isLiveGemini || isLiveGroq;
+
+          const conf = typeof d.confidence_score === 'number' ? d.confidence_score : null;
+          const qualitativeConfidence =
+            conf !== null
+              ? `Live ${providerName} (${Math.round(conf * 100)}% Confidence)`
+              : 'Not available · Deterministic fallback';
+
           return {
             detectedLanguage: d.detected_language || 'English',
             originalText: request.typedDescription || request.voiceTranscript || '',
@@ -379,16 +402,18 @@ export class GeminiIncidentIntelligenceProvider implements IncidentIntelligenceP
               'Corridor incident analyzed.',
             hazardCategory: d.hazard_category as IncidentType,
             estimatedSeverity: d.estimated_severity as IncidentSeverity,
-            roadImpact: d.road_impact || 'partially_blocked',
+            roadImpact: (d.hazard_category === 'other' || d.road_impact === 'none') ? 'none' : (d.road_impact || 'partially_blocked'),
             confidenceScore: conf,
-            qualitativeConfidence: `Live Gemini 3.6 Flash (${Math.round(conf * 100)}% Confidence)`,
+            qualitativeConfidence,
             extractedEntities: d.extracted_entities || [],
             recommendedAction: d.recommended_action || 'SDMA verification required',
             verificationPriority: d.verification_priority || 'high',
-            provider: 'Gemini AI',
-            model: 'gemini-3.6-flash',
-            statusLabel: 'Gemini AI · Live',
-            isLiveGemini: true,
+            provider: providerName,
+            model: modelName,
+            statusLabel,
+            isLiveGemini,
+            isLiveGroq,
+            isAiDriven,
             generatedAt: d.timestamp || new Date().toISOString(),
             diagnostics: {
               endpoint: '/api/v1/ai/analyze-incident',
