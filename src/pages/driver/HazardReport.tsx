@@ -9,7 +9,11 @@ import { DEMO_DRIVER } from '@/data/demo';
 import { useAppStore } from '@/store/appStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { saveIncident, getPendingIncidents } from '@/utils/idb';
-import { analyzeIncidentReport } from '@/services/aiService';
+import {
+  analyzeIncidentReport,
+  DeterministicFallbackIncidentIntelligenceProvider,
+  type IncidentIntelligenceRequest,
+} from '@/services/aiService';
 import { locationProvider } from '@/services/locationService';
 import type { IncidentType, IncidentSeverity, Incident, IncidentAiAnalysis, LocationSnapshot } from '@/types';
 import {
@@ -102,9 +106,10 @@ export function HazardReport() {
   const [severity, setSeverity] = useState<IncidentSeverity>('high');
   const [description, setDescription] = useState('');
   const [formState, setFormState] = useState<FormState>('idle');
-  const [lastIncidentId, setLastIncidentId] = useState<string>('');
 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [photoMimeType, setPhotoMimeType] = useState<string | null>(null);
   const [photoTime, setPhotoTime] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -112,8 +117,11 @@ export function HazardReport() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [voiceTranscript, setVoiceTranscript] = useState<string>('');
   const [selectedLanguage, setSelectedLanguage] = useState('Assamese (অসমীয়া)');
   const [aiAnalysis, setAiAnalysis] = useState<IncidentAiAnalysis | null>(null);
+  const [submittedIncident, setSubmittedIncident] = useState<Incident | null>(null);
+  const [isAnalyzingLive, setIsAnalyzingLive] = useState(false);
 
   // Location Provider State
   const [locationSnapshot, setLocationSnapshot] = useState<LocationSnapshot>({
@@ -163,18 +171,49 @@ export function HazardReport() {
     };
   }, [currentDriverVehicle]);
 
-  // Auto-run AI parsing when description changes
+  // Auto-run AI parsing advisory preview when user types substantial description
+  // Uses deterministic fallback provider for responsive pre-submission preview without consuming quota
   useEffect(() => {
-    if (description.trim().length > 8) {
+    let isCancelled = false;
+    const trimmed = description.trim();
+    if (trimmed.length > 5) {
       const timer = setTimeout(async () => {
-        const analysis = await analyzeIncidentReport(description, locationSnapshot.locationName, selectedLanguage);
-        setAiAnalysis(analysis);
-        setType(analysis.hazardCategory);
-        setSeverity(analysis.estimatedSeverity);
+        setIsAnalyzingLive(true);
+        try {
+          const fallbackProvider = new DeterministicFallbackIncidentIntelligenceProvider();
+          const analysis = await fallbackProvider.analyze({
+            typedDescription: trimmed,
+            hazardCategory: type,
+            reportedSeverity: severity,
+            voiceTranscript: audioUrl && voiceTranscript.trim() ? voiceTranscript.trim() : undefined,
+            locationName: locationSnapshot.locationName,
+            languageHint: audioUrl ? selectedLanguage : 'English',
+          });
+          if (!isCancelled) {
+            setAiAnalysis(analysis);
+          }
+        } finally {
+          if (!isCancelled) {
+            setIsAnalyzingLive(false);
+          }
+        }
       }, 350);
-      return () => clearTimeout(timer);
+      return () => {
+        isCancelled = true;
+        clearTimeout(timer);
+      };
+    } else {
+      const timer = setTimeout(() => {
+        if (!isCancelled) {
+          setAiAnalysis(null);
+        }
+      }, 0);
+      return () => {
+        isCancelled = true;
+        clearTimeout(timer);
+      };
     }
-  }, [description, locationSnapshot.locationName, selectedLanguage]);
+  }, [description, type, severity, locationSnapshot.locationName, selectedLanguage, audioUrl, voiceTranscript]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -182,6 +221,25 @@ export function HazardReport() {
       const url = URL.createObjectURL(file);
       setPhotoUrl(url);
       setPhotoTime(new Date().toISOString());
+      setPhotoMimeType(file.type || 'image/jpeg');
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setPhotoBase64(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoUrl(null);
+    setPhotoBase64(null);
+    setPhotoMimeType(null);
+    setPhotoTime(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -210,7 +268,7 @@ export function HazardReport() {
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
     } catch {
-      // Hardware mic unavailable or blocked in iframe; simulate recording fallback
+      // Hardware mic unavailable or blocked in iframe; simulate recording state
       setIsRecording(true);
       setRecordingSeconds(0);
       timerIntervalRef.current = setInterval(() => {
@@ -223,52 +281,97 @@ export function HazardReport() {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    } else {
-      setIsRecording(false);
-      setAudioUrl('demo_audio_recorded');
-      if (!description) {
-        setDescription(SAMPLE_VOICE_MEMOS[0].text);
-      }
     }
+    setIsRecording(false);
+    setAudioUrl('demo_audio_recorded');
+    // NOTE: Strictly retain user input fidelity. Do NOT overwrite user description with mock text.
   };
 
   const handleApplyVoiceSample = (sample: typeof SAMPLE_VOICE_MEMOS[0]) => {
     setDescription(sample.text);
+    setVoiceTranscript(sample.text);
     setSelectedLanguage(sample.lang);
     setAudioUrl('demo_audio_recorded');
+  };
+
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newDesc = e.target.value;
+    setDescription(newDesc);
+
+    // If user edited text away from a voice memo sample, decouple and clear the voice note
+    if (newDesc !== voiceTranscript) {
+      setVoiceTranscript('');
+      setAudioUrl(null);
+      setSelectedLanguage('English');
+    }
+
+    // Invalidate stale aiAnalysis if description changed
+    if (aiAnalysis && aiAnalysis.originalText !== newDesc) {
+      setAiAnalysis(null);
+    }
+  };
+
+  const handleRemoveAudio = () => {
+    setAudioUrl(null);
+    setVoiceTranscript('');
+    setSelectedLanguage('English');
+    if (aiAnalysis && aiAnalysis.originalText !== description) {
+      setAiAnalysis(null);
+    }
   };
 
   const handleSubmit = async () => {
     setFormState('submitting');
 
     const incidentId = `INC-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    setLastIncidentId(incidentId);
 
-    // Final AI analysis if not yet run
-    const finalAnalysis =
-      aiAnalysis ||
-      (await analyzeIncidentReport(description, locationSnapshot.locationName, selectedLanguage));
+    const activeVoiceTranscript = audioUrl && voiceTranscript.trim() ? voiceTranscript.trim() : undefined;
+    const activeLanguage = audioUrl ? selectedLanguage : 'English';
+
+    // CRITICAL: CURRENT USER INPUT FIDELITY (Phase 5)
+    // Create a fresh analysis using the exact CURRENT form state at submission time.
+    // Never reuse stale React state or debounced analysis objects.
+    const currentSubmissionRequest: IncidentIntelligenceRequest = {
+      typedDescription: description.trim(),
+      hazardCategory: type,
+      reportedSeverity: severity,
+      voiceTranscript: activeVoiceTranscript,
+      locationName: locationSnapshot.locationName,
+      latitude: locationSnapshot.lat,
+      longitude: locationSnapshot.lng,
+      accuracyMeters: locationSnapshot.accuracyMeters,
+      vehicleId: currentDriverVehicle?.id,
+      vehicleType: currentDriverVehicle?.type || 'Heavy Multi-Axle',
+      cargoCategory: currentDriverVehicle?.cargoType || 'General Freight',
+      cargoSensitivity: 'Standard',
+      priority: 'Standard',
+      photo: photoBase64 && photoMimeType ? { data: photoBase64, mimeType: photoMimeType } : null,
+      timestamp: new Date().toISOString(),
+      languageHint: activeLanguage,
+    };
+
+    const finalAnalysis = await analyzeIncidentReport(currentSubmissionRequest);
+    setAiAnalysis(finalAnalysis);
 
     const newIncident: Incident = {
       id: incidentId,
-      type,
-      severity,
+      type: finalAnalysis.hazardCategory || type,
+      severity: finalAnalysis.estimatedSeverity || severity,
       location: [locationSnapshot.lat, locationSnapshot.lng],
       locationName: locationSnapshot.locationName,
       locationSource: locationSnapshot.source,
-      description: description || `Field report: ${type.replace('_', ' ')} obstructing transit.`,
+      description: description.trim() || `Field report: ${type.replace('_', ' ')} obstructing transit corridor.`,
       reportedBy: currentDriverVehicle ? `${currentDriverVehicle.driverName} (${currentDriverVehicle.id})` : DEMO_DRIVER.name,
       reportedVehicleId: currentDriverVehicle?.id,
       reportedAt: new Date().toISOString(),
       syncStatus: isOffline ? 'local_pending' : 'pending_verification',
-      photoUrl: photoUrl || 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=600&q=80',
-      photoCapturedAt: photoTime || new Date().toISOString(),
+      photoUrl: photoUrl || undefined, // Real photo only; never inject fake stock images
+      photoCapturedAt: photoUrl ? (photoTime || new Date().toISOString()) : undefined,
       voiceNote: Boolean(audioUrl),
       voiceNoteUrl: audioUrl || undefined,
-      voiceTranscript: description,
-      voiceLanguage: selectedLanguage,
-      voiceDurationSec: recordingSeconds > 0 ? recordingSeconds : 14,
+      voiceTranscript: activeVoiceTranscript,
+      voiceLanguage: activeLanguage,
+      voiceDurationSec: audioUrl ? (recordingSeconds > 0 ? recordingSeconds : 12) : undefined,
       aiAnalysis: finalAnalysis,
       affectedRouteId: currentDriverVehicle?.plannedRouteId || 'route-b',
     };
@@ -276,19 +379,19 @@ export function HazardReport() {
     // Save to local IndexedDB
     await saveIncident(newIncident);
 
-    // Also push to in-memory networkStore for immediate multi-view visibility
+    // Push to in-memory networkStore for immediate multi-view visibility
     addIncident(newIncident);
 
     // Update global state count for pending incidents
     const pending = await getPendingIncidents();
     setPendingIncidentsCount(pending.length);
 
-    setTimeout(() => {
-      setFormState('success');
-    }, 800);
+    setSubmittedIncident(newIncident);
+    setFormState('success');
   };
 
-  if (formState === 'success') {
+  if (formState === 'success' && submittedIncident) {
+    const ticketAnalysis = submittedIncident.aiAnalysis;
     return (
       <div className="h-full flex flex-col items-center justify-center p-8 bg-white">
         <motion.div
@@ -312,7 +415,7 @@ export function HazardReport() {
           <div className="bg-[#f8f8f7] rounded-xl border border-[#e4e4e3] p-4 text-left mb-6 space-y-2.5">
             <div className="flex items-center justify-between border-b border-[#e4e4e3] pb-2">
               <span className="text-xs font-semibold text-[#1a1a19]">Incident Ticket</span>
-              <span className="text-xs font-bold text-[#1a1a19] font-mono">{lastIncidentId}</span>
+              <span className="text-xs font-bold text-[#1a1a19] font-mono">{submittedIncident.id}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-[#5a5a57]">Sync State</span>
@@ -327,18 +430,46 @@ export function HazardReport() {
                 {locationSnapshot.source === 'DEVICE_GPS' ? 'Device GPS (Live)' : 'Simulated Telemetry'}
               </span>
             </div>
-            {aiAnalysis && (
-              <div className="p-2.5 rounded-lg bg-[#eff6ff] border border-[#bfdbfe] text-xs text-[#1e40af] space-y-1">
-                <div className="flex items-center justify-between font-bold">
+            {ticketAnalysis && (
+              <div className="p-3 rounded-xl bg-[#eff6ff] border border-[#bfdbfe] text-xs text-[#1e40af] space-y-1.5">
+                <div className="flex items-center justify-between font-bold flex-wrap gap-1">
                   <div className="flex items-center gap-1">
                     <Sparkles className="w-3.5 h-3.5 text-[#2563eb]" />
                     <span>AI Advisory Classification</span>
                   </div>
-                  <span className="text-[10px] text-[#2563eb] bg-white px-1.5 py-0.5 rounded border border-[#bfdbfe]">
-                    {aiAnalysis.provider}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+                        ticketAnalysis.isLiveGemini
+                          ? 'bg-white text-[#1d4ed8] border-[#bfdbfe]'
+                          : 'bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]'
+                      )}
+                    >
+                      {ticketAnalysis.statusLabel || (ticketAnalysis.isLiveGemini ? 'Gemini AI · Live' : 'Local NLP · Deterministic Fallback')}
+                    </span>
+                    {ticketAnalysis.model && (
+                      <span className="text-[10px] font-mono text-[#1e40af] bg-white px-1.5 py-0.5 rounded border border-[#bfdbfe]">
+                        {ticketAnalysis.model}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <p className="text-[11px] leading-tight text-[#1e3a8a]">{aiAnalysis.englishSummary}</p>
+                <p className="text-[11px] leading-tight text-[#1e3a8a]">{ticketAnalysis.englishSummary}</p>
+                <div className="flex items-center justify-between text-[10px] pt-1 border-t border-[#bfdbfe]/60">
+                  <span className="text-[#5a5a57]">
+                    Road Impact: <strong className="text-[#dc2626] uppercase">{ticketAnalysis.roadImpact.replace('_', ' ')}</strong>
+                  </span>
+                  {ticketAnalysis.confidenceScore !== null && ticketAnalysis.confidenceScore !== undefined ? (
+                    <span className="font-bold text-[#15803d]">
+                      Confidence: {Math.round(ticketAnalysis.confidenceScore * 100)}%
+                    </span>
+                  ) : (
+                    <span className="text-[#71717a]">
+                      Confidence: Not available · Deterministic fallback
+                    </span>
+                  )}
+                </div>
               </div>
             )}
             <div className="flex items-center gap-2 text-[11px] text-[#8a8a87] pt-1">
@@ -366,9 +497,12 @@ export function HazardReport() {
                 setType('landslide');
                 setSeverity('high');
                 setDescription('');
-                setPhotoUrl(null);
+                setVoiceTranscript('');
+                setSelectedLanguage('English');
+                handleRemovePhoto();
                 setAudioUrl(null);
                 setAiAnalysis(null);
+                setSubmittedIncident(null);
               }}
             >
               File Another Incident Report
@@ -527,7 +661,7 @@ export function HazardReport() {
               rows={3}
               placeholder="Describe road blockage, rock size, water depth, or speak in your regional language..."
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={handleDescriptionChange}
             />
 
             {/* Real Audio Recording Control Bar */}
@@ -565,7 +699,7 @@ export function HazardReport() {
                   <span className="font-semibold">Audio Note Captured</span>
                   <span className="text-[10px] text-[#8a8a87]">({selectedLanguage})</span>
                   <button
-                    onClick={() => setAudioUrl(null)}
+                    onClick={handleRemoveAudio}
                     className="ml-2 text-[#8a8a87] hover:text-[#dc2626] cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -577,22 +711,45 @@ export function HazardReport() {
             {/* AI Real-Time Parsing Feedback */}
             {aiAnalysis && (
               <div className="p-3.5 rounded-xl bg-[#eff6ff] border border-[#bfdbfe] space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-[#1e40af]">
-                    <Sparkles className="w-3.5 h-3.5 text-[#2563eb]" />
-                    <span>AI Autonomous Triage & Extraction Engine</span>
+                    <Sparkles className={cn('w-3.5 h-3.5 text-[#2563eb]', isAnalyzingLive && 'animate-spin')} />
+                    <span>AI Autonomous Triage & Advisory Intelligence</span>
+                    {isAnalyzingLive && (
+                      <span className="text-[10px] font-normal text-[#2563eb] italic animate-pulse">
+                        (analyzing with Gemini...)
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white text-[#1d4ed8] border border-[#bfdbfe]">
-                      {aiAnalysis.provider}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className={cn(
+                        'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+                        aiAnalysis.isLiveGemini
+                          ? 'bg-white text-[#1d4ed8] border-[#bfdbfe]'
+                          : 'bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]'
+                      )}
+                    >
+                      {aiAnalysis.statusLabel || (aiAnalysis.isLiveGemini ? 'Gemini AI · Live' : 'Local NLP · Deterministic Fallback')}
                     </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/15 text-[#15803d]">
-                      Confidence: {Math.round((aiAnalysis.confidenceScore || 0.94) * 100)}%
-                    </span>
+                    {aiAnalysis.model && (
+                      <span className="text-[10px] font-mono text-[#1e40af] bg-white px-1.5 py-0.5 rounded border border-[#bfdbfe]">
+                        {aiAnalysis.model}
+                      </span>
+                    )}
+                    {aiAnalysis.confidenceScore !== null && aiAnalysis.confidenceScore !== undefined ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/15 text-[#15803d]">
+                        Confidence: {Math.round(aiAnalysis.confidenceScore * 100)}%
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f4f4f5] text-[#71717a] border border-[#e4e4e7]">
+                        Confidence: Not available · Deterministic fallback
+                      </span>
+                    )}
                   </div>
                 </div>
                 <p className="text-xs text-[#1e3a8a] font-medium leading-relaxed">
-                  <strong>English Summary:</strong> {aiAnalysis.englishSummary}
+                  <strong>Operational Summary:</strong> {aiAnalysis.englishSummary}
                 </p>
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
                   <span className="text-[10px] text-[#5a5a57] font-bold uppercase">Extracted Entities:</span>
@@ -609,7 +766,7 @@ export function HazardReport() {
                   </span>
                 </div>
                 <p className="text-[10px] text-[#64748b] italic border-t border-[#dbeafe] pt-1">
-                  Advisory Tag: AI classifications are preliminary and subject to SDMA human verification.
+                  Advisory Notice: AI classifications are preliminary and subject to SDMA human verification.
                 </p>
               </div>
             )}
@@ -639,7 +796,7 @@ export function HazardReport() {
                 <div className="relative w-28 h-20 rounded-lg border border-[#e4e4e3] overflow-hidden shrink-0">
                   <img src={photoUrl} alt="Hazard preview" className="w-full h-full object-cover" />
                   <button
-                    onClick={() => setPhotoUrl(null)}
+                    onClick={handleRemovePhoto}
                     className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 cursor-pointer"
                   >
                     <X className="w-3 h-3" />

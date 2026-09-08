@@ -261,13 +261,21 @@ export interface IncidentAiAnalysis {
   hazardCategory: IncidentType;
   estimatedSeverity: IncidentSeverity;
   roadImpact: 'partially_blocked' | 'fully_blocked' | 'single_lane' | 'caution' | 'bridge_impassable';
-  confidenceScore?: number;
+  confidenceScore?: number | null;
   qualitativeConfidence?: string;
   extractedEntities: string[];
   recommendedAction: string;
   verificationPriority: 'critical' | 'high' | 'medium' | 'low';
-  provider: 'Gemini AI (Cloud Provider)' | 'Local Autonomous NLP (Deterministic Fallback)';
+  provider: string;
+  model?: string;
+  statusLabel?: 'Gemini AI · Live' | 'Local NLP · Deterministic Fallback' | string;
+  isLiveGemini?: boolean;
   generatedAt?: string;
+  diagnostics?: {
+    endpoint?: string;
+    httpStatus?: number;
+    error?: string;
+  };
 }
 
 export interface RiskFactorBreakdown {

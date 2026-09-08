@@ -307,23 +307,22 @@ export function SDMAIncidents() {
               )}
 
               {/* Multi-Lingual Audio Player with Waveform & Bilingual Translation */}
-              <div>
-                <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider mb-2">
-                  Acoustic Evidence & Multilingual Speech-to-Intent
-                </p>
-                <AudioPlayer
-                  language={selected.voiceLanguage || 'Assamese (অসমীয়া)'}
-                  transcript={
-                    selected.voiceTranscript ||
-                    'পাহাৰৰ পৰা ডাঙৰ শিল আৰু মাটি খহি ৰাস্তা সম্পূৰ্ণ বন্ধ হৈ পৰিছে। কোনো গাড়ী পাৰ হ’ব পৰা নাই।'
-                  }
-                  translatedSummary={
-                    selected.aiAnalysis?.englishSummary ||
-                    selected.description ||
-                    'Major slope collapse with scree debris blocking both carriageways. Completely impassable.'
-                  }
-                />
-              </div>
+              {Boolean(selected.voiceNote || selected.voiceTranscript) && (
+                <div>
+                  <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider mb-2">
+                    Acoustic Evidence & Multilingual Speech-to-Intent
+                  </p>
+                  <AudioPlayer
+                    language={selected.voiceLanguage || 'Assamese (অসমীয়া)'}
+                    transcript={selected.voiceTranscript || 'Audio dispatch recorded from field vehicle.'}
+                    translatedSummary={
+                      selected.aiAnalysis?.englishSummary ||
+                      selected.description ||
+                      'Audio transcript recorded from field dispatch.'
+                    }
+                  />
+                </div>
+              )}
 
               {/* AI Structured Entity Extraction Card */}
               <div className="p-4 rounded-xl bg-[#eff6ff] border border-[#bfdbfe] space-y-2">
@@ -332,13 +331,31 @@ export function SDMAIncidents() {
                     <Sparkles className="w-4 h-4 text-[#2563eb]" />
                     <span>AI Autonomous Triage & Extraction Engine</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white text-[#1d4ed8] border border-[#bfdbfe]">
-                      {selected.aiAnalysis?.provider || 'Deterministic Local NLP'}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className={cn(
+                        'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+                        selected.aiAnalysis?.isLiveGemini
+                          ? 'bg-white text-[#1d4ed8] border-[#bfdbfe]'
+                          : 'bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]'
+                      )}
+                    >
+                      {selected.aiAnalysis?.statusLabel || selected.aiAnalysis?.provider || 'Local NLP · Deterministic Fallback'}
                     </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/15 text-[#15803d]">
-                      Confidence: {Math.round((selected.aiAnalysis?.confidenceScore || 0.94) * 100)}%
-                    </span>
+                    {selected.aiAnalysis?.model && (
+                      <span className="text-[10px] font-mono text-[#1e40af] bg-white px-1.5 py-0.5 rounded border border-[#bfdbfe]">
+                        {selected.aiAnalysis.model}
+                      </span>
+                    )}
+                    {selected.aiAnalysis?.confidenceScore !== null && selected.aiAnalysis?.confidenceScore !== undefined ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/15 text-[#15803d]">
+                        Confidence: {Math.round(selected.aiAnalysis.confidenceScore * 100)}%
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f4f4f5] text-[#71717a] border border-[#e4e4e7]">
+                        Confidence: Not available · Deterministic fallback
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -352,13 +369,13 @@ export function SDMAIncidents() {
                   <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">
                     <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Extracted Entities</span>
                     <span className="font-semibold text-[#1a1a19] line-clamp-1">
-                      {selected.aiAnalysis?.extractedEntities?.join(' · ') || 'NH-2 · KM 312 · Mao Pass'}
+                      {selected.aiAnalysis?.extractedEntities?.join(' · ') || 'Corridor Sector'}
                     </span>
                   </div>
                   <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">
                     <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Recommended Action</span>
                     <span className="font-semibold text-[#2563eb] line-clamp-1">
-                      {selected.aiAnalysis?.recommendedAction || 'Execute Reactive Reroute via Route A'}
+                      {selected.aiAnalysis?.recommendedAction || 'SDMA verification required before executing reroutes.'}
                     </span>
                   </div>
                 </div>
@@ -399,25 +416,40 @@ export function SDMAIncidents() {
 
               {/* Photo Evidence */}
               <div className="p-3.5 rounded-xl bg-[#fafaf9] border border-[#e4e4e3] flex flex-col sm:flex-row gap-4 items-center">
-                <div className="w-full sm:w-48 h-32 rounded-lg bg-black/5 overflow-hidden shrink-0 border border-[#e4e4e3]">
-                  <img
-                    src={selected.photoUrl || 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=600&q=80'}
-                    alt="Debris evidence"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+                {selected.photoUrl ? (
+                  <div className="w-full sm:w-48 h-32 rounded-lg bg-black/5 overflow-hidden shrink-0 border border-[#e4e4e3]">
+                    <img
+                      src={selected.photoUrl}
+                      alt="Debris evidence"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full sm:w-48 h-32 rounded-lg bg-[#f4f4f5] border border-[#e4e4e7] flex flex-col items-center justify-center text-center p-3 text-[#71717a] shrink-0">
+                    <Camera className="w-6 h-6 mb-1 text-[#a1a1aa]" />
+                    <span className="text-[11px] font-medium">No photo evidence</span>
+                    <span className="text-[9px] text-[#a1a1aa]">Telemetry & acoustic report only</span>
+                  </div>
+                )}
                 <div className="flex-1 space-y-1 text-xs">
                   <div className="flex items-center gap-1.5 font-bold text-[#1a1a19]">
                     <Camera className="w-4 h-4 text-[#2563eb]" />
                     <span>Visual Evidence Analysis</span>
                   </div>
-                  <p className="text-[#5a5a57] leading-relaxed">
-                    Geotagged image confirms heavy soil shear and debris across both lanes.
-                    Approximate debris volume: ~350 m³. No light or heavy vehicle clearance without mechanized earthmovers.
-                  </p>
-                  <span className="inline-block text-[10px] font-semibold text-[#16a34a] bg-[#f0fdf4] px-2 py-0.5 rounded border border-[#bbf7d0]">
-                    EXIF Metadata Validated
-                  </span>
+                  {selected.photoUrl ? (
+                    <>
+                      <p className="text-[#5a5a57] leading-relaxed">
+                        Geotagged image evidence attached by driver. Visual evidence available for human assessment.
+                      </p>
+                      <span className="inline-block text-[10px] font-semibold text-[#16a34a] bg-[#f0fdf4] px-2 py-0.5 rounded border border-[#bbf7d0]">
+                        EXIF Metadata Validated
+                      </span>
+                    </>
+                  ) : (
+                    <p className="text-[#5a5a57] leading-relaxed">
+                      No photographic evidence was captured. Evaluation relies on driver acoustic/text telemetry and corridor sensor feeds.
+                    </p>
+                  )}
                 </div>
               </div>
 
