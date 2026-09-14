@@ -7,7 +7,8 @@ import { backendHistoricalHazardService } from '../services/historicalHazardServ
 import { backendVehiclePositionService } from '../services/vehiclePositionService.ts';
 import { backendElevationService } from '../services/elevationService.ts';
 import { geospatialSnappingService } from '../services/geospatialSnappingService.ts';
-import type { VehiclePositionUpdatePayload } from '../../src/types/index.ts';
+import { predictiveService } from '../../src/services/predictive/predictiveService.ts';
+import type { VehiclePositionUpdatePayload, PredictiveInputFeatures } from '../../src/types/index.ts';
 
 export function sendJson(res: ServerResponse, statusCode: number, data: unknown) {
   const json = JSON.stringify(data);
@@ -96,6 +97,33 @@ export async function handleOperationsRequest(
       message: 'Operational database successfully reset to clean baseline state.',
       timestamp: new Date().toISOString(),
     });
+    return true;
+  }
+
+  // 3.1 Predictive Intelligence Model Status
+  if (method === 'GET' && (url === '/api/v1/intelligence/model-status' || url === '/api/v1/model-status')) {
+    const status = predictiveService.getModelStatus();
+    sendJson(res, 200, {
+      ok: true,
+      data: status,
+      timestamp: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  // 3.2 Predictive Intelligence Inference Endpoint
+  if (method === 'POST' && (url === '/api/v1/intelligence/predict' || url === '/api/v1/predict')) {
+    try {
+      const body = await parseJsonBody<PredictiveInputFeatures>(req);
+      const prediction = predictiveService.predict(body);
+      sendJson(res, 200, {
+        ok: true,
+        data: prediction,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      sendJson(res, 400, { ok: false, error: (err as Error).message });
+    }
     return true;
   }
 

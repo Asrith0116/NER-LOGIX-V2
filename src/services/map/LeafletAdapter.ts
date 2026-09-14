@@ -23,29 +23,49 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+// Global window error listener for Leaflet DOM position edge-cases
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'error',
+    (event: ErrorEvent) => {
+      if (
+        event.error?.message?.includes('_leaflet_pos') ||
+        event.message?.includes('_leaflet_pos') ||
+        event.error?.stack?.includes('_leaflet_pos')
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation?.();
+      }
+    },
+    true
+  );
+}
+
 // Safe guard L.DomUtil.getPosition and setPosition to prevent "Cannot read properties of undefined (reading '_leaflet_pos')"
-if (L.DomUtil && L.DomUtil.getPosition) {
-  const originalGetPosition = L.DomUtil.getPosition;
+if (L.DomUtil) {
   L.DomUtil.getPosition = function (el: any) {
-    if (!el) {
+    if (!el || typeof el !== 'object') {
       return new L.Point(0, 0);
     }
     try {
-      return originalGetPosition(el);
+      return el._leaflet_pos || new L.Point(0, 0);
     } catch {
       return new L.Point(0, 0);
     }
   };
-}
 
-if (L.DomUtil && L.DomUtil.setPosition) {
-  const originalSetPosition = L.DomUtil.setPosition;
   L.DomUtil.setPosition = function (el: any, point: any) {
-    if (!el) return;
+    if (!el || typeof el !== 'object') return;
     try {
-      originalSetPosition(el, point);
+      el._leaflet_pos = point || new L.Point(0, 0);
+      if (L.Browser && (L.Browser as any).any3d) {
+        L.DomUtil.setTransform(el, point);
+      } else if (el.style) {
+        el.style.left = (point?.x ?? 0) + 'px';
+        el.style.top = (point?.y ?? 0) + 'px';
+      }
     } catch {
-      // ignore
+      // ignore DOM manipulation error on unmounted elements
     }
   };
 }
@@ -246,6 +266,13 @@ export class LeafletAdapter implements IMapAdapter {
   destroy(): void {
     if (this.map) {
       try {
+        this.clearLayers(this.routeLayers);
+        this.clearLayers(this.vehicleLayers);
+        this.clearLayers(this.incidentLayers);
+        this.clearLayers(this.godownLayers);
+        this.clearLayers(this.roadLayers);
+        this.clearLayers(this.waypointLayers);
+        this.map.off();
         this.map.remove();
       } catch {
         // ignore cleanup error
@@ -431,7 +458,18 @@ export class LeafletAdapter implements IMapAdapter {
 
   private clearLayers(layers: L.Layer[]): void {
     if (!this.map) return;
-    layers.forEach((l) => this.map!.removeLayer(l));
+    layers.forEach((l) => {
+      try {
+        if (this.map && l) {
+          l.off();
+          if (this.map.hasLayer(l)) {
+            this.map.removeLayer(l);
+          }
+        }
+      } catch {
+        // ignore layer removal error
+      }
+    });
     layers.length = 0;
   }
 }

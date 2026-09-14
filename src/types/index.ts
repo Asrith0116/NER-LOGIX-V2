@@ -66,6 +66,7 @@ export interface RouteFeatureBreakdown {
   vehicleSuitability: 'optimal' | 'acceptable' | 'penalized' | 'restricted';
   cargoVulnerabilityScore: number;
   prioritySpeedWeight: number;
+  predictiveResult?: PredictionResult;
   riskComponents: {
     terrain: number;
     weather: number;
@@ -73,6 +74,7 @@ export interface RouteFeatureBreakdown {
     incidents: number;
     vehicle: number;
     cargo: number;
+    predictiveML?: number;
   };
 }
 
@@ -89,6 +91,7 @@ export interface RouteCandidate extends Route {
   isBlocked: boolean;
   blockageReason?: string;
   featureBreakdown: RouteFeatureBreakdown;
+  predictiveResult?: PredictionResult;
   providerId: string;
   providerType: 'SEED' | 'SIMULATED' | 'LIVE_PROVIDER';
 }
@@ -295,6 +298,14 @@ export interface RiskFactorBreakdown {
     historicalDisruptions: { score: number; max: number; label: string; value: string };
     activeHazards: { score: number; max: number; label: string; value: string };
     vehicleWeightModifier: { score: number; max: number; label: string; value: string };
+    predictiveML?: { score: number; max: number; label: string; value: string };
+  };
+  predictiveIntelligence?: {
+    probability: number;
+    riskLevel: string;
+    explanation: string;
+    modelName: string;
+    algorithm: string;
   };
   plainLanguageExplanation: string;
   recommendation: string;
@@ -648,5 +659,58 @@ export interface GeospatialSnapResult {
   snappedCoordinates?: [number, number];
   isWithinThreshold: boolean;
 }
+
+// ─── Phase 3 Predictive Intelligence Types ────────────────────────────────────
+
+export interface PredictiveInputFeatures {
+  rainfallMmPerHour: number;
+  terrainSlopeDegrees: number;
+  historicalLandslideCount: number;
+  roadTypeScore: number; // 1 = National Highway/Trunk, 2 = State Highway, 3 = Local/Secondary
+  activeDisruptionCount: number;
+  cargoSensitivityScore?: number; // 0-35
+  vehicleSuitabilityScore?: number; // 0-15
+}
+
+export interface PredictiveFactorExplanation {
+  factor: string;
+  impact: 'low' | 'moderate' | 'high' | 'critical';
+  detail: string;
+  weightContribution: number;
+}
+
+export interface ModelValidationMetrics {
+  accuracy: number;
+  precision: number;
+  recall: number;
+  f1Score: number;
+  rocAuc: number;
+  trainSize: number;
+  testSize: number;
+}
+
+export interface PredictiveModelMetadata {
+  modelName: string;
+  algorithm: 'GradientBoostingClassifier';
+  modelVersion: string;
+  trainedAt: string;
+  sampleCount: number;
+  metrics: ModelValidationMetrics;
+  provenance: string;
+  isFallback: boolean;
+  featureImportances: Record<string, number>;
+}
+
+export interface PredictionResult {
+  probability: number; // 0.0 to 1.0
+  riskLevel: 'LOW' | 'MODERATE' | 'HIGH' | 'EXTREME';
+  disruptionPredicted: boolean;
+  confidenceScore: number;
+  factors: string[];
+  structuredFactors: PredictiveFactorExplanation[];
+  inputFeatures: PredictiveInputFeatures;
+  modelMetadata: PredictiveModelMetadata;
+}
+
 
 

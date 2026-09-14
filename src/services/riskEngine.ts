@@ -57,7 +57,20 @@ export function candidateToRiskBreakdown(candidate: RouteCandidate): RiskFactorB
         label: 'Vehicle Constraint & Cargo Sensitivity Match',
         value: `Axle match: ${fb.vehicleSuitability.toUpperCase()} · Cargo sensitivity factor: ${fb.cargoVulnerabilityScore}/35`,
       },
+      predictiveML: candidate.predictiveResult ? {
+        score: Math.round(candidate.predictiveResult.probability * 20),
+        max: 20,
+        label: 'GradientBoosting ML Disruption Probability',
+        value: `${Math.round(candidate.predictiveResult.probability * 100)}% Disruption Risk (${candidate.predictiveResult.riskLevel})`,
+      } : undefined,
     },
+    predictiveIntelligence: candidate.predictiveResult ? {
+      probability: candidate.predictiveResult.probability,
+      riskLevel: candidate.predictiveResult.riskLevel,
+      explanation: candidate.predictiveResult.factors.join(' · '),
+      modelName: candidate.predictiveResult.modelMetadata.modelName,
+      algorithm: candidate.predictiveResult.modelMetadata.algorithm,
+    } : undefined,
     plainLanguageExplanation: candidate.recommendationReason,
     recommendation: candidate.isBlocked
       ? 'DO NOT PROCEED. Corridor is impassable; select #1 Recommended alternate route.'

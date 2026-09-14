@@ -1,6 +1,6 @@
 import type { RiskFactorBreakdown } from '@/types';
 import { RiskBadge } from '@/components/ui/RiskBadge';
-import { CloudRain, Mountain, History, AlertTriangle, Truck, Info } from 'lucide-react';
+import { CloudRain, Mountain, History, AlertTriangle, Truck, Info, Cpu } from 'lucide-react';
 
 interface RiskBreakdownCardProps {
   breakdown: RiskFactorBreakdown;
@@ -9,7 +9,7 @@ interface RiskBreakdownCardProps {
 }
 
 export function RiskBreakdownCard({ breakdown, routeLabel, className = '' }: RiskBreakdownCardProps) {
-  const { totalScore, riskCategory, factors, plainLanguageExplanation, recommendation } = breakdown;
+  const { totalScore, riskCategory, factors, plainLanguageExplanation, recommendation, predictiveIntelligence } = breakdown;
 
   const factorList = [
     {
@@ -44,13 +44,22 @@ export function RiskBreakdownCard({ breakdown, routeLabel, className = '' }: Ris
     },
   ];
 
+  if (factors.predictiveML) {
+    factorList.push({
+      key: 'predictiveML',
+      icon: <Cpu className="w-3.5 h-3.5 text-[#0284c7]" />,
+      data: factors.predictiveML,
+      color: 'bg-[#0284c7]',
+    });
+  }
+
   return (
     <div className={`p-4 rounded-xl bg-white border border-[#e4e4e3] shadow-xs ${className}`}>
       {/* Top Header */}
       <div className="flex items-center justify-between pb-3 border-b border-[#f0f0ef]">
         <div>
           <span className="text-[10px] font-bold uppercase tracking-wider text-[#8a8a87]">
-            Accessibility Intelligence
+            Accessibility & Predictive Intelligence
           </span>
           <h3 className="text-sm font-bold text-[#1a1a19]">
             {routeLabel ? `${routeLabel} Risk Breakdown` : 'Explainable Risk Assessment'}
@@ -65,9 +74,34 @@ export function RiskBreakdownCard({ breakdown, routeLabel, className = '' }: Ris
         </div>
       </div>
 
+      {/* Phase 3 Predictive Intelligence ML Badge Panel */}
+      {predictiveIntelligence && (
+        <div className="my-3 p-3 rounded-xl bg-[#f0f9ff] border border-[#bae6fd] text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 font-bold text-[#0369a1]">
+              <Cpu className="w-4 h-4 text-[#0284c7]" />
+              <span>GradientBoosting Disruption Probability</span>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-white text-[#0369a1] border border-[#7dd3fc] text-[10px] font-bold">
+              {predictiveIntelligence.algorithm}
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between pt-1">
+            <span className="text-xs text-[#0e7490] font-medium">Predicted Segment Risk:</span>
+            <span className="text-sm font-extrabold text-[#0369a1]">
+              {Math.round(predictiveIntelligence.probability * 100)}% ({predictiveIntelligence.riskLevel})
+            </span>
+          </div>
+          <div className="p-2 bg-white/80 rounded-lg text-[11px] text-[#334155] leading-relaxed">
+            <strong>Key Explanatory Factors:</strong> {predictiveIntelligence.explanation}
+          </div>
+        </div>
+      )}
+
       {/* Factor Breakdown Bars */}
       <div className="py-3 space-y-2.5">
         {factorList.map((item) => {
+          if (!item.data) return null;
           const pct = Math.min(100, Math.round((item.data.score / item.data.max) * 100));
           return (
             <div key={item.key} className="space-y-1 text-xs">

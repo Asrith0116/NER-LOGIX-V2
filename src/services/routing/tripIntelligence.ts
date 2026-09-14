@@ -8,6 +8,7 @@ import type {
   Location,
 } from '../../types/index.ts';
 import { CORRIDOR_TEMPLATES, type CorridorTemplate } from '../../data/corridorRoutes.ts';
+import { predictiveService } from '../predictive/predictiveService.ts';
 
 function getPairKey(origin: Location, dest: Location): string {
   const o = (origin.shortName || origin.name || 'guwahati').toLowerCase();
@@ -303,6 +304,25 @@ export function evaluateCorridorFeatures(
   const vehicleComponent = Math.min(10, Math.max(0, vehicleRiskPenalty));
   const cargoComponent = Math.min(5, Math.max(1, Math.round((cargoVulnerabilityScore / 35) * 5)));
 
+  // Phase 3: GradientBoostingClassifier Disruption Probability Calculation
+  let predictiveResult = undefined;
+  let predictiveMlComponent = 0;
+  try {
+    const roadTypeScore = template.corridorKey.includes('mountain') || template.corridorKey.includes('ridge') ? 3 : 1;
+    predictiveResult = predictiveService.predict({
+      rainfallMmPerHour,
+      terrainSlopeDegrees: effectiveSlopeDegrees,
+      historicalLandslideCount: effectiveHistoricalCount,
+      roadTypeScore,
+      activeDisruptionCount: activeBlockedCount + activeIncidentCount,
+      cargoSensitivityScore: cargoVulnerabilityScore,
+      vehicleSuitabilityScore: vehicleRiskPenalty,
+    });
+    predictiveMlComponent = Math.round(predictiveResult.probability * 20);
+  } catch (err) {
+    console.warn('Predictive intelligence calculation fallback:', err);
+  }
+
   const features: RouteFeatureBreakdown = {
     terrainSlopeDegrees: effectiveSlopeDegrees,
     historicalDisruptionsCount: effectiveHistoricalCount,
@@ -312,6 +332,7 @@ export function evaluateCorridorFeatures(
     vehicleSuitability,
     cargoVulnerabilityScore,
     prioritySpeedWeight,
+    predictiveResult,
     riskComponents: {
       terrain: terrainComponent,
       weather: weatherComponent,
@@ -319,6 +340,7 @@ export function evaluateCorridorFeatures(
       incidents: incidentComponent,
       vehicle: vehicleComponent,
       cargo: cargoComponent,
+      predictiveML: predictiveMlComponent,
     },
   };
 
@@ -567,6 +589,7 @@ export class SeededCorridorRouteProvider implements RouteProvider {
         isBlocked: item.isBlocked,
         blockageReason: item.blockageReason,
         featureBreakdown: item.features,
+        predictiveResult: item.features.predictiveResult,
         providerId: this.id,
         providerType: 'SEED',
       };
