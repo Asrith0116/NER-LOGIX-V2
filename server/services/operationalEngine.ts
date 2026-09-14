@@ -15,6 +15,7 @@ import {
   computeShipmentImpacts,
   findSuitableGodownForShipment,
 } from '../../src/services/logisticsEngine.ts';
+import { geospatialSnappingService } from './geospatialSnappingService.ts';
 
 export function incidentBlocksRoad(incident: Incident): boolean {
   return (
@@ -40,6 +41,30 @@ export function findAssociatedRoadSegment(
 
   const directMatch = segments.find((s) => s.affectedByIncidentId === incident.id);
   if (directMatch) return directMatch;
+
+  // Geospatial snapping from incident lat/lng coordinates
+  if (incident.location && Array.isArray(incident.location) && incident.location.length === 2) {
+    const [lat, lng] = incident.location;
+    if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+      const snap = geospatialSnappingService.snapCoordinateToRoad(lat, lng, 15000);
+      if (snap.isWithinThreshold) {
+        if (snap.snappedSegmentId) {
+          const matchedById = segments.find((s) => s.id === snap.snappedSegmentId);
+          if (matchedById) return matchedById;
+        }
+        if (snap.snappedRoadName) {
+          const lowerSnap = snap.snappedRoadName.toLowerCase();
+          const matchedByName = segments.find(
+            (s) =>
+              s.name.toLowerCase().includes(lowerSnap) ||
+              lowerSnap.includes(s.name.toLowerCase()) ||
+              (lowerSnap.includes('nh-2') && s.name.toLowerCase().includes('nh-2'))
+          );
+          if (matchedByName) return matchedByName;
+        }
+      }
+    }
+  }
 
   const locText = `${incident.locationName} ${incident.description || ''}`.toLowerCase();
 

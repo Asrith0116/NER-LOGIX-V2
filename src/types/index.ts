@@ -77,6 +77,7 @@ export interface RouteFeatureBreakdown {
 }
 
 export interface RouteCandidate extends Route {
+  corridorKey?: string;
   corridorName: string;
   operationalScore: number; // 0-100 overall composite suitability
   suitability: 'High' | 'Moderate' | 'Constrained' | 'Unsuitable';
@@ -97,6 +98,9 @@ export interface OperationalContext {
   disruptions: Disruption[];
   activeIncidents: Incident[];
   weatherData?: Record<string, WeatherDataPoint>;
+  historicalHazards?: Record<string, CorridorHazardExposure>;
+  elevationProfiles?: Record<string, ElevationProfile>;
+  osmNetwork?: OsmNetworkSnapshot;
 }
 
 export interface RouteProvider {
@@ -160,6 +164,8 @@ export interface Vehicle {
   status: VehicleStatus;
   riskLevel: RiskLevel;
   location: [number, number];
+  speedKmh?: number;
+  heading?: number;
   currentRoute?: string;
   origin?: string;
   destination?: string;
@@ -473,4 +479,174 @@ export interface ShipmentImpactResult {
   activeContinuityRequests: number;
   timestamp: string;
 }
+
+// ─── Phase 2 Real Data Integrations ──────────────────────────────────────────
+
+export interface OsmRoadSegment {
+  id: string;
+  osmId: number | string;
+  ref: string; // e.g. "NH 2", "NH 29"
+  name: string;
+  highway: 'trunk' | 'primary' | 'secondary' | 'unclassified' | 'residential';
+  surface: 'asphalt' | 'paved' | 'unpaved' | 'concrete' | 'gravel';
+  lanes: number;
+  maxspeedKmh: number;
+  lengthKm: number;
+  coordinates: [number, number][];
+  source: 'OpenStreetMap' | 'Fallback / Baseline';
+  isSimulated: boolean;
+  availabilityState: 'live' | 'cached' | 'fallback';
+  provenance: {
+    license: string;
+    copyright: string;
+    queryTimestamp: string;
+  };
+}
+
+export interface OsmCorridorDetail {
+  corridorKey: string;
+  corridorName: string;
+  primaryHighwayRef: string;
+  totalLengthKm: number;
+  osmWayCount: number;
+  pavedPercentage: number;
+  averageLanes: number;
+  speedLimitKmh: number;
+  segments: OsmRoadSegment[];
+}
+
+export interface OsmNetworkSnapshot {
+  roadSegments: OsmRoadSegment[];
+  corridors: Record<string, OsmCorridorDetail>;
+  source: 'OpenStreetMap' | 'Fallback / Baseline';
+  isSimulated: boolean;
+  availabilityState: 'live' | 'cached' | 'fallback';
+  fetchedAt: string;
+  provenance: {
+    license: string;
+    copyright: string;
+    notes: string;
+  };
+}
+
+export interface HistoricalHazardRecord {
+  id: string;
+  catalog: 'NASA_GLC' | 'GSI_LANDSLIDE_INVENTORY';
+  eventName: string;
+  latitude: number;
+  longitude: number;
+  locationDescription: string;
+  state: 'Assam' | 'Manipur' | 'Nagaland' | 'Meghalaya' | 'Mizoram';
+  corridorProximity: 'valley_low_risk' | 'nh2_mountain_direct' | 'southern_bypass' | 'wokha_ridge';
+  eventYear: number;
+  eventDate: string;
+  trigger: 'monsoon_rain' | 'cloudburst' | 'continuous_rainfall' | 'road_cut_instability' | 'cyclone';
+  hazardCategory: 'debris_flow' | 'mudslide' | 'rockfall' | 'rotational_slide' | 'washout';
+  severity: 'major' | 'severe' | 'moderate';
+  fatalities: number;
+  estimatedVolumeM3: number;
+  source: 'NASA Global Landslide Catalog & GSI Inventory' | 'Fallback / Demo';
+  isSimulated: boolean;
+  availabilityState: 'live' | 'fallback';
+  provenance: {
+    license: string;
+    documentation: string;
+  };
+}
+
+export interface CorridorHazardExposure {
+  corridorKey: string;
+  corridorName: string;
+  totalRecordedEvents: number;
+  majorFailuresCount: number;
+  recentEventsCount: number; // Past 5 years
+  primaryTrigger: string;
+  triggerBreakdown: Record<string, number>;
+  historicalSeasonalRiskScore: number; // 0 to 20
+  summaryExplanation: string;
+  records: HistoricalHazardRecord[];
+  source: 'NASA Global Landslide Catalog & GSI Inventory' | 'Fallback / Demo';
+  isSimulated: boolean;
+  availabilityState: 'live' | 'fallback';
+  calculatedAt: string;
+}
+
+export interface HistoricalHazardSummary {
+  corridors: Record<string, CorridorHazardExposure>;
+  totalCatalogRecords: number;
+  source: string;
+  isSimulated: boolean;
+  availabilityState: 'live' | 'fallback';
+  timestamp: string;
+}
+
+export interface BackendVehiclePosition {
+  vehicleId: string;
+  latitude: number;
+  longitude: number;
+  speedKmh: number;
+  heading: number;
+  accuracyMeters: number;
+  timestamp: string;
+  source: 'simulated_driver_client' | 'manual_dispatcher' | 'external_telematics_gateway';
+  isSimulated: boolean;
+  telemetryState: 'simulated_client_signal' | 'manual_entry' | 'active_gateway';
+  nearestLocation?: string;
+  provenance: {
+    description: string;
+    isHardwareTelematics: boolean;
+  };
+}
+
+export interface VehiclePositionUpdatePayload {
+  vehicleId: string;
+  latitude: number;
+  longitude: number;
+  speedKmh?: number;
+  heading?: number;
+  accuracyMeters?: number;
+  source?: 'simulated_driver_client' | 'manual_dispatcher' | 'external_telematics_gateway';
+  timestamp?: string;
+}
+
+export interface ElevationPoint {
+  latitude: number;
+  longitude: number;
+  elevationM: number;
+  locationName?: string;
+}
+
+export interface ElevationProfile {
+  corridorKey: string;
+  corridorName: string;
+  minElevationM: number;
+  maxElevationM: number;
+  minElevationMeters?: number;
+  maxElevationMeters?: number;
+  elevationGainMeters?: number;
+  totalClimbM: number;
+  totalDescentM: number;
+  maxSlopePercent: number;
+  averageSlopeDegrees: number;
+  peakLocationName: string;
+  terrainRiskScore: number; // 0 to 25
+  profilePoints: ElevationPoint[];
+  source: 'Open-Meteo Elevation API — Copernicus DEM GLO-90 (90 m)' | 'Fallback / Regional DEM';
+  isSimulated: boolean;
+  availabilityState: 'live' | 'fallback';
+  calculatedAt: string;
+}
+
+export interface GeospatialSnapResult {
+  incidentLat: number;
+  incidentLng: number;
+  snappedSegmentId?: string;
+  snappedRoadName?: string;
+  highwayRef?: string;
+  distanceMeters: number;
+  confidence: number;
+  snappedCoordinates?: [number, number];
+  isWithinThreshold: boolean;
+}
+
 

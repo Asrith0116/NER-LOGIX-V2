@@ -11,3 +11,8 @@ export * from './roadApiService';
 export * from './weatherApiService';
 export * from './emergencyApiService';
 export * from './operationalApiService';
+export * from './osmApiService';
+export * from './hazardApiService';
+export * from './vehiclePositionApiService';
+export * from './elevationApiService';
+

@@ -2,6 +2,12 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { operationalEngine } from '../services/operationalEngine.ts';
 import { opDb } from '../db/sqliteStorage.ts';
 import { backendWeatherService } from '../services/weatherService.ts';
+import { backendOsmNetworkService } from '../services/osmNetworkService.ts';
+import { backendHistoricalHazardService } from '../services/historicalHazardService.ts';
+import { backendVehiclePositionService } from '../services/vehiclePositionService.ts';
+import { backendElevationService } from '../services/elevationService.ts';
+import { geospatialSnappingService } from '../services/geospatialSnappingService.ts';
+import type { VehiclePositionUpdatePayload } from '../../src/types/index.ts';
 
 export function sendJson(res: ServerResponse, statusCode: number, data: unknown) {
   const json = JSON.stringify(data);
@@ -402,6 +408,203 @@ export async function handleOperationsRequest(
       const active = Boolean(body.active);
       backendWeatherService.setSpike(active);
       sendJson(res, 200, { ok: true, is_spike_active: active });
+    } catch (err) {
+      sendJson(res, 400, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  // 13. OpenStreetMap Road Network Endpoints
+  if (
+    (url === '/api/v1/network/osm/roads' ||
+      url === '/api/v1/operations/network/osm/roads' ||
+      url === '/api/v1/network/osm' ||
+      url === '/api/v1/operations/network/osm') &&
+    method === 'GET'
+  ) {
+    try {
+      const snapshot = await backendOsmNetworkService.fetchRoadNetwork();
+      sendJson(res, 200, snapshot);
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  if (
+    (url === '/api/v1/network/osm/corridors' ||
+      url === '/api/v1/operations/network/osm/corridors') &&
+    method === 'GET'
+  ) {
+    try {
+      const snapshot = await backendOsmNetworkService.fetchRoadNetwork();
+      sendJson(res, 200, {
+        corridors: snapshot.corridors,
+        source: snapshot.source,
+        availabilityState: snapshot.availabilityState,
+        fetchedAt: snapshot.fetchedAt,
+      });
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  // 14. Historical Hazard & Landslide Inventory Endpoints (NASA GLC & GSI)
+  if (
+    (url === '/api/v1/hazards/historical' ||
+      url === '/api/v1/operations/hazards/historical' ||
+      url.startsWith('/api/v1/hazards/historical?') ||
+      url.startsWith('/api/v1/operations/hazards/historical?')) &&
+    method === 'GET'
+  ) {
+    try {
+      const summary = backendHistoricalHazardService.getSummary();
+      sendJson(res, 200, summary);
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  if (
+    (url === '/api/v1/hazards/historical/corridors' ||
+      url === '/api/v1/operations/hazards/historical/corridors' ||
+      url.startsWith('/api/v1/hazards/historical/corridors?') ||
+      url.startsWith('/api/v1/operations/hazards/historical/corridors?')) &&
+    method === 'GET'
+  ) {
+    try {
+      const summary = backendHistoricalHazardService.getSummary();
+      sendJson(res, 200, {
+        corridors: summary.corridors,
+        source: summary.source,
+        availabilityState: summary.availabilityState,
+        timestamp: summary.timestamp,
+      });
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  if (
+    (url === '/api/v1/hazards/historical/exposure' ||
+      url === '/api/v1/operations/hazards/historical/exposure' ||
+      url.startsWith('/api/v1/hazards/historical/exposure?') ||
+      url.startsWith('/api/v1/operations/hazards/historical/exposure?')) &&
+    method === 'GET'
+  ) {
+    try {
+      const parsedUrl = new URL(url, 'http://localhost:3000');
+      const corridor = parsedUrl.searchParams.get('corridor') || 'nh2_mountain_direct';
+      const exposure = backendHistoricalHazardService.getCorridorExposure(corridor);
+      sendJson(res, 200, exposure);
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  // 15. Backend Vehicle Position Signal Boundary
+  if (
+    (url === '/api/v1/operations/vehicles/positions' ||
+      url === '/api/v1/vehicles/positions') &&
+    method === 'GET'
+  ) {
+    try {
+      const positions = backendVehiclePositionService.getAllPositions();
+      sendJson(res, 200, {
+        positions,
+        count: positions.length,
+        timestamp: new Date().toISOString(),
+        isHardwareTelematics: false,
+        boundaryType: 'backend_authoritative_signal',
+      });
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  if (
+    (url === '/api/v1/operations/vehicles/positions' ||
+      url === '/api/v1/vehicles/positions') &&
+    method === 'POST'
+  ) {
+    try {
+      const body = (await parseJsonBody(req).catch(() => ({}))) as any;
+      if (Array.isArray(body?.positions)) {
+        const updated = backendVehiclePositionService.batchUpdatePositions(
+          body.positions as VehiclePositionUpdatePayload[]
+        );
+        sendJson(res, 200, { ok: true, updated, count: updated.length });
+      } else if (body?.vehicleId && typeof body.latitude === 'number' && typeof body.longitude === 'number') {
+        const updated = backendVehiclePositionService.updatePosition(body as VehiclePositionUpdatePayload);
+        sendJson(res, 200, { ok: true, position: updated });
+      } else {
+        sendJson(res, 400, { ok: false, error: 'Invalid vehicle position payload. Requires vehicleId, latitude, and longitude.' });
+      }
+    } catch (err) {
+      sendJson(res, 400, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  const vehiclePosMatch = url.match(/^\/api\/v1\/(?:operations\/)?vehicles\/([^/]+)\/position$/);
+  if (vehiclePosMatch && method === 'GET') {
+    const vId = decodeURIComponent(vehiclePosMatch[1]);
+    const pos = backendVehiclePositionService.getPosition(vId);
+    if (!pos) {
+      sendJson(res, 404, { ok: false, error: `Vehicle position signal for "${vId}" not found.` });
+    } else {
+      sendJson(res, 200, pos);
+    }
+    return true;
+  }
+
+  // 16. Terrain & Elevation Profiles (Open-Meteo Elevation API — Copernicus DEM GLO-90)
+  if (
+    (url === '/api/v1/terrain/corridors' ||
+      url === '/api/v1/operations/terrain/corridors' ||
+      url === '/api/v1/terrain/elevation' ||
+      url === '/api/v1/operations/terrain/elevation' ||
+      url.startsWith('/api/v1/terrain/corridors?') ||
+      url.startsWith('/api/v1/terrain/elevation?')) &&
+    method === 'GET'
+  ) {
+    try {
+      const profiles = await backendElevationService.fetchCorridorProfiles();
+      sendJson(res, 200, {
+        profiles,
+        source: 'Open-Meteo Elevation API — Copernicus DEM GLO-90 (90 m)',
+        calculatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  // 17. Geospatial Point-to-Road Snapping
+  if (
+    (url === '/api/v1/operations/incidents/snap' ||
+      url === '/api/v1/incidents/snap') &&
+    method === 'POST'
+  ) {
+    try {
+      const body = (await parseJsonBody(req).catch(() => ({}))) as Record<string, any>;
+      const lat = Number(body.latitude ?? body.lat);
+      const lng = Number(body.longitude ?? body.lng);
+      const thresholdMeters = Number(body.thresholdMeters || 15000);
+
+      if (isNaN(lat) || isNaN(lng)) {
+        sendJson(res, 400, { ok: false, error: 'latitude and longitude are required numbers.' });
+        return true;
+      }
+
+      const snap = geospatialSnappingService.snapCoordinateToRoad(lat, lng, thresholdMeters);
+      sendJson(res, 200, { ok: true, ...snap });
     } catch (err) {
       sendJson(res, 400, { ok: false, error: (err as Error).message });
     }

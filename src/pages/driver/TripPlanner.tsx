@@ -26,6 +26,7 @@ import {
   Thermometer,
   Warehouse,
   ShieldAlert,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { fetchLiveWeather, fetchAllRegionalWeather } from '@/services/weatherService';
 import { calculateTripCandidates } from '@/services/routing/tripIntelligence';
@@ -106,6 +107,9 @@ export function TripPlanner() {
   const updateWeatherData = useNetworkStore((state) => state.updateWeatherData);
   const storeWeatherData = useNetworkStore((state) => state.weatherData);
   const weatherSpikeActive = useNetworkStore((state) => state.weatherSpikeActive);
+  const historicalHazards = useNetworkStore((state) => state.historicalHazards);
+  const elevationProfiles = useNetworkStore((state) => state.elevationProfiles);
+  const osmNetwork = useNetworkStore((state) => state.osmNetwork);
 
   // Active Vehicle Context
   const activeVehicle =
@@ -255,10 +259,26 @@ export function TripPlanner() {
       disruptions,
       activeIncidents,
       weatherData,
+      historicalHazards,
+      elevationProfiles,
+      osmNetwork: osmNetwork || undefined,
     });
 
     return Array.isArray(candidates) ? candidates : [];
-  }, [tripRequest, roadSegments, disruptions, activeIncidents, originWeather, destWeather, originLocation.shortName, destLocation.shortName, storeWeatherData]);
+  }, [
+    tripRequest,
+    roadSegments,
+    disruptions,
+    activeIncidents,
+    originWeather,
+    destWeather,
+    originLocation.shortName,
+    destLocation.shortName,
+    storeWeatherData,
+    historicalHazards,
+    elevationProfiles,
+    osmNetwork,
+  ]);
 
   // Selected Route ID derivation
   const selectedRouteId = useMemo(() => {
@@ -404,49 +424,92 @@ export function TripPlanner() {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
-              <div>
-                <label className="text-[11px] font-semibold text-[#52525b] block mb-1">Origin Node</label>
-                <select
-                  value={originKey}
-                  onChange={(e) => {
-                    setOriginKey(e.target.value);
-                    setUserSelectedRouteId(null);
-                    setPrepState('idle');
-                  }}
-                  className="w-full text-xs font-semibold p-2 bg-[#f8f8f7] border border-[#e4e4e3] rounded-lg text-[#1a1a19] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
-                >
-                  <option value="guwahati">Guwahati Regional Hub</option>
-                  <option value="dimapur">Dimapur Rail Node</option>
-                  <option value="silchar">Silchar Buffer Depot</option>
-                </select>
-                {originWeather && (
-                  <p className="text-[10px] text-[#71717a] mt-1 font-medium">
-                    {originWeather.temperatureC}°C · {originWeather.precipitationMm} mm/h rain
-                  </p>
-                )}
-              </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr,auto,1fr] items-center gap-2">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-semibold text-[#52525b]">Origin Gateway</label>
+                    <span className="text-[10px] text-[#71717a] font-medium">
+                      {LOCATIONS[originKey as keyof typeof LOCATIONS]?.state || 'Assam'}
+                    </span>
+                  </div>
+                  <select
+                    value={originKey}
+                    onChange={(e) => {
+                      const newOrigin = e.target.value;
+                      if (newOrigin === destKey) {
+                        // Automatically swap if same is chosen
+                        setDestKey(originKey);
+                      }
+                      setOriginKey(newOrigin);
+                      setUserSelectedRouteId(null);
+                      setPrepState('idle');
+                    }}
+                    className="w-full text-xs font-semibold p-2 bg-[#f8f8f7] border border-[#e4e4e3] rounded-lg text-[#1a1a19] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+                  >
+                    <option value="guwahati">Guwahati Logistics Hub (Kamrup · Assam)</option>
+                    <option value="dimapur">Dimapur Supply Node (Dimapur · Nagaland)</option>
+                    <option value="silchar">Silchar Medical Depot (Cachar · Assam)</option>
+                    <option value="kohima">Kohima Relief Camp (Kohima · Nagaland)</option>
+                    <option value="imphal">Imphal District Hospital (Imphal West · Manipur)</option>
+                  </select>
+                  {originWeather && (
+                    <p className="text-[10px] text-[#71717a] mt-1 font-medium">
+                      {originWeather.temperatureC}°C · {originWeather.precipitationMm} mm/h precipitation
+                    </p>
+                  )}
+                </div>
 
-              <div>
-                <label className="text-[11px] font-semibold text-[#52525b] block mb-1">Destination Node</label>
-                <select
-                  value={destKey}
-                  onChange={(e) => {
-                    setDestKey(e.target.value);
-                    setUserSelectedRouteId(null);
-                    setPrepState('idle');
-                  }}
-                  className="w-full text-xs font-semibold p-2 bg-[#f8f8f7] border border-[#e4e4e3] rounded-lg text-[#1a1a19] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
-                >
-                  <option value="imphal">Imphal Civil Hospital</option>
-                  <option value="kohima">Kohima Disaster Center</option>
-                  <option value="dimapur">Dimapur Transit Hub</option>
-                </select>
-                {destWeather && (
-                  <p className="text-[10px] text-[#71717a] mt-1 font-medium">
-                    {destWeather.temperatureC}°C · {destWeather.precipitationMm} mm/h rain
-                  </p>
-                )}
+                <div className="flex justify-center sm:pt-4">
+                  <button
+                    type="button"
+                    title="Swap Origin & Destination"
+                    onClick={() => {
+                      const prevOrigin = originKey;
+                      setOriginKey(destKey);
+                      setDestKey(prevOrigin);
+                      setUserSelectedRouteId(null);
+                      setPrepState('idle');
+                    }}
+                    className="p-1.5 rounded-lg border border-[#e4e4e3] bg-white text-[#52525b] hover:text-[#2563eb] hover:border-[#2563eb] transition-colors"
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-semibold text-[#52525b]">Destination Node</label>
+                    <span className="text-[10px] text-[#71717a] font-medium">
+                      {LOCATIONS[destKey as keyof typeof LOCATIONS]?.state || 'Manipur'}
+                    </span>
+                  </div>
+                  <select
+                    value={destKey}
+                    onChange={(e) => {
+                      const newDest = e.target.value;
+                      if (newDest === originKey) {
+                        // Automatically swap if same is chosen
+                        setOriginKey(destKey);
+                      }
+                      setDestKey(newDest);
+                      setUserSelectedRouteId(null);
+                      setPrepState('idle');
+                    }}
+                    className="w-full text-xs font-semibold p-2 bg-[#f8f8f7] border border-[#e4e4e3] rounded-lg text-[#1a1a19] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+                  >
+                    <option value="imphal">Imphal District Hospital (Imphal West · Manipur)</option>
+                    <option value="kohima">Kohima Relief Camp (Kohima · Nagaland)</option>
+                    <option value="dimapur">Dimapur Supply Node (Dimapur · Nagaland)</option>
+                    <option value="silchar">Silchar Medical Depot (Cachar · Assam)</option>
+                    <option value="guwahati">Guwahati Logistics Hub (Kamrup · Assam)</option>
+                  </select>
+                  {destWeather && (
+                    <p className="text-[10px] text-[#71717a] mt-1 font-medium">
+                      {destWeather.temperatureC}°C · {destWeather.precipitationMm} mm/h precipitation
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 

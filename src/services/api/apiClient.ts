@@ -96,3 +96,23 @@ export async function apiRequest<T>(
     };
   }
 }
+
+export async function apiGet<T>(endpoint: string, options?: RequestOptions): Promise<ApiResponse<T>> {
+  return apiRequest<T>(endpoint, { method: 'GET', ...options });
+}
+
+export async function apiPost<T>(endpoint: string, body?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
+  return apiRequest<T>(endpoint, {
+    method: 'POST',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    ...options,
+  });
+}
+
+export async function apiPut<T>(endpoint: string, body?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
+  return apiRequest<T>(endpoint, {
+    method: 'PUT',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    ...options,
+  });
+}

@@ -15,6 +15,123 @@ function getPairKey(origin: Location, dest: Location): string {
   return `${o}-${d}`;
 }
 
+function getReversePairKey(origin: Location, dest: Location): string {
+  const o = (origin.shortName || origin.name || 'guwahati').toLowerCase();
+  const d = (dest.shortName || dest.name || 'imphal').toLowerCase();
+  return `${d}-${o}`;
+}
+
+/**
+ * Resolves high-fidelity geometric waypoints and base metrics for any corridor and node pair.
+ * Guarantees that waypoints start exactly at origin and end exactly at destination.
+ */
+export function resolveCorridorWaypointsAndMetrics(
+  template: CorridorTemplate,
+  origin: Location,
+  destination: Location
+): {
+  waypoints: [number, number][];
+  distanceKm: number;
+  etaMinutes: number;
+  baseSlopeDegrees: number;
+  segmentIds: string[];
+} {
+  const pairKey = getPairKey(origin, destination);
+  const reverseKey = getReversePairKey(origin, destination);
+
+  const originCoord: [number, number] = [origin.lat, origin.lng];
+  const destCoord: [number, number] = [destination.lat, destination.lng];
+
+  // 1. Direct match
+  if (template.waypointsByPair && template.waypointsByPair[pairKey]) {
+    const rawWps = template.waypointsByPair[pairKey];
+    const metrics = template.pairMetrics?.[pairKey];
+    const waypoints: [number, number][] = [
+      originCoord,
+      ...rawWps.slice(1, -1),
+      destCoord,
+    ];
+    return {
+      waypoints,
+      distanceKm: metrics?.distanceKm ?? template.baseDistanceKm,
+      etaMinutes: metrics?.etaMinutes ?? template.baseEtaMinutes,
+      baseSlopeDegrees: metrics?.baseSlopeDegrees ?? template.baseSlopeDegrees,
+      segmentIds: metrics?.segmentIds ?? template.segmentIds,
+    };
+  }
+
+  // 2. Reverse match
+  if (template.waypointsByPair && template.waypointsByPair[reverseKey]) {
+    const rawReverseWps = template.waypointsByPair[reverseKey];
+    const metrics = template.pairMetrics?.[reverseKey];
+    const reversed = [...rawReverseWps].reverse();
+    const waypoints: [number, number][] = [
+      originCoord,
+      ...reversed.slice(1, -1),
+      destCoord,
+    ];
+    return {
+      waypoints,
+      distanceKm: metrics?.distanceKm ?? template.baseDistanceKm,
+      etaMinutes: metrics?.etaMinutes ?? template.baseEtaMinutes,
+      baseSlopeDegrees: metrics?.baseSlopeDegrees ?? template.baseSlopeDegrees,
+      segmentIds: metrics?.segmentIds ?? template.segmentIds,
+    };
+  }
+
+  // 3. Dynamic interpolation for custom or unlisted coordinate pairs
+  const dLat = (destCoord[0] - originCoord[0]) * (Math.PI / 180);
+  const dLng = (destCoord[1] - originCoord[1]) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(originCoord[0] * (Math.PI / 180)) *
+      Math.cos(destCoord[0] * (Math.PI / 180)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const haversineKm = Math.round(6371 * c);
+
+  const curvature =
+    template.corridorKey === 'nh2_mountain_direct'
+      ? 1.25
+      : template.corridorKey === 'valley_low_risk'
+      ? 1.35
+      : template.corridorKey === 'wokha_ridge'
+      ? 1.45
+      : 1.55;
+
+  const estimatedDistKm = Math.max(15, Math.round(haversineKm * curvature));
+  const avgSpeedKmh =
+    template.corridorKey === 'nh2_mountain_direct'
+      ? 48
+      : template.corridorKey === 'valley_low_risk'
+      ? 52
+      : template.corridorKey === 'wokha_ridge'
+      ? 38
+      : 44;
+
+  const estimatedEtaMin = Math.round((estimatedDistKm / avgSpeedKmh) * 60);
+
+  const midLat = (originCoord[0] + destCoord[0]) / 2;
+  const midLng = (originCoord[1] + destCoord[1]) / 2;
+  const latOffset = template.corridorKey === 'southern_bypass' ? -0.15 : template.corridorKey === 'wokha_ridge' ? 0.12 : 0.04;
+  const lngOffset = template.corridorKey === 'southern_bypass' ? -0.10 : template.corridorKey === 'wokha_ridge' ? 0.10 : -0.05;
+
+  const waypoints: [number, number][] = [
+    originCoord,
+    [midLat + latOffset, midLng + lngOffset],
+    destCoord,
+  ];
+
+  return {
+    waypoints,
+    distanceKm: estimatedDistKm,
+    etaMinutes: estimatedEtaMin,
+    baseSlopeDegrees: template.baseSlopeDegrees,
+    segmentIds: template.segmentIds,
+  };
+}
+
 const CORRIDOR_WEATHER_NODES: Record<string, string[]> = {
   valley_low_risk: ['Karbi Anglong', 'Doyyang', 'Dimapur', 'Guwahati'],
   nh2_mountain_direct: ['Kohima', 'Mao Pass', 'Imphal'],
@@ -33,19 +150,21 @@ export function evaluateCorridorFeatures(
   adjustedDistanceKm: number;
   adjustedEtaMinutes: number;
 } {
-  const pairKey = getPairKey(request.origin, request.destination);
-  const isShortHaul = pairKey.includes('dimapur-') || pairKey.includes('silchar-');
-  const distanceScale = isShortHaul ? 0.48 : 1.0;
+  const { distanceKm, etaMinutes, segmentIds } = resolveCorridorWaypointsAndMetrics(
+    template,
+    request.origin,
+    request.destination
+  );
 
-  const adjustedDistanceKm = Math.round(template.baseDistanceKm * distanceScale);
-  const adjustedEtaMinutes = Math.round(template.baseEtaMinutes * distanceScale);
+  const adjustedDistanceKm = distanceKm;
+  const adjustedEtaMinutes = etaMinutes;
 
   // 1. Check road segments & active disruptions
   let activeBlockedCount = 0;
   let activeIncidentCount = 0;
   let blockageReason: string | undefined = undefined;
 
-  for (const segId of template.segmentIds) {
+  for (const segId of segmentIds) {
     const liveSegment = context.roadSegments.find((s) => s.id === segId);
     const activeDisruption = context.disruptions.find(
       (d) => d.affectedSegmentId === segId && d.status === 'active'
@@ -68,10 +187,14 @@ export function evaluateCorridorFeatures(
   // 2. Sample weather along this specific corridor's geographic stations
   let rainfallMmPerHour = 6.5; // baseline moderate precipitation in season
   if (context.weatherData) {
-    const nodes = CORRIDOR_WEATHER_NODES[template.corridorKey] || ['Guwahati', 'Imphal'];
+    const configuredNodes = CORRIDOR_WEATHER_NODES[template.corridorKey] || ['Guwahati', 'Imphal'];
+    const originNode = request.origin?.shortName || request.origin?.name;
+    const destNode = request.destination?.shortName || request.destination?.name;
+    const nodesToSample = Array.from(new Set([...configuredNodes, ...(originNode ? [originNode] : []), ...(destNode ? [destNode] : [])]));
+
     let maxRain = 0;
     let found = false;
-    for (const node of nodes) {
+    for (const node of nodesToSample) {
       const snap = context.weatherData[node];
       if (snap && typeof snap.precipitationMm === 'number') {
         maxRain = Math.max(maxRain, snap.precipitationMm);
@@ -158,18 +281,31 @@ export function evaluateCorridorFeatures(
       break;
   }
 
-  // Component risk breakdown (mathematically capped and scaled to 100)
-  // Max weights: weather=35, terrain=25, historical=20, incidents=30, vehicle+cargo=15
-  const terrainComponent = Math.min(25, Math.round((template.baseSlopeDegrees / 30) * 25));
+  // Real Terrain / Elevation Profile Integration (Open-Meteo Elevation API — Copernicus DEM GLO-90)
+  const elevationData = context.elevationProfiles?.[template.corridorKey];
+  const effectiveSlopeDegrees = elevationData?.averageSlopeDegrees ?? template.baseSlopeDegrees;
+  const terrainComponent = elevationData
+    ? elevationData.terrainRiskScore
+    : Math.min(25, Math.round((effectiveSlopeDegrees / 30) * 25));
+
+  // Real Monsoon Rainfall / Weather Integration (Open-Meteo Regional Weather)
   const weatherComponent = Math.min(35, Math.round((rainfallMmPerHour / 50) * 35));
-  const historicalComponent = Math.min(20, Math.round(template.historicalDisruptionsCount * 2));
+
+  // Real Historical Landslide Hazard Integration (NASA GLC & GSI Inventory)
+  const hazardExposure = context.historicalHazards?.[template.corridorKey];
+  const effectiveHistoricalCount = hazardExposure?.totalRecordedEvents ?? template.historicalDisruptionsCount;
+  const historicalComponent = hazardExposure
+    ? hazardExposure.historicalSeasonalRiskScore
+    : Math.min(20, Math.round(effectiveHistoricalCount * 2));
+
+  // Active verified incidents / blockages
   const incidentComponent = activeBlockedCount > 0 ? 30 : Math.min(25, activeIncidentCount * 8);
   const vehicleComponent = Math.min(10, Math.max(0, vehicleRiskPenalty));
   const cargoComponent = Math.min(5, Math.max(1, Math.round((cargoVulnerabilityScore / 35) * 5)));
 
   const features: RouteFeatureBreakdown = {
-    terrainSlopeDegrees: template.baseSlopeDegrees,
-    historicalDisruptionsCount: template.historicalDisruptionsCount,
+    terrainSlopeDegrees: effectiveSlopeDegrees,
+    historicalDisruptionsCount: effectiveHistoricalCount,
     rainfallMmPerHour,
     activeIncidentsCount: activeIncidentCount,
     activeBlockedSegmentsCount: activeBlockedCount,
@@ -343,16 +479,8 @@ export class SeededCorridorRouteProvider implements RouteProvider {
   isLive = false;
 
   findCandidates(request: TripRequest, context: OperationalContext): RouteCandidate[] {
-    const pairKey = getPairKey(request.origin, request.destination);
-
-    // Filter templates that have waypoints for this pair (or fallback to guwahati-imphal)
     const candidatesData = CORRIDOR_TEMPLATES.map((tmpl) => {
-      const waypoints =
-        tmpl.waypointsByPair[pairKey] ||
-        tmpl.waypointsByPair['guwahati-imphal'] || [
-          [request.origin.lat, request.origin.lng],
-          [request.destination.lat, request.destination.lng],
-        ];
+      const { waypoints } = resolveCorridorWaypointsAndMetrics(tmpl, request.origin, request.destination);
 
       const { features, isBlocked, blockageReason, adjustedDistanceKm, adjustedEtaMinutes } =
         evaluateCorridorFeatures(tmpl, request, context);
@@ -418,6 +546,7 @@ export class SeededCorridorRouteProvider implements RouteProvider {
 
       const candidate: RouteCandidate = {
         id: item.template.id,
+        corridorKey: item.template.corridorKey,
         label: item.template.label,
         corridorName: item.template.corridorName,
         description: item.template.description,

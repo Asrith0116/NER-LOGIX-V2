@@ -127,6 +127,20 @@ export function UnifiedMapContainer({
     adapter.renderGodowns(godowns);
     adapter.renderRoadSegments(roadSegments);
     adapter.renderWaypoints(originMarker, destinationMarker);
+
+    // Auto-fit map viewport to active route and waypoints
+    const boundsPoints: [number, number][] = [];
+    if (originMarker?.latlng) boundsPoints.push(originMarker.latlng);
+    if (destinationMarker?.latlng) boundsPoints.push(destinationMarker.latlng);
+
+    const activeRoute = routes.find((r) => r.id === selectedRouteId) || routes[0];
+    if (activeRoute?.waypoints && activeRoute.waypoints.length > 0) {
+      activeRoute.waypoints.forEach((wp) => boundsPoints.push(wp));
+    }
+
+    if (boundsPoints.length >= 2) {
+      adapter.fitBounds(boundsPoints, 45);
+    }
   }, [
     routes,
     selectedRouteId,

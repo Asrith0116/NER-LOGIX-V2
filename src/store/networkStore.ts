@@ -14,6 +14,10 @@ import type {
   EmergencyPickupRequest,
   EnvironmentalSnapshot,
   Shipment,
+  CorridorHazardExposure,
+  ElevationProfile,
+  OsmNetworkSnapshot,
+  BackendVehiclePosition,
 } from '@/types';
 import {
   DEMO_INCIDENTS,
@@ -43,6 +47,10 @@ import {
   resetBackendOperationalState,
   checkBackendHealth,
   type BackendHealthInfo,
+  getOsmRoadNetwork,
+  getHistoricalHazards,
+  getBackendVehiclePositions,
+  getTerrainCorridors,
 } from '@/services/api';
 import { useAppStore } from './appStore';
 
@@ -440,7 +448,14 @@ export interface NetworkState {
   backendHealth: BackendHealthInfo | null;
   lastBackendSyncAt: string | null;
 
+  // Phase 2 Real Data Integrations
+  historicalHazards: Record<string, CorridorHazardExposure>;
+  elevationProfiles: Record<string, ElevationProfile>;
+  osmNetwork: OsmNetworkSnapshot | null;
+  backendVehiclePositions: Record<string, BackendVehiclePosition>;
+
   // Actions
+  fetchPhase2RealData: () => Promise<void>;
   addIncident: (incident: Incident) => void;
   verifyIncident: (id: string, approved: boolean, verifiedBy?: string) => Promise<void>;
   updateRoadSegment: (id: string, patch: Partial<RoadSegment>) => void;
@@ -474,6 +489,65 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
   backendSyncStatus: 'offline',
   backendHealth: null,
   lastBackendSyncAt: null,
+  historicalHazards: {},
+  elevationProfiles: {},
+  osmNetwork: null,
+  backendVehiclePositions: {},
+
+  fetchPhase2RealData: async () => {
+    try {
+      const [hazardsRes, terrainRes, osmRes, posRes] = await Promise.allSettled([
+        getHistoricalHazards(),
+        getTerrainCorridors(),
+        getOsmRoadNetwork(),
+        getBackendVehiclePositions(),
+      ]);
+
+      set((state) => {
+        const next: Partial<NetworkState> = {};
+
+        if (hazardsRes.status === 'fulfilled' && hazardsRes.value?.corridors) {
+          next.historicalHazards = hazardsRes.value.corridors;
+        }
+
+        if (terrainRes.status === 'fulfilled' && terrainRes.value?.profiles) {
+          next.elevationProfiles = terrainRes.value.profiles;
+        }
+
+        if (osmRes.status === 'fulfilled' && osmRes.value?.roadSegments) {
+          next.osmNetwork = osmRes.value;
+        }
+
+        if (posRes.status === 'fulfilled' && posRes.value?.positions) {
+          const posMap: Record<string, BackendVehiclePosition> = {};
+          posRes.value.positions.forEach((p) => {
+            posMap[p.vehicleId] = p;
+          });
+          next.backendVehiclePositions = posMap;
+
+          // Sync position signals to activeVehicles if valid coordinates
+          const updatedVehicles = state.activeVehicles.map((v) => {
+            const p = posMap[v.id];
+            if (p && typeof p.latitude === 'number' && typeof p.longitude === 'number') {
+              return {
+                ...v,
+                location: [p.latitude, p.longitude] as [number, number],
+                heading: p.heading ?? v.heading,
+                speedKmh: p.speedKmh ?? v.speedKmh,
+                lastGpsUpdate: p.timestamp,
+              };
+            }
+            return v;
+          });
+          next.activeVehicles = updatedVehicles;
+        }
+
+        return next;
+      });
+    } catch (err) {
+      console.warn('[Phase2RealData] Failed to fetch Phase 2 live data:', err);
+    }
+  },
 
   setWeatherSpike: (active: boolean) => {
     set((state) => {
@@ -1295,6 +1369,13 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
             }
           } catch (weatherErr) {
             console.warn('[OperationalBackend] Regional weather sync warning, preserving baseline:', weatherErr);
+          }
+
+          // Ingest Phase 2 Real Data (OSM Roads, Historical Hazards, Vehicle Positions, Terrain)
+          try {
+            await get().fetchPhase2RealData();
+          } catch (p2Err) {
+            console.warn('[Phase2RealData] Phase 2 real data ingestion error:', p2Err);
           }
           return;
         }
