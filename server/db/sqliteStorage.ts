@@ -29,21 +29,38 @@ export interface StorageHealthInfo {
   };
 }
 
-class OperationalDatabase {
+export class OperationalDatabase {
   private db: DatabaseSync;
   private isMemory = false;
+  private dbLocation: string;
 
-  constructor() {
-    try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
-      this.db = new DatabaseSync(DB_FILE);
-      this.isMemory = false;
-    } catch (err) {
-      console.warn('[OperationalDatabase] Falling back to in-memory SQLite storage:', err);
+  constructor(customPathOrMemory?: string) {
+    if (customPathOrMemory === ':memory:') {
       this.db = new DatabaseSync(':memory:');
       this.isMemory = true;
+      this.dbLocation = ':memory:';
+    } else if (customPathOrMemory) {
+      const dir = path.dirname(customPathOrMemory);
+      if (dir && dir !== '.' && !fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      this.db = new DatabaseSync(customPathOrMemory);
+      this.isMemory = false;
+      this.dbLocation = customPathOrMemory;
+    } else {
+      try {
+        if (!fs.existsSync(DATA_DIR)) {
+          fs.mkdirSync(DATA_DIR, { recursive: true });
+        }
+        this.db = new DatabaseSync(DB_FILE);
+        this.isMemory = false;
+        this.dbLocation = DB_FILE;
+      } catch (err) {
+        console.warn('[OperationalDatabase] Falling back to in-memory SQLite storage:', err);
+        this.db = new DatabaseSync(':memory:');
+        this.isMemory = true;
+        this.dbLocation = ':memory:';
+      }
     }
 
     this.initTables();
@@ -1028,7 +1045,7 @@ class OperationalDatabase {
 
     return {
       type: this.isMemory ? 'SQLite (in-memory)' : 'SQLite (node:sqlite local demo file)',
-      location: this.isMemory ? ':memory:' : DB_FILE,
+      location: this.dbLocation,
       isPersistent: !this.isMemory,
       tableCounts: {
         incidents: incidentsCount,

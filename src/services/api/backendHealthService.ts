@@ -1,6 +1,7 @@
 /**
  * Backend Health & Capability Detection Service.
- * Periodically or on-demand probes the FastAPI `/health` endpoint.
+ * Periodically or on-demand probes the backend `/health` endpoint
+ * (served authoritatively by the Node/Vite operations router, and compatible with FastAPI).
  */
 
 import { apiRequest } from './apiClient';

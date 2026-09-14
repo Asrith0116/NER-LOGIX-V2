@@ -10,7 +10,7 @@ import type {
   EmergencyPickupRequest,
   ShipmentImpactResult,
 } from '../../src/types/index.ts';
-import { opDb } from '../db/sqliteStorage.ts';
+import { opDb, OperationalDatabase } from '../db/sqliteStorage.ts';
 import {
   computeShipmentImpacts,
   findSuitableGodownForShipment,
@@ -164,12 +164,18 @@ export function computeFleetImpact(
 }
 
 export class OperationalEngine {
+  private db: OperationalDatabase;
+
+  constructor(db: OperationalDatabase = opDb) {
+    this.db = db;
+  }
+
   public getAllIncidents(): Incident[] {
-    return opDb.getAllIncidents();
+    return this.db.getAllIncidents();
   }
 
   public getIncidentById(id: string): Incident | null {
-    return opDb.getIncidentById(id);
+    return this.db.getIncidentById(id);
   }
 
   public createIncident(input: Partial<Incident>): Incident {
@@ -202,7 +208,7 @@ export class OperationalEngine {
       correlation: input.correlation,
     };
 
-    opDb.saveIncident(incident);
+    this.db.saveIncident(incident);
     return incident;
   }
 
@@ -217,7 +223,7 @@ export class OperationalEngine {
     disruption?: Disruption;
     affectedVehicles: Vehicle[];
   } {
-    const incident = opDb.getIncidentById(incidentId);
+    const incident = this.db.getIncidentById(incidentId);
     if (!incident) {
       throw new Error(`Incident with ID "${incidentId}" not found.`);
     }
@@ -229,9 +235,9 @@ export class OperationalEngine {
     if (notes) {
       incident.notes = notes;
     }
-    opDb.saveIncident(incident);
+    this.db.saveIncident(incident);
 
-    const roads = opDb.getAllRoadSegments();
+    const roads = this.db.getAllRoadSegments();
     let affectedRoad: RoadSegment | undefined;
     let disruption: Disruption | undefined;
 
@@ -242,7 +248,7 @@ export class OperationalEngine {
         affectedRoad.riskLevel = 'blocked';
         affectedRoad.affectedByIncidentId = incident.id;
         affectedRoad.lastUpdated = now;
-        opDb.saveRoadSegment(affectedRoad);
+        this.db.saveRoadSegment(affectedRoad);
 
         const disruptionId = `dis-${incident.id.replace('INC-', '')}`;
         disruption = {
@@ -253,16 +259,16 @@ export class OperationalEngine {
           createdAt: now,
           updatedAt: now,
         };
-        opDb.saveDisruption(disruption);
+        this.db.saveDisruption(disruption);
       }
     } else if (!approved) {
       // If rejected, unblock road if this incident was the cause
-      const existingDisruptions = opDb.getAllDisruptions();
+      const existingDisruptions = this.db.getAllDisruptions();
       const linkedDisruptions = existingDisruptions.filter((d: Disruption) => d.incidentId === incident.id);
       for (const d of linkedDisruptions) {
         d.status = 'cleared';
         d.updatedAt = now;
-        opDb.saveDisruption(d);
+        this.db.saveDisruption(d);
       }
 
       for (const r of roads) {
@@ -271,17 +277,17 @@ export class OperationalEngine {
           r.riskLevel = 'low';
           r.affectedByIncidentId = undefined;
           r.lastUpdated = now;
-          opDb.saveRoadSegment(r);
+          this.db.saveRoadSegment(r);
           affectedRoad = r;
         }
       }
     }
 
     // Recompute fleet impact across all vehicles
-    const updatedRoads = opDb.getAllRoadSegments();
-    const updatedDisruptions = opDb.getAllDisruptions();
-    const updatedIncidents = opDb.getAllIncidents();
-    const currentVehicles = opDb.getAllVehicles();
+    const updatedRoads = this.db.getAllRoadSegments();
+    const updatedDisruptions = this.db.getAllDisruptions();
+    const updatedIncidents = this.db.getAllIncidents();
+    const currentVehicles = this.db.getAllVehicles();
 
     const affectedVehicles = computeFleetImpact(
       currentVehicles,
@@ -291,7 +297,7 @@ export class OperationalEngine {
     );
 
     for (const v of affectedVehicles) {
-      opDb.saveVehicle(v);
+      this.db.saveVehicle(v);
     }
 
     // Recompute shipment impacts
@@ -306,12 +312,12 @@ export class OperationalEngine {
   }
 
   public syncShipmentImpacts(): ShipmentImpactResult {
-    const shipments = opDb.getAllShipments();
-    const vehicles = opDb.getAllVehicles();
-    const roads = opDb.getAllRoadSegments();
-    const disruptions = opDb.getAllDisruptions();
-    const incidents = opDb.getAllIncidents();
-    const pickups = opDb.getAllEmergencyPickups();
+    const shipments = this.db.getAllShipments();
+    const vehicles = this.db.getAllVehicles();
+    const roads = this.db.getAllRoadSegments();
+    const disruptions = this.db.getAllDisruptions();
+    const incidents = this.db.getAllIncidents();
+    const pickups = this.db.getAllEmergencyPickups();
 
     const result = computeShipmentImpacts(
       shipments,
@@ -323,7 +329,7 @@ export class OperationalEngine {
     );
 
     for (const s of result.affectedShipments) {
-      opDb.saveShipment(s);
+      this.db.saveShipment(s);
     }
     // Also save all updated shipments to maintain state
     const allComputed = computeShipmentImpacts(shipments, vehicles, roads, disruptions, incidents, pickups);
@@ -335,18 +341,18 @@ export class OperationalEngine {
       return shp;
     });
     for (const shp of allShipmentsList) {
-      opDb.saveShipment(shp);
+      this.db.saveShipment(shp);
     }
 
     return result;
   }
 
   public getAllRoadSegments(): RoadSegment[] {
-    return opDb.getAllRoadSegments();
+    return this.db.getAllRoadSegments();
   }
 
   public updateRoadSegment(id: string, patch: Partial<RoadSegment>): RoadSegment {
-    const road = opDb.getRoadSegmentById(id);
+    const road = this.db.getRoadSegmentById(id);
     if (!road) {
       throw new Error(`Road segment with ID "${id}" not found.`);
     }
@@ -358,16 +364,16 @@ export class OperationalEngine {
       lastUpdated: new Date().toISOString(),
     };
 
-    opDb.saveRoadSegment(updated);
+    this.db.saveRoadSegment(updated);
 
     // Recompute fleet impact
-    const roads = opDb.getAllRoadSegments();
-    const disruptions = opDb.getAllDisruptions();
-    const incidents = opDb.getAllIncidents();
-    const vehicles = opDb.getAllVehicles();
+    const roads = this.db.getAllRoadSegments();
+    const disruptions = this.db.getAllDisruptions();
+    const incidents = this.db.getAllIncidents();
+    const vehicles = this.db.getAllVehicles();
     const recomputed = computeFleetImpact(vehicles, roads, disruptions, incidents);
     for (const v of recomputed) {
-      opDb.saveVehicle(v);
+      this.db.saveVehicle(v);
     }
     this.syncShipmentImpacts();
 
@@ -375,15 +381,15 @@ export class OperationalEngine {
   }
 
   public getAllVehicles(): Vehicle[] {
-    return opDb.getAllVehicles();
+    return this.db.getAllVehicles();
   }
 
   public getVehicleById(id: string): Vehicle | null {
-    return opDb.getVehicleById(id);
+    return this.db.getVehicleById(id);
   }
 
   public updateVehicle(id: string, patch: Partial<Vehicle>): Vehicle {
-    const vehicle = opDb.getVehicleById(id);
+    const vehicle = this.db.getVehicleById(id);
     if (!vehicle) {
       throw new Error(`Vehicle with ID "${id}" not found.`);
     }
@@ -394,13 +400,13 @@ export class OperationalEngine {
       id: vehicle.id,
     };
 
-    opDb.saveVehicle(updated);
+    this.db.saveVehicle(updated);
     this.syncShipmentImpacts();
     return updated;
   }
 
   public getAllDisruptions(): Disruption[] {
-    return opDb.getAllDisruptions();
+    return this.db.getAllDisruptions();
   }
 
   public getFleetImpact(): {
@@ -410,10 +416,10 @@ export class OperationalEngine {
     activeDisruptions: Disruption[];
     blockedRoads: RoadSegment[];
   } {
-    const vehicles = opDb.getAllVehicles();
-    const roads = opDb.getAllRoadSegments();
-    const disruptions = opDb.getAllDisruptions();
-    const incidents = opDb.getAllIncidents();
+    const vehicles = this.db.getAllVehicles();
+    const roads = this.db.getAllRoadSegments();
+    const disruptions = this.db.getAllDisruptions();
+    const incidents = this.db.getAllIncidents();
 
     const computed = computeFleetImpact(vehicles, roads, disruptions, incidents);
     const disrupted = computed.filter((v: Vehicle) => v.status === 'disrupted' || v.rerouteStatus === 'recommended');
@@ -429,11 +435,11 @@ export class OperationalEngine {
 
   // ── Shipments & Logistics Continuity (Step 9) ──────────────────────────────
   public getAllShipments(): Shipment[] {
-    return opDb.getAllShipments();
+    return this.db.getAllShipments();
   }
 
   public getShipmentById(id: string): Shipment | null {
-    return opDb.getShipmentById(id);
+    return this.db.getShipmentById(id);
   }
 
   public getShipmentImpacts(): ShipmentImpactResult {
@@ -441,22 +447,22 @@ export class OperationalEngine {
   }
 
   public getAllGodowns(): Godown[] {
-    return opDb.getAllGodowns();
+    return this.db.getAllGodowns();
   }
 
   public getGodownById(id: string): Godown | null {
-    return opDb.getGodownById(id);
+    return this.db.getGodownById(id);
   }
 
   public getAllPickupRequests(): EmergencyPickupRequest[] {
-    return opDb.getAllEmergencyPickups();
+    return this.db.getAllEmergencyPickups();
   }
 
   public createPickupRequest(data: Partial<EmergencyPickupRequest>): EmergencyPickupRequest {
     const vehicleId = data.vehicleId || 'AS-01-J-4422';
-    const vehicle = opDb.getVehicleById(vehicleId);
-    const godowns = opDb.getAllGodowns();
-    const shipment = opDb.getShipmentByVehicleId(vehicleId);
+    const vehicle = this.db.getVehicleById(vehicleId);
+    const godowns = this.db.getAllGodowns();
+    const shipment = this.db.getShipmentByVehicleId(vehicleId);
 
     let godownId = data.godownId;
     let godownName = data.godownName;
@@ -490,14 +496,14 @@ export class OperationalEngine {
       destinationNotified: data.destinationNotified ?? true,
     };
 
-    opDb.saveEmergencyPickup(newReq);
+    this.db.saveEmergencyPickup(newReq);
 
     // Update vehicle to no_alternative
     if (vehicle) {
       vehicle.rerouteStatus = 'no_alternative';
       vehicle.recommendedGodownId = godownId;
       vehicle.rerouteReason = 'No alternate highway corridor from current position. Strategic godown buffer requested.';
-      opDb.saveVehicle(vehicle);
+      this.db.saveVehicle(vehicle);
     }
 
     this.syncShipmentImpacts();
@@ -513,12 +519,12 @@ export class OperationalEngine {
     vehicle?: Vehicle;
     shipment?: Shipment;
   } {
-    const req = opDb.getEmergencyPickupById(requestId);
+    const req = this.db.getEmergencyPickupById(requestId);
     if (!req) {
       throw new Error(`Emergency pickup request with ID "${requestId}" not found.`);
     }
 
-    const godown = opDb.getGodownById(req.godownId);
+    const godown = this.db.getGodownById(req.godownId);
     if (!godown) {
       throw new Error(`Designated godown "${req.godownId}" not found.`);
     }
@@ -530,7 +536,7 @@ export class OperationalEngine {
     }
 
     // Reserve stock atomically
-    const updatedGodown = opDb.updateGodownStock(godown.id, req.quantity);
+    const updatedGodown = this.db.updateGodownStock(godown.id, req.quantity);
     if (!updatedGodown) {
       throw new Error(`Failed to update godown stock.`);
     }
@@ -541,10 +547,10 @@ export class OperationalEngine {
     req.dispatchedAt = now;
     req.contractorName = contractorName;
     req.destinationNotified = true;
-    opDb.saveEmergencyPickup(req);
+    this.db.saveEmergencyPickup(req);
 
     // Update vehicle
-    const vehicle = opDb.getVehicleById(req.vehicleId);
+    const vehicle = this.db.getVehicleById(req.vehicleId);
     if (vehicle) {
       vehicle.status = 'emergency_pickup';
       vehicle.riskLevel = 'moderate';
@@ -552,12 +558,12 @@ export class OperationalEngine {
       vehicle.affectedByDisruptionId = undefined;
       vehicle.impactReason = undefined;
       vehicle.rerouteReason = `Emergency buffer stock secured at ${godown.name}. Reserved by ${contractorName}.`;
-      opDb.saveVehicle(vehicle);
+      this.db.saveVehicle(vehicle);
     }
 
     this.syncShipmentImpacts();
 
-    const shipment = opDb.getShipmentByVehicleId(req.vehicleId);
+    const shipment = this.db.getShipmentByVehicleId(req.vehicleId);
 
     return {
       request: req,
@@ -575,12 +581,12 @@ export class OperationalEngine {
     request: EmergencyPickupRequest;
     alternativeGodown?: Godown;
   } {
-    const req = opDb.getEmergencyPickupById(requestId);
+    const req = this.db.getEmergencyPickupById(requestId);
     if (!req) {
       throw new Error(`Emergency pickup request with ID "${requestId}" not found.`);
     }
 
-    const allGodowns = opDb.getAllGodowns();
+    const allGodowns = this.db.getAllGodowns();
 
     // Check for next available alternative godown
     const alternatives = allGodowns.filter(
@@ -594,7 +600,7 @@ export class OperationalEngine {
     if (altGodown) {
       req.alternativeGodownId = altGodown.id;
     }
-    opDb.saveEmergencyPickup(req);
+    this.db.saveEmergencyPickup(req);
 
     this.syncShipmentImpacts();
 
@@ -605,20 +611,20 @@ export class OperationalEngine {
   }
 
   public resetToCleanState(): void {
-    opDb.resetToBaseline();
+    this.db.resetToBaseline();
   }
 
   public getSnapshot() {
     this.syncShipmentImpacts();
     return {
-      incidents: opDb.getAllIncidents(),
-      roads: opDb.getAllRoadSegments(),
-      vehicles: opDb.getAllVehicles(),
-      disruptions: opDb.getAllDisruptions(),
-      emergencyPickups: opDb.getAllEmergencyPickups(),
-      shipments: opDb.getAllShipments(),
-      godowns: opDb.getAllGodowns(),
-      storageHealth: opDb.getHealthInfo(),
+      incidents: this.db.getAllIncidents(),
+      roads: this.db.getAllRoadSegments(),
+      vehicles: this.db.getAllVehicles(),
+      disruptions: this.db.getAllDisruptions(),
+      emergencyPickups: this.db.getAllEmergencyPickups(),
+      shipments: this.db.getAllShipments(),
+      godowns: this.db.getAllGodowns(),
+      storageHealth: this.db.getHealthInfo(),
     };
   }
 }

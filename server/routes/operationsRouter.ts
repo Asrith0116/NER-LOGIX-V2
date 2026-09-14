@@ -327,5 +327,41 @@ export async function handleOperationsRequest(
     return true;
   }
 
+  // 11. Trip Planning & Compute Endpoints (Honest Local Fallback Routing)
+  if ((url === '/api/v1/trips/compute' || url === '/api/v1/operations/trips/compute') && method === 'POST') {
+    sendJson(res, 200, {
+      provider_status: 'fallback_local',
+      candidates_count: 0,
+      routes: [],
+      message: 'Local fallback routing is active in Phase 1. Google Routes API is not configured.',
+    });
+    return true;
+  }
+
+  if ((url === '/api/v1/trips/plan' || url === '/api/v1/operations/trips/plan') && method === 'POST') {
+    sendJson(res, 200, {
+      request_id: 'req-local-plan',
+      recommended_route_id: 'route-b',
+      routes: [],
+      provider: 'local_fallback',
+      generated_at: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  // 12. Weather Baseline Endpoint
+  if ((url === '/api/v1/weather/current' || url === '/api/v1/operations/weather/current') && method === 'GET') {
+    sendJson(res, 200, {
+      location_name: 'Guwahati Logistics Hub',
+      temperature_c: 24.5,
+      precipitation_mm: 12.0,
+      rainfall_category: 'moderate',
+      weather_code: 61,
+      source: 'Regional Corridor Baseline',
+      timestamp: new Date().toISOString(),
+    });
+    return true;
+  }
+
   return false;
 }

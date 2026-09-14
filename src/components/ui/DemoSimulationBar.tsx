@@ -29,13 +29,13 @@ const PITCH_SCRIPT = [
   },
   {
     title: 'Step 2: Pre-Trip Offline Bundle Download',
-    desc: 'Driver caches map vector tiles, terrain waypoints, and multilingual audio alerts into IndexedDB for offline operation.',
+    desc: 'Driver caches corridor route waypoints, GeoJSON coordinate data, and multilingual audio alerts into IndexedDB for offline operation.',
     role: 'driver' as const,
     path: '/driver/trip',
   },
   {
     title: 'Step 3: Entering Mountain Dead-Zone (Offline)',
-    desc: '4G/5G drops to zero bars. Service Worker transparently renders map and guidance using local hardware GPS and IndexedDB.',
+    desc: '4G/5G drops to zero bars. Local IndexedDB cache transparently provides cached corridor waypoints, trip state, and device location coordinates.',
     role: 'driver' as const,
     path: '/driver/navigation',
   },
@@ -47,7 +47,7 @@ const PITCH_SCRIPT = [
   },
   {
     title: 'Step 5: Reconnect & Automatic Cloud Sync',
-    desc: 'Cresting mountain ridge restores momentary signal. Background Sync automatically uploads report to SDMA triage queue.',
+    desc: 'Cresting mountain ridge restores momentary signal. Client network listener automatically syncs queued reports with the operational backend.',
     role: 'sdma' as const,
     path: '/sdma/incidents',
   },

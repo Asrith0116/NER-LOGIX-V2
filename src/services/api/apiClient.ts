@@ -1,6 +1,8 @@
 /**
  * Centralized API Client for NER-LOGIX Frontend.
- * Standardizes fetch requests, timeouts, and error handling for the FastAPI backend.
+ * Standardizes fetch requests, timeouts, and error handling for the authoritative
+ * Node/Vite operational backend (with SQLite persistence), while remaining compatible
+ * with the future/stand-alone FastAPI backend architecture.
  * Crucially designed for resilience: if the backend is down or unreachable,
  * it returns clean structured error results without throwing unhandled exceptions.
  */

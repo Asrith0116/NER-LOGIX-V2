@@ -4,7 +4,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import Groq from 'groq-sdk';
 import { handleOperationsRequest } from './routes/operationsRouter.ts';
 
-interface IncidentAnalysisPayload {
+export interface IncidentAnalysisPayload {
   typed_description?: string;
   description?: string;
   hazard_category?: string;
@@ -388,7 +388,7 @@ YOU MUST OUTPUT ONLY VALID JSON WITH THE FOLLOWING EXACT KEYS:
   };
 }
 
-function generateDeterministicFallback(payload: IncidentAnalysisPayload): any {
+export function generateDeterministicFallback(payload: IncidentAnalysisPayload): any {
   const description = (payload.typed_description || payload.description || '').trim();
   const voiceTranscript = (payload.voice_transcript || '').trim();
   const combinedText = description || voiceTranscript || '';
@@ -422,7 +422,7 @@ function generateDeterministicFallback(payload: IncidentAnalysisPayload): any {
 
   for (const h of candidateHazards) {
     if (h.re.test(combinedText)) {
-      const isNegated = new RegExp(`(?:no|not|never|without|free of|zero)\\s+(?:any\\s+)?(?:[\\w-]+\\s+){0,3}${h.re.source}`, 'i').test(combinedText);
+      const isNegated = new RegExp(`(?:no|not|never|without|free of|zero)\\s+(?:any\\s+)?(?:[\\w-]+\\s+){0,3}(?:${h.re.source})`, 'i').test(combinedText);
       if (!isNegated) {
         classifiedCategory = h.type;
         matchedPositively = true;
@@ -449,6 +449,8 @@ function generateDeterministicFallback(payload: IncidentAnalysisPayload): any {
     lower.includes('road block') ||
     lower.includes('roadblock') ||
     lower.includes('blocked') ||
+    lower.includes('blocking') ||
+    lower.includes('completely') ||
     lower.includes('बंद') ||
     lower.includes('বন্ধ');
   const isSingleLane =

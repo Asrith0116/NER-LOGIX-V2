@@ -31,7 +31,7 @@ export class HybridLocationProvider implements LocationProvider {
           resolve({
             lat: Number(pos.coords.latitude.toFixed(5)),
             lng: Number(pos.coords.longitude.toFixed(5)),
-            locationName: fallbackCoords?.name || 'Live GPS Coordinates',
+            locationName: fallbackCoords?.name || 'Device Geolocation Fix',
             accuracyMeters: Math.round(pos.coords.accuracy || 10),
             source: 'DEVICE_GPS' as LocationSource,
             timestamp: new Date(pos.timestamp).toISOString(),
