@@ -1,4 +1,8 @@
 import type { WeatherDataPoint, EnvironmentalSnapshot } from '@/types';
+import {
+  fetchBackendLocationWeather,
+  fetchBackendRegionalWeather,
+} from './api/weatherApiService';
 
 // Key geographical nodes across North Eastern Region
 export const NER_WEATHER_NODES: Record<string, { lat: number; lng: number; defaultTemp: number; defaultRain: number }> = {
@@ -78,6 +82,17 @@ export class OpenMeteoEnvironmentalProvider implements EnvironmentalProvider {
     }
 
     try {
+      // Prioritize NER-LOGIX backend integration boundary
+      const backendRes = await fetchBackendLocationWeather(locationName);
+      if (backendRes.ok && backendRes.data) {
+        weatherCache.set(cacheKey, { data: backendRes.data, timestamp: Date.now() });
+        return backendRes.data;
+      }
+    } catch {
+      // Backend request failed, attempt direct fetch if available or fallback
+    }
+
+    try {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${node.lat}&longitude=${node.lng}&current=temperature_2m,precipitation,rain,weather_code,wind_speed_10m&hourly=precipitation&timezone=Asia%2FKolkata`;
       const response = await fetch(url, { signal: AbortSignal.timeout(3500) });
 
@@ -121,6 +136,15 @@ export class OpenMeteoEnvironmentalProvider implements EnvironmentalProvider {
   }
 
   async fetchAllRegionalEnvironment(): Promise<Record<string, EnvironmentalSnapshot>> {
+    try {
+      const backendRes = await fetchBackendRegionalWeather();
+      if (backendRes.ok && backendRes.data?.observations) {
+        return backendRes.data.observations;
+      }
+    } catch {
+      // Fallback
+    }
+
     const results: Record<string, EnvironmentalSnapshot> = {};
     await Promise.all(
       Object.keys(NER_WEATHER_NODES).map(async (name) => {

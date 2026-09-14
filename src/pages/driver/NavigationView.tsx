@@ -253,7 +253,7 @@ export function NavigationView() {
         <div className="w-full lg:w-80 border-l border-[#e4e4e3] bg-white overflow-y-auto shrink-0 flex flex-col">
           {/* ETA & distance banner */}
           <div className="px-4 py-3.5 border-b border-[#e4e4e3] bg-[#fafaf9]">
-            <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider mb-2">Live Trip Telemetry</p>
+            <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider mb-2">Active Trip Metrics</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="p-2.5 rounded-lg bg-white border border-[#e4e4e3]">
                 <div className="flex items-center gap-1.5 mb-0.5">
@@ -383,8 +383,8 @@ export function NavigationView() {
             <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider mb-2">Offline Field Readiness</p>
             <div className="space-y-1.5">
               {[
-                { label: 'Corridor vector cached', available: true },
-                { label: 'Base map tiles', available: true },
+                { label: 'Route waypoints & state (IDB)', available: true },
+                { label: 'Online map tiles', available: networkStatus === 'online' },
                 { label: 'Offline hazard storage (IDB)', available: true },
                 { label: 'SDMA cloud link', available: networkStatus === 'online' },
               ].map((item) => (

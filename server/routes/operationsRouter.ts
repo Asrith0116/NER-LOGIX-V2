@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { operationalEngine } from '../services/operationalEngine.ts';
 import { opDb } from '../db/sqliteStorage.ts';
+import { backendWeatherService } from '../services/weatherService.ts';
 
 export function sendJson(res: ServerResponse, statusCode: number, data: unknown) {
   const json = JSON.stringify(data);
@@ -349,17 +350,61 @@ export async function handleOperationsRequest(
     return true;
   }
 
-  // 12. Weather Baseline Endpoint
-  if ((url === '/api/v1/weather/current' || url === '/api/v1/operations/weather/current') && method === 'GET') {
-    sendJson(res, 200, {
-      location_name: 'Guwahati Logistics Hub',
-      temperature_c: 24.5,
-      precipitation_mm: 12.0,
-      rainfall_category: 'moderate',
-      weather_code: 61,
-      source: 'Regional Corridor Baseline',
-      timestamp: new Date().toISOString(),
-    });
+  // 12. Weather Endpoints (Open-Meteo Live Integration with Fallback)
+  if (
+    (url === '/api/v1/weather' ||
+      url === '/api/v1/operations/weather' ||
+      url.startsWith('/api/v1/weather?') ||
+      url.startsWith('/api/v1/operations/weather?')) &&
+    method === 'GET'
+  ) {
+    try {
+      const observations = await backendWeatherService.fetchRegionalWeather();
+      sendJson(res, 200, {
+        observations,
+        is_spike_active: backendWeatherService.getSpikeStatus(),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  if (
+    (url === '/api/v1/weather/current' ||
+      url === '/api/v1/operations/weather/current' ||
+      url.startsWith('/api/v1/weather/current?') ||
+      url.startsWith('/api/v1/operations/weather/current?')) &&
+    method === 'GET'
+  ) {
+    try {
+      let location = 'Guwahati';
+      const parsedUrl = new URL(url, 'http://localhost:3000');
+      const qLoc = parsedUrl.searchParams.get('location') || parsedUrl.searchParams.get('loc');
+      if (qLoc) {
+        location = qLoc;
+      }
+      const data = await backendWeatherService.fetchLocationWeather(location);
+      sendJson(res, 200, data);
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  if (
+    (url === '/api/v1/weather/spike' || url === '/api/v1/operations/weather/spike') &&
+    method === 'POST'
+  ) {
+    try {
+      const body = (await parseJsonBody(req).catch(() => ({}))) as Record<string, any>;
+      const active = Boolean(body.active);
+      backendWeatherService.setSpike(active);
+      sendJson(res, 200, { ok: true, is_spike_active: active });
+    } catch (err) {
+      sendJson(res, 400, { ok: false, error: (err as Error).message });
+    }
     return true;
   }
 

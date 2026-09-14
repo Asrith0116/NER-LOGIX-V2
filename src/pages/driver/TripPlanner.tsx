@@ -27,7 +27,7 @@ import {
   Warehouse,
   ShieldAlert,
 } from 'lucide-react';
-import { fetchLiveWeather } from '@/services/weatherService';
+import { fetchLiveWeather, fetchAllRegionalWeather } from '@/services/weatherService';
 import { calculateTripCandidates } from '@/services/routing/tripIntelligence';
 import { candidateToRiskBreakdown } from '@/services/riskEngine';
 import type {
@@ -103,6 +103,7 @@ export function TripPlanner() {
   const disruptions = useNetworkStore((state) => state.disruptions);
   const activeIncidents = useNetworkStore((state) => state.activeIncidents);
   const setVehicleStatus = useNetworkStore((state) => state.setVehicleStatus);
+  const updateWeatherData = useNetworkStore((state) => state.updateWeatherData);
   const storeWeatherData = useNetworkStore((state) => state.weatherData);
   const weatherSpikeActive = useNetworkStore((state) => state.weatherSpikeActive);
 
@@ -177,11 +178,24 @@ export function TripPlanner() {
   const originLocation: Location = LOCATIONS[originKey as keyof typeof LOCATIONS] || LOCATIONS.guwahati;
   const destLocation: Location = LOCATIONS[destKey as keyof typeof LOCATIONS] || LOCATIONS.imphal;
 
-  // Ingest live weather from Open-Meteo
+  // Ingest live weather from Open-Meteo for origin, destination, and full corridor network
   useEffect(() => {
-    fetchLiveWeather(originLocation.shortName).then(setOriginWeather);
-    fetchLiveWeather(destLocation.shortName).then(setDestWeather);
-  }, [originLocation.shortName, destLocation.shortName]);
+    let isMounted = true;
+    fetchLiveWeather(originLocation.shortName).then((w) => {
+      if (isMounted) setOriginWeather(w);
+    });
+    fetchLiveWeather(destLocation.shortName).then((w) => {
+      if (isMounted) setDestWeather(w);
+    });
+    fetchAllRegionalWeather(weatherSpikeActive).then((regional) => {
+      if (isMounted && regional && Object.keys(regional).length > 0) {
+        updateWeatherData(regional);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [originLocation.shortName, destLocation.shortName, weatherSpikeActive, updateWeatherData]);
 
   // When cargo option changes, sync default sensitivity & cold-chain
   const handleCargoChange = (categoryName: string) => {

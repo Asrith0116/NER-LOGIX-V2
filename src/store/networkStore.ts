@@ -32,7 +32,7 @@ import {
   clearAllStoredData,
 } from '@/utils/idb';
 import { correlateIncidents } from '@/services/incidentCorrelation';
-import { getBaselineRegionalWeather, applySpikeToRegionalWeather } from '@/services/weatherService';
+import { getBaselineRegionalWeather, applySpikeToRegionalWeather, fetchAllRegionalWeather } from '@/services/weatherService';
 import { computeShipmentImpacts } from '@/services/logisticsEngine';
 import {
   fetchOperationalSnapshot,
@@ -1285,6 +1285,16 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
             for (const dis of snapshot.disruptions) {
               await saveDisruption(dis).catch(() => {});
             }
+          }
+
+          // Ingest live regional weather from backend Open-Meteo pipeline
+          try {
+            const regionalWeather = await fetchAllRegionalWeather(get().weatherSpikeActive);
+            if (regionalWeather && Object.keys(regionalWeather).length > 0) {
+              set({ weatherData: regionalWeather });
+            }
+          } catch (weatherErr) {
+            console.warn('[OperationalBackend] Regional weather sync warning, preserving baseline:', weatherErr);
           }
           return;
         }

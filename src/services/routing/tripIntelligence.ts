@@ -6,8 +6,8 @@ import type {
   RouteProvider,
   RiskLevel,
   Location,
-} from '@/types';
-import { CORRIDOR_TEMPLATES, type CorridorTemplate } from '@/data/corridorRoutes';
+} from '../../types/index.ts';
+import { CORRIDOR_TEMPLATES, type CorridorTemplate } from '../../data/corridorRoutes.ts';
 
 function getPairKey(origin: Location, dest: Location): string {
   const o = (origin.shortName || origin.name || 'guwahati').toLowerCase();
