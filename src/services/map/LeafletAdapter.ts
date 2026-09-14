@@ -23,6 +23,33 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+// Safe guard L.DomUtil.getPosition and setPosition to prevent "Cannot read properties of undefined (reading '_leaflet_pos')"
+if (L.DomUtil && L.DomUtil.getPosition) {
+  const originalGetPosition = L.DomUtil.getPosition;
+  L.DomUtil.getPosition = function (el: any) {
+    if (!el) {
+      return new L.Point(0, 0);
+    }
+    try {
+      return originalGetPosition(el);
+    } catch {
+      return new L.Point(0, 0);
+    }
+  };
+}
+
+if (L.DomUtil && L.DomUtil.setPosition) {
+  const originalSetPosition = L.DomUtil.setPosition;
+  L.DomUtil.setPosition = function (el: any, point: any) {
+    if (!el) return;
+    try {
+      originalSetPosition(el, point);
+    } catch {
+      // ignore
+    }
+  };
+}
+
 function createIncidentIcon(severity: string, isSelected: boolean = false) {
   const colors: Record<string, string> = {
     low: '#16a34a',
@@ -236,17 +263,25 @@ export class LeafletAdapter implements IMapAdapter {
 
   setCenter(latlng: [number, number], zoom?: number, animate: boolean = true): void {
     if (!this.map) return;
-    if (animate) {
-      this.map.flyTo(latlng, zoom ?? this.map.getZoom(), { duration: 1.2 });
-    } else {
-      this.map.setView(latlng, zoom ?? this.map.getZoom());
+    try {
+      if (animate) {
+        this.map.flyTo(latlng, zoom ?? this.map.getZoom(), { duration: 1.2 });
+      } else {
+        this.map.setView(latlng, zoom ?? this.map.getZoom());
+      }
+    } catch (err) {
+      console.warn('Leaflet setCenter failed:', err);
     }
   }
 
   fitBounds(bounds: [number, number][], padding: number = 40): void {
     if (!this.map || bounds.length === 0) return;
-    const lBounds = L.latLngBounds(bounds.map((b) => L.latLng(b[0], b[1])));
-    this.map.fitBounds(lBounds, { padding: [padding, padding] });
+    try {
+      const lBounds = L.latLngBounds(bounds.map((b) => L.latLng(b[0], b[1])));
+      this.map.fitBounds(lBounds, { padding: [padding, padding] });
+    } catch (err) {
+      console.warn('Leaflet fitBounds failed:', err);
+    }
   }
 
   renderRoutes(routes: Route[], selectedRouteId?: string): void {
