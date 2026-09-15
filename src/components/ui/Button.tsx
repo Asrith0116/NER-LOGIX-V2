@@ -14,21 +14,21 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-[#2563eb] text-white hover:bg-[#1d4ed8] border-transparent shadow-[0_1px_2px_rgba(0,0,0,0.1)]',
+    'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold border-transparent shadow-sm hover:shadow active:scale-[0.98]',
   secondary:
-    'bg-[#f5f5f4] text-[#1a1a19] hover:bg-[#e7e7e6] border-[#e4e4e3]',
+    'bg-slate-100 text-slate-800 hover:bg-slate-200/80 border-slate-200/80 active:scale-[0.98]',
   ghost:
-    'bg-transparent text-[#5a5a57] hover:bg-[#f5f5f4] border-transparent',
+    'bg-transparent text-slate-600 hover:bg-slate-100/90 hover:text-slate-900 border-transparent',
   danger:
-    'bg-[#dc2626] text-white hover:bg-[#b91c1c] border-transparent shadow-[0_1px_2px_rgba(0,0,0,0.1)]',
+    'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-semibold border-transparent shadow-sm hover:shadow active:scale-[0.98]',
   outline:
-    'bg-white text-[#1a1a19] hover:bg-[#f5f5f4] border-[#e4e4e3]',
+    'bg-white/95 hover:bg-white text-slate-700 border-slate-200/90 shadow-2xs hover:shadow-xs active:scale-[0.98]',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-2.5 py-1.5 text-xs gap-1.5 rounded',
-  md: 'px-3.5 py-2 text-sm gap-2 rounded-md',
-  lg: 'px-5 py-2.5 text-sm gap-2 rounded-md',
+  sm: 'px-3 py-1.5 text-xs gap-1.5 rounded-xl',
+  md: 'px-4 py-2 text-sm gap-2 rounded-xl',
+  lg: 'px-5 py-2.5 text-sm gap-2.5 rounded-xl',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Notification } from '@/components/ui/Notification';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
-import { DriverVehicleSelector } from '@/components/ui/DriverVehicleSelector';
-import { DEMO_DRIVER } from '@/data/demo';
+import { useCurrentDriver } from '@/hooks/useCurrentDriver';
 import { useAppStore } from '@/store/appStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { saveIncident, getPendingIncidents } from '@/utils/idb';
@@ -92,13 +91,10 @@ const SAMPLE_VOICE_MEMOS = [
 ];
 
 export function HazardReport() {
-  const { networkStatus, activeTripId, setPendingIncidentsCount, selectedDriverVehicleId } = useAppStore();
-  const activeVehicles = useNetworkStore((state) => state.activeVehicles);
+  const { networkStatus, activeTripId, setPendingIncidentsCount } = useAppStore();
   const addIncident = useNetworkStore((state) => state.addIncident);
-  const currentDriverVehicle =
-    activeVehicles.find((v) => v.id === selectedDriverVehicleId) ||
-    activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
-    activeVehicles[0];
+  const currentDriver = useCurrentDriver();
+  const currentDriverVehicle = currentDriver.vehicle;
   const navigate = useNavigate();
 
   const [type, setType] = useState<IncidentType>('landslide');
@@ -358,8 +354,8 @@ export function HazardReport() {
       locationName: locationSnapshot.locationName,
       locationSource: locationSnapshot.source,
       description: description.trim() || `Field report: ${type.replace('_', ' ')} obstructing transit corridor.`,
-      reportedBy: currentDriverVehicle ? `${currentDriverVehicle.driverName} (${currentDriverVehicle.id})` : DEMO_DRIVER.name,
-      reportedVehicleId: currentDriverVehicle?.id,
+      reportedBy: `${currentDriver.driverName} (${currentDriver.vehicleId})`,
+      reportedVehicleId: currentDriver.vehicleId,
       reportedAt: new Date().toISOString(),
       syncStatus: isOffline ? 'local_pending' : 'pending_verification',
       photoUrl: photoBase64 || photoUrl || undefined, // Real base64 photo data URL; persists across all browser windows and server SQLite
@@ -511,15 +507,17 @@ export function HazardReport() {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-[#fafaf9]">
+    <div className="h-full overflow-y-auto bg-[#f4f6f8]">
       {/* Sticky Header */}
-      <div className="px-6 py-4 bg-white border-b border-[#e4e4e3] sticky top-0 z-10">
+      <div className="px-6 py-4 bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-10 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.03)]">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-[#dc2626]" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shadow-2xs">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
             <div>
-              <h1 className="text-base font-bold text-[#1a1a19]">Field Hazard & Corridor Incident Reporting</h1>
-              <p className="text-xs text-[#8a8a87]">Layer 4: Crowdsourced Driver Intelligence & Multi-Lingual Triage</p>
+              <h1 className="text-base font-bold text-slate-900 tracking-tight">Field Hazard & Corridor Incident Reporting</h1>
+              <p className="text-xs text-slate-500">Layer 4: Crowdsourced Driver Intelligence & Multi-Lingual Triage</p>
             </div>
           </div>
           <div>
@@ -534,44 +532,45 @@ export function HazardReport() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 py-5 space-y-5">
+      <div className="max-w-3xl mx-auto px-6 py-6 space-y-6">
         {/* Driver identity context bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 rounded-xl bg-white border border-[#e4e4e3] text-xs shadow-xs">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[#5a5a57]">
-              Reporting Transport: <strong className="text-[#1a1a19]">{currentDriverVehicle?.driverName || DEMO_DRIVER.name}</strong> ({currentDriverVehicle?.id})
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 rounded-2xl bg-white border border-slate-200/80 text-xs shadow-2xs">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="text-slate-500 font-medium">
+              Reporting Transport: <strong className="text-slate-900 font-bold">{currentDriver.driverName}</strong> ({currentDriver.vehicleId})
             </span>
-            <DriverVehicleSelector id="hazard-driver-vehicle-selector" compact />
           </div>
-          <span className="text-[#2563eb] font-semibold">Active Trip: {activeTripId || 'TRIP-2026-0891'}</span>
+          <span className="text-blue-600 font-bold px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200/60 shadow-2xs">
+            Active Trip: {activeTripId || 'TRIP-2026-0891'}
+          </span>
         </div>
 
         {/* 1. All 12 Hazard Categories */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-[#1a1a19] uppercase tracking-wider">1. Hazard Classification (12 Types)</p>
-              <span className="text-[11px] text-[#8a8a87]">Select primary obstruction category</span>
+              <p className="text-xs font-bold text-slate-900 uppercase tracking-wider">1. Hazard Classification (12 Types)</p>
+              <span className="text-[11px] text-slate-500 font-medium">Select primary obstruction category</span>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
               {ALL_INCIDENT_TYPES.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => setType(t.id)}
                   className={cn(
-                    'p-2.5 rounded-lg border text-left transition-all cursor-pointer flex flex-col justify-between h-20',
+                    'p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-22',
                     type === t.id
-                      ? 'bg-[#eff6ff] border-[#2563eb] ring-1 ring-[#2563eb] shadow-xs'
-                      : 'bg-white border-[#e4e4e3] hover:border-[#c4c4c2] hover:bg-[#fafaf9]'
+                      ? 'bg-blue-50/90 border-blue-600 ring-1 ring-blue-600 shadow-2xs'
+                      : 'bg-white border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/70 hover:shadow-2xs'
                   )}
                 >
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     {t.icon}
-                    <span className="text-xs font-bold text-[#1a1a19] line-clamp-1">{t.label}</span>
+                    <span className="text-xs font-bold text-slate-900 line-clamp-1">{t.label}</span>
                   </div>
-                  <p className="text-[10px] text-[#71717a] line-clamp-2 leading-tight">{t.desc}</p>
+                  <p className="text-[10px] text-slate-500 line-clamp-2 leading-tight">{t.desc}</p>
                 </button>
               ))}
             </div>
@@ -581,23 +580,23 @@ export function HazardReport() {
         {/* 2. Estimated Severity */}
         <Card>
           <CardHeader>
-            <p className="text-xs font-bold text-[#1a1a19] uppercase tracking-wider">2. Road Impact & Severity Level</p>
+            <p className="text-xs font-bold text-slate-900 uppercase tracking-wider">2. Road Impact & Severity Level</p>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {severityLevels.map((s) => (
                 <button
                   key={s.id}
                   onClick={() => setSeverity(s.id)}
                   className={cn(
-                    'p-3 rounded-xl border text-center transition-all cursor-pointer',
+                    'p-3.5 rounded-xl border text-center transition-all cursor-pointer',
                     severity === s.id
-                      ? `${s.bg} ${s.color} border-2 shadow-xs font-bold`
-                      : 'bg-white border-[#e4e4e3] text-[#5a5a57] hover:border-[#c4c4c2]'
+                      ? `${s.bg} ${s.color} border-2 shadow-2xs font-bold`
+                      : 'bg-white border-slate-200/80 text-slate-600 hover:border-slate-300 hover:shadow-2xs'
                   )}
                 >
                   <span className="text-xs block font-bold">{s.label}</span>
-                  <span className="text-[10px] text-[#71717a] mt-0.5 block">{s.desc}</span>
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">{s.desc}</span>
                 </button>
               ))}
             </div>
@@ -608,42 +607,42 @@ export function HazardReport() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-[#1a1a19] uppercase tracking-wider">
+              <p className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                 3. Multilingual Speech & Observation
               </p>
-              <div className="flex items-center gap-1 text-[11px] text-[#2563eb] font-semibold bg-[#eff6ff] px-2 py-0.5 rounded-full border border-[#bfdbfe]">
-                <Globe className="w-3 h-3" />
+              <div className="flex items-center gap-1.5 text-[11px] text-blue-700 font-bold bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/80 shadow-2xs">
+                <Globe className="w-3 h-3 text-blue-600" />
                 <span>Assamese · Manipuri · Hindi · English</span>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3.5">
+          <CardContent className="space-y-4">
             {/* Quick Regional Demo Presets */}
             <div>
-              <span className="text-[11px] font-semibold text-[#5a5a57] block mb-1.5">
+              <span className="text-[11px] font-bold text-slate-600 block mb-2">
                 Quick Regional Speech Templates (Demo Testing):
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {SAMPLE_VOICE_MEMOS.map((sample) => (
                   <button
                     key={sample.label}
                     onClick={() => handleApplyVoiceSample(sample)}
-                    className="p-2 rounded-lg bg-[#fafaf9] hover:bg-[#eff6ff] hover:border-[#bfdbfe] border border-[#e4e4e3] text-left text-xs transition-colors cursor-pointer group"
+                    className="p-2.5 rounded-xl bg-slate-50/70 hover:bg-blue-50/60 hover:border-blue-200/80 border border-slate-200/80 text-left text-xs transition-all cursor-pointer group shadow-2xs"
                   >
-                    <span className="font-bold text-[#1a1a19] group-hover:text-[#2563eb] block">{sample.label}</span>
-                    <span className="text-[10px] text-[#71717a] line-clamp-1 italic mt-0.5">{sample.text}</span>
+                    <span className="font-bold text-slate-900 group-hover:text-blue-600 block transition-colors">{sample.label}</span>
+                    <span className="text-[10px] text-slate-500 line-clamp-1 italic mt-0.5">{sample.text}</span>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Language Selector */}
-            <div className="flex items-center gap-2 pt-1">
-              <span className="text-xs font-semibold text-[#5a5a57]">Spoken Language:</span>
+            <div className="flex items-center gap-2.5 pt-1">
+              <span className="text-xs font-bold text-slate-700">Spoken Language:</span>
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="text-xs font-semibold bg-white border border-[#e4e4e3] rounded-lg px-2.5 py-1 focus:outline-none focus:border-[#2563eb]"
+                className="text-xs font-semibold bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-2xs cursor-pointer"
               >
                 <option value="Assamese (অসমীয়া)">Assamese (অসমীয়া)</option>
                 <option value="Manipuri (মৈতৈলোন্)">Manipuri (মৈতৈলোন্)</option>
@@ -654,7 +653,7 @@ export function HazardReport() {
 
             {/* Text Area */}
             <textarea
-              className="w-full text-xs font-medium border border-[#e4e4e3] rounded-lg p-3 resize-none focus:outline-none focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] transition-colors placeholder:text-[#a1a1aa]"
+              className="w-full text-xs font-medium border border-slate-200 rounded-xl p-3.5 resize-none focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-colors placeholder:text-slate-400 bg-white shadow-2xs"
               rows={3}
               placeholder="Describe road blockage, rock size, water depth, or speak in your regional language..."
               value={description}
@@ -662,13 +661,13 @@ export function HazardReport() {
             />
 
             {/* Real Audio Recording Control Bar */}
-            <div className="flex flex-wrap items-center gap-3 p-3 bg-[#f8f8f7] rounded-xl border border-[#e4e4e3]">
+            <div className="flex flex-wrap items-center gap-3 p-3.5 bg-slate-50/70 rounded-2xl border border-slate-200/80 shadow-2xs">
               {!isRecording ? (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={startRecording}
-                  iconLeft={<Mic className="w-3.5 h-3.5 text-[#2563eb]" />}
+                  iconLeft={<Mic className="w-3.5 h-3.5 text-blue-600" />}
                 >
                   Record Voice Note
                 </Button>
@@ -683,21 +682,21 @@ export function HazardReport() {
                   >
                     Stop Recording ({recordingSeconds}s)
                   </Button>
-                  <div className="flex items-center gap-1 text-xs text-[#dc2626] font-bold">
-                    <span className="w-2 h-2 rounded-full bg-[#dc2626] animate-ping" />
+                  <div className="flex items-center gap-1.5 text-xs text-rose-600 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
                     <span>Listening...</span>
                   </div>
                 </div>
               )}
 
               {audioUrl && (
-                <div className="flex items-center gap-2 bg-white px-3 py-1.5 border border-[#e4e4e3] rounded-lg text-xs text-[#1a1a19]">
-                  <Volume2 className="w-4 h-4 text-[#2563eb]" />
+                <div className="flex items-center gap-2 bg-white px-3 py-1.5 border border-slate-200 rounded-xl text-xs text-slate-900 shadow-2xs">
+                  <Volume2 className="w-4 h-4 text-blue-600" />
                   <span className="font-semibold">Audio Note Captured</span>
-                  <span className="text-[10px] text-[#8a8a87]">({selectedLanguage})</span>
+                  <span className="text-[10px] text-slate-500">({selectedLanguage})</span>
                   <button
                     onClick={handleRemoveAudio}
-                    className="ml-2 text-[#8a8a87] hover:text-[#dc2626] cursor-pointer"
+                    className="ml-2 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -707,13 +706,13 @@ export function HazardReport() {
 
             {/* AI Real-Time Parsing Feedback */}
             {aiAnalysis && (
-              <div className="p-3.5 rounded-xl bg-[#eff6ff] border border-[#bfdbfe] space-y-2">
+              <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200/80 shadow-2xs space-y-2.5">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#1e40af]">
-                    <Sparkles className={cn('w-3.5 h-3.5 text-[#2563eb]', isAnalyzingLive && 'animate-spin')} />
+                  <div className="flex items-center gap-2 text-xs font-bold text-blue-900">
+                    <Sparkles className={cn('w-4 h-4 text-blue-600', isAnalyzingLive && 'animate-spin')} />
                     <span>AI Autonomous Triage & Advisory Intelligence</span>
                     {isAnalyzingLive && (
-                      <span className="text-[10px] font-normal text-[#2563eb] italic animate-pulse">
+                      <span className="text-[10px] font-normal text-blue-600 italic animate-pulse">
                         (analyzing with Gemini...)
                       </span>
                     )}
@@ -721,48 +720,48 @@ export function HazardReport() {
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span
                       className={cn(
-                        'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+                        'text-[10px] font-bold px-2.5 py-0.5 rounded-full border shadow-2xs',
                         aiAnalysis.isAiDriven || aiAnalysis.isLiveGemini || aiAnalysis.isLiveGroq
-                          ? 'bg-white text-[#1d4ed8] border-[#bfdbfe]'
-                          : 'bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]'
+                          ? 'bg-white text-blue-700 border-blue-200'
+                          : 'bg-slate-100 text-slate-600 border-slate-200'
                       )}
                     >
                       {aiAnalysis.statusLabel || (aiAnalysis.isLiveGemini ? 'Gemini AI · Live' : aiAnalysis.isLiveGroq ? 'Groq · Live' : 'Local NLP · Deterministic Fallback')}
                     </span>
                     {aiAnalysis.model && (
-                      <span className="text-[10px] font-mono text-[#1e40af] bg-white px-1.5 py-0.5 rounded border border-[#bfdbfe]">
+                      <span className="text-[10px] font-mono font-bold text-blue-800 bg-white px-2 py-0.5 rounded-md border border-blue-200 shadow-2xs">
                         {aiAnalysis.model}
                       </span>
                     )}
                     {aiAnalysis.confidenceScore !== null && aiAnalysis.confidenceScore !== undefined ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#16a34a]/15 text-[#15803d]">
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100/80 text-emerald-800 border border-emerald-200 shadow-2xs">
                         Confidence: {Math.round(aiAnalysis.confidenceScore * 100)}%
                       </span>
                     ) : (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f4f4f5] text-[#71717a] border border-[#e4e4e7]">
+                      <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                         Confidence: Not available · Deterministic fallback
                       </span>
                     )}
                   </div>
                 </div>
-                <p className="text-xs text-[#1e3a8a] font-medium leading-relaxed">
+                <p className="text-xs text-blue-950 font-medium leading-relaxed">
                   <strong>Operational Summary:</strong> {aiAnalysis.englishSummary}
                 </p>
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <span className="text-[10px] text-[#5a5a57] font-bold uppercase">Extracted Entities:</span>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">Extracted Entities:</span>
                   {aiAnalysis.extractedEntities.map((ent, i) => (
                     <span
                       key={i}
-                      className="px-2 py-0.5 rounded bg-white text-[#1e40af] text-[10px] font-bold border border-[#bfdbfe]"
+                      className="px-2.5 py-0.5 rounded-full bg-white text-blue-700 text-[10px] font-bold border border-blue-200 shadow-2xs"
                     >
                       {ent}
                     </span>
                   ))}
-                  <span className={aiAnalysis.roadImpact === 'none' ? "text-[10px] font-bold px-2 py-0.5 rounded bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0]" : "text-[10px] font-bold px-2 py-0.5 rounded bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5]"}>
+                  <span className={aiAnalysis.roadImpact === 'none' ? "text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs" : "text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs"}>
                     Road Impact: {aiAnalysis.roadImpact === 'none' ? 'NONE (NO OPERATIONAL ROAD IMPACT)' : aiAnalysis.roadImpact.replace('_', ' ').toUpperCase()}
                   </span>
                 </div>
-                <p className="text-[10px] text-[#64748b] italic border-t border-[#dbeafe] pt-1">
+                <p className="text-[10px] text-slate-500 italic border-t border-blue-100 pt-1.5">
                   Advisory Notice: AI classifications are preliminary and subject to SDMA human verification.
                 </p>
               </div>
@@ -781,7 +780,7 @@ export function HazardReport() {
                 variant="outline"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                iconLeft={<Camera className="w-3.5 h-3.5" />}
+                iconLeft={<Camera className="w-3.5 h-3.5 text-slate-600" />}
               >
                 {photoUrl ? 'Replace Photo Evidence' : 'Attach Camera / Photo Evidence'}
               </Button>
@@ -789,20 +788,20 @@ export function HazardReport() {
 
             {/* Evidence Photo Preview */}
             {photoUrl && (
-              <div className="p-3 bg-[#f8f8f7] rounded-xl border border-[#e4e4e3] flex items-center gap-3">
-                <div className="relative w-28 h-20 rounded-lg border border-[#e4e4e3] overflow-hidden shrink-0">
+              <div className="p-3.5 bg-slate-50/70 rounded-2xl border border-slate-200/80 flex items-center gap-3.5 shadow-2xs">
+                <div className="relative w-28 h-20 rounded-xl border border-slate-200 overflow-hidden shrink-0 shadow-2xs">
                   <img src={photoUrl} alt="Hazard preview" className="w-full h-full object-cover" />
                   <button
                     onClick={handleRemovePhoto}
-                    className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 cursor-pointer"
+                    className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 cursor-pointer transition-colors"
                   >
                     <X className="w-3 h-3" />
                   </button>
                 </div>
                 <div className="text-xs space-y-1">
-                  <p className="font-bold text-[#1a1a19]">Geotagged Photo Evidence Attached</p>
-                  <p className="text-[10px] text-[#71717a]">EXIF Timestamp: {new Date().toLocaleTimeString('en-IN')}</p>
-                  <span className="inline-block px-2 py-0.5 bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0] text-[10px] font-bold rounded">
+                  <p className="font-bold text-slate-900">Geotagged Photo Evidence Attached</p>
+                  <p className="text-[10px] text-slate-500">EXIF Timestamp: {new Date().toLocaleTimeString('en-IN')}</p>
+                  <span className="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold rounded-md shadow-2xs">
                     Validation Ready
                   </span>
                 </div>
@@ -815,25 +814,25 @@ export function HazardReport() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-[#1a1a19] uppercase tracking-wider">4. Location & GPS Fix</p>
+              <p className="text-xs font-bold text-slate-900 uppercase tracking-wider">4. Location & GPS Fix</p>
               <button
                 onClick={refreshLocation}
                 disabled={isFetchingLocation}
-                className="text-xs text-[#2563eb] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                className="text-xs text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
               >
-                <RotateCcw className={cn('w-3 h-3', isFetchingLocation && 'animate-spin')} />
+                <RotateCcw className={cn('w-3.5 h-3.5', isFetchingLocation && 'animate-spin')} />
                 <span>Refresh GPS</span>
               </button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-3 py-1">
-              <div className="w-9 h-9 rounded-lg bg-[#eff6ff] flex items-center justify-center shrink-0">
-                <MapPin className="w-5 h-5 text-[#2563eb]" />
+            <div className="flex items-center gap-3.5 py-1">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0 text-blue-600 shadow-2xs">
+                <MapPin className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-[#1a1a19] truncate">{locationSnapshot.locationName}</p>
-                <p className="text-[11px] text-[#8a8a87]">
+                <p className="text-xs font-bold text-slate-900 truncate">{locationSnapshot.locationName}</p>
+                <p className="text-[11px] text-slate-500 font-medium">
                   Coordinates: {locationSnapshot.lat.toFixed(4)}°N, {locationSnapshot.lng.toFixed(4)}°E (Accuracy: ±{locationSnapshot.accuracyMeters || 10}m)
                 </p>
               </div>
@@ -852,14 +851,14 @@ export function HazardReport() {
           <Button
             variant="danger"
             size="lg"
-            className="w-full text-xs font-bold shadow-sm py-3"
+            className="w-full text-xs font-bold shadow-sm py-3.5 rounded-xl"
             loading={formState === 'submitting'}
             onClick={handleSubmit}
             iconLeft={<Send className="w-4 h-4" />}
           >
             {isOffline ? 'Save Hazard to Local Vault (IndexedDB)' : 'Transmit Hazard Report to SDMA Command Queue'}
           </Button>
-          <p className="text-xs text-[#8a8a87] text-center mt-2.5">
+          <p className="text-xs text-slate-500 text-center mt-3 font-medium">
             {isOffline
               ? 'Stored safely on device in local IndexedDB. Automatic background sync will dispatch payload upon reconnection.'
               : 'Immediately notifies regional freight dispatchers and opens human verification in SDMA portal.'}

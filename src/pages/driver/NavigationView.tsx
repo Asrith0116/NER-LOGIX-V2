@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer } from '@/components/map/MapContainer';
 import { Notification } from '@/components/ui/Notification';
 import { Button } from '@/components/ui/Button';
-import { DriverVehicleSelector } from '@/components/ui/DriverVehicleSelector';
 import { DEMO_ROUTES, LOCATIONS, DEMO_TRIP } from '@/data/demo';
 import { formatEta } from '@/utils';
 import { useAppStore } from '@/store/appStore';
 import { useNetworkStore, getReactiveDisplayRoute } from '@/store/networkStore';
+import { useCurrentDriver } from '@/hooks/useCurrentDriver';
 import { getPendingIncidents, updateIncidentSyncStatus } from '@/utils/idb';
 import {
   Navigation,
@@ -31,9 +31,9 @@ function NetworkStateDisplay({
   pendingIncidentsCount: number;
 }) {
   const configs = {
-    online: { icon: <Wifi className="w-4 h-4" />, label: 'Network Connected', color: 'text-[#16a34a]', bg: 'bg-[#f0fdf4]' },
-    offline: { icon: <WifiOff className="w-4 h-4" />, label: 'Network Unavailable — Offline Mode', color: 'text-[#dc2626]', bg: 'bg-[#fef2f2]' },
-    syncing: { icon: <RefreshCw className="w-4 h-4 animate-spin" />, label: 'Reconnected — Synchronizing...', color: 'text-[#d97706]', bg: 'bg-[#fffbeb]' },
+    online: { icon: <Wifi className="w-3.5 h-3.5" />, label: 'Network Connected', color: 'text-emerald-700 border-emerald-200 bg-emerald-50' },
+    offline: { icon: <WifiOff className="w-3.5 h-3.5" />, label: 'Network Unavailable — Offline Mode', color: 'text-rose-700 border-rose-200 bg-rose-50' },
+    syncing: { icon: <RefreshCw className="w-3.5 h-3.5 animate-spin" />, label: 'Reconnected — Synchronizing...', color: 'text-amber-700 border-amber-200 bg-amber-50' },
   };
   const cfg = configs[networkStatus];
   return (
@@ -44,12 +44,12 @@ function NetworkStateDisplay({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 4 }}
         transition={{ duration: 0.2 }}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold border ${cfg.color} ${cfg.bg}`}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border shadow-2xs ${cfg.color}`}
       >
         {cfg.icon}
         {cfg.label}
         {pendingIncidentsCount > 0 && networkStatus === 'offline' && (
-          <span className="ml-2 px-1.5 py-0.5 bg-[#dc2626] text-white rounded-full text-[10px]">
+          <span className="ml-1.5 px-2 py-0.2 bg-rose-600 text-white rounded-full text-[10px] font-bold shadow-2xs">
             {pendingIncidentsCount} queued
           </span>
         )}
@@ -66,7 +66,6 @@ export function NavigationView() {
     selectedCustomRoute,
     pendingIncidentsCount,
     setPendingIncidentsCount,
-    selectedDriverVehicleId,
     vehicleTripContexts,
   } = useAppStore();
   const navigate = useNavigate();
@@ -77,10 +76,8 @@ export function NavigationView() {
   const rerouteVehicle = useNetworkStore((state) => state.rerouteVehicle);
   const requestEmergencyPickup = useNetworkStore((state) => state.requestEmergencyPickup);
 
-  const driverVehicle =
-    activeVehicles.find((v) => v.id === selectedDriverVehicleId) ||
-    activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
-    activeVehicles[0];
+  const currentDriver = useCurrentDriver();
+  const driverVehicle = currentDriver.vehicle;
 
   const driverTripCtx = driverVehicle ? vehicleTripContexts[driverVehicle.id] : undefined;
 
@@ -177,31 +174,33 @@ export function NavigationView() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#f8f8f7]">
+    <div className="h-full flex flex-col bg-[#f4f6f8]">
       {/* Cockpit Top Bar */}
-      <div className="px-6 py-3 bg-white border-b border-[#e4e4e3] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+      <div className="px-6 py-4 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.03)]">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#eff6ff] border border-[#bfdbfe] flex items-center justify-center text-[#2563eb]">
-            <Navigation className="w-4 h-4" />
+          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shadow-2xs">
+            <Navigation className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-sm font-bold text-[#1a1a19]">Turn-by-Turn Guidance</h1>
-              <DriverVehicleSelector id="nav-driver-vehicle-selector" compact />
+              <h1 className="text-base font-bold text-slate-900 tracking-tight">Turn-by-Turn Guidance</h1>
             </div>
-            <div className="flex items-center gap-1 text-[11px] text-[#8a8a87] mt-0.5">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+              <span className="font-bold text-slate-900">{currentDriver.driverName}</span>
+              <span className="font-mono text-slate-500">({currentDriver.vehicleId})</span>
+              <span className="text-slate-300">·</span>
               <span>{driverRerouted ? (driverVehicle?.rerouteFromLabel || 'Current position') : originDisplayName}</span>
-              <ChevronRight className="w-3 h-3" />
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
               <span>{destDisplayName}</span>
-              <span className="mx-1">·</span>
-              <span className="font-medium text-[#2563eb]">
+              <span className="text-slate-300">·</span>
+              <span className="font-bold text-blue-600">
                 {driverRerouted ? `Alternate Corridor Active (via ${driverVehicle?.rerouteTo || 'Alternate Route'})` : activeRoute.label}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <NetworkStateDisplay networkStatus={networkStatus} pendingIncidentsCount={pendingIncidentsCount} />
           {networkStatus === 'online' ? (
             <Button size="sm" variant="outline" onClick={simulateOffline} iconLeft={<WifiOff className="w-3.5 h-3.5" />}>
@@ -217,7 +216,7 @@ export function NavigationView() {
 
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Map */}
-        <div className="flex-1 relative h-80 lg:h-full border-b lg:border-b-0 lg:border-r border-[#e4e4e3]">
+        <div className="flex-1 relative h-80 lg:h-full border-b lg:border-b-0 lg:border-r border-slate-200/80">
           <MapContainer
             center={[25.7, 93.2]}
             zoom={7}
@@ -238,10 +237,10 @@ export function NavigationView() {
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000]"
+                className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000]"
               >
-                <div className="bg-[#1a1a19]/95 backdrop-blur-sm text-white text-xs px-4 py-2 rounded-full font-medium shadow-lg flex items-center gap-2 border border-white/10">
-                  <WifiOff className="w-3.5 h-3.5 text-[#f87171]" />
+                <div className="bg-slate-900/95 backdrop-blur-md text-white text-xs px-4 py-2 rounded-full font-bold shadow-xl flex items-center gap-2 border border-white/15">
+                  <WifiOff className="w-3.5 h-3.5 text-rose-400" />
                   Operating in Offline Autonomous Mode (IndexedDB Cached)
                 </div>
               </motion.div>
@@ -250,48 +249,48 @@ export function NavigationView() {
         </div>
 
         {/* Tactical Nav info panel */}
-        <div className="w-full lg:w-80 border-l border-[#e4e4e3] bg-white overflow-y-auto shrink-0 flex flex-col">
+        <div className="w-full lg:w-80 xl:w-88 border-l border-slate-200/80 bg-white/95 backdrop-blur-md overflow-y-auto shrink-0 flex flex-col divide-y divide-slate-100">
           {/* ETA & distance banner */}
-          <div className="px-4 py-3.5 border-b border-[#e4e4e3] bg-[#fafaf9]">
-            <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider mb-2">Active Trip Metrics</p>
+          <div className="p-4 bg-slate-50/60">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">Active Trip Metrics</p>
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-2.5 rounded-lg bg-white border border-[#e4e4e3]">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <Clock className="w-3.5 h-3.5 text-[#2563eb]" />
-                  <span className="text-[10px] text-[#8a8a87] font-medium">Estimated ETA</span>
+              <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Clock className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="text-[10px] text-slate-500 font-bold uppercase">Estimated ETA</span>
                 </div>
-                <p className="text-xl font-bold text-[#1a1a19] tabular-nums">
+                <p className="text-xl font-bold text-slate-900 tabular-nums">
                   {formatEta(displayEta)}
                 </p>
                 {driverRerouted && (
-                  <p className="text-[10px] text-[#2563eb] font-semibold mt-0.5">Detour adjusted</p>
+                  <p className="text-[10px] text-blue-600 font-bold mt-0.5">Detour adjusted</p>
                 )}
               </div>
-              <div className="p-2.5 rounded-lg bg-white border border-[#e4e4e3]">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#16a34a]" />
-                  <span className="text-[10px] text-[#8a8a87] font-medium">Distance</span>
+              <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-[10px] text-slate-500 font-bold uppercase">Distance</span>
                 </div>
-                <p className="text-xl font-bold text-[#1a1a19] tabular-nums">
+                <p className="text-xl font-bold text-slate-900 tabular-nums">
                   {activeRoute.distanceKm} km
                 </p>
-                <p className="text-[10px] text-[#8a8a87] mt-0.5">Mountain Highway</p>
+                <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Mountain Highway</p>
               </div>
             </div>
           </div>
 
           {/* Tactical Alerts & Action Trigger */}
-          <div className="px-4 py-3.5 border-b border-[#e4e4e3] flex-1">
-            <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider mb-2">Corridor Conditions & Actions</p>
-            <div className="space-y-2.5">
+          <div className="p-4 flex-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Corridor Conditions & Actions</p>
+            <div className="space-y-3">
               {/* Direct Driver Reroute Action Card */}
               {isDriverDisrupted && !driverRerouted && (
-                <div className="p-3 rounded-lg bg-[#fef2f2] border border-[#fca5a5] space-y-2">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-[#dc2626] shrink-0 mt-0.5" />
+                <div className="p-4 rounded-2xl bg-rose-50/80 border border-rose-200/90 shadow-2xs space-y-3">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-xs font-bold text-[#991b1b]">Road Disruption Ahead</p>
-                      <p className="text-[11px] text-[#7f1d1d] mt-0.5">
+                      <p className="text-xs font-bold text-rose-950">Road Disruption Ahead</p>
+                      <p className="text-[11px] text-rose-800 mt-0.5 font-medium leading-relaxed">
                         {driverVehicle?.impactReason || 'Corridor blocked by incident ahead. Alternate route is ready.'}
                       </p>
                     </div>
@@ -299,7 +298,7 @@ export function NavigationView() {
                   <Button
                     size="sm"
                     variant="primary"
-                    className="w-full text-xs bg-[#dc2626] hover:bg-[#b91c1c] text-white"
+                    className="w-full text-xs bg-rose-600 hover:bg-rose-700 text-white border-transparent shadow-2xs rounded-xl"
                     onClick={handleStartReroute}
                     disabled={reroutingInProgress}
                     iconLeft={reroutingInProgress ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Navigation className="w-3.5 h-3.5" />}
@@ -328,7 +327,7 @@ export function NavigationView() {
               )}
 
               {emergencyVehicle && emergencyVehicle.rerouteStatus === 'no_alternative' && !emergencyRequest && emergencyVehicle.recommendedGodownId && (
-                <div className="space-y-2 p-3 rounded-lg bg-[#fff7ed] border border-[#fed7aa]">
+                <div className="space-y-2.5 p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 shadow-2xs">
                   <Notification
                     type="error"
                     title="Emergency Supply Continuity"
@@ -338,7 +337,7 @@ export function NavigationView() {
                   <Button
                     size="sm"
                     variant="danger"
-                    className="w-full"
+                    className="w-full rounded-xl"
                     onClick={() => requestEmergencyPickup(emergencyVehicle.id)}
                     iconLeft={<Warehouse className="w-3.5 h-3.5" />}
                   >
@@ -379,9 +378,9 @@ export function NavigationView() {
           </div>
 
           {/* Offline Status checklist */}
-          <div className="px-4 py-3 border-b border-[#e4e4e3] bg-[#fafaf9]">
-            <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider mb-2">Offline Field Readiness</p>
-            <div className="space-y-1.5">
+          <div className="p-4 bg-slate-50/60">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">Offline Field Readiness</p>
+            <div className="space-y-2">
               {[
                 { label: 'Route waypoints & state (IDB)', available: true },
                 { label: 'Online map tiles', available: networkStatus === 'online' },
@@ -389,8 +388,8 @@ export function NavigationView() {
                 { label: 'SDMA cloud link', available: networkStatus === 'online' },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between text-xs">
-                  <span className="text-[#5a5a57]">{item.label}</span>
-                  <span className={item.available ? 'text-[#16a34a] font-semibold' : 'text-[#dc2626] font-semibold'}>
+                  <span className="text-slate-600 font-medium">{item.label}</span>
+                  <span className={item.available ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
                     {item.available ? '✓ Ready' : '✗ Offline'}
                   </span>
                 </div>
@@ -399,11 +398,11 @@ export function NavigationView() {
           </div>
 
           {/* Action Dock */}
-          <div className="p-4 space-y-2 bg-white">
+          <div className="p-4 space-y-2.5 bg-white">
             <Button
               variant="danger"
               size="sm"
-              className="w-full text-xs"
+              className="w-full text-xs rounded-xl"
               onClick={() => navigate('/driver/report')}
               iconLeft={<AlertTriangle className="w-3.5 h-3.5" />}
             >
@@ -412,7 +411,7 @@ export function NavigationView() {
             <Button
               variant="outline"
               size="sm"
-              className="w-full text-xs"
+              className="w-full text-xs rounded-xl"
               onClick={() => {
                 useAppStore.getState().setTripState({ isJourneyActive: false, activeTripId: null, selectedRouteId: null, isOfflineReady: false });
                 navigate('/driver');

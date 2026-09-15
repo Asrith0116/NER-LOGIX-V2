@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/store/appStore';
 import { useNetworkStore } from '@/store/networkStore';
-import { DEMO_DRIVER } from '@/data/demo';
+import { useCurrentDriver } from '@/hooks/useCurrentDriver';
 import {
   LayoutDashboard,
   Map,
@@ -57,7 +57,8 @@ export function Sidebar() {
     (v) => v.status === 'emergency_pickup'
   ).length;
 
-  const driverVehicle = activeVehicles.find((v) => v.id === DEMO_DRIVER.vehicleId);
+  const currentDriver = useCurrentDriver();
+  const driverVehicle = currentDriver.vehicle;
   const driverHasAlert = Boolean(driverVehicle?.affectedByDisruptionId);
 
   const roleNavGroups: Record<UserRole, NavGroup[]> = {
@@ -166,8 +167,8 @@ export function Sidebar() {
 
   const roleMeta: Record<UserRole, { label: string; sub: string; tag: string }> = {
     driver: {
-      label: DEMO_DRIVER.name,
-      sub: `${DEMO_DRIVER.vehicleId} · Assam–Manipur`,
+      label: currentDriver.driverName,
+      sub: `${currentDriver.vehicleId} · ${currentDriver.origin}–${currentDriver.destination}`,
       tag: 'Field Operator',
     },
     dispatcher: {
@@ -198,27 +199,27 @@ export function Sidebar() {
           animate={{ width: 232, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-          className="bg-white border-r border-[#e4e4e3] flex flex-col shrink-0 overflow-hidden z-30 select-none shadow-[1px_0_3px_rgba(0,0,0,0.02)]"
+          className="bg-white/95 backdrop-blur-md border-r border-slate-200/80 flex flex-col shrink-0 overflow-hidden z-30 select-none shadow-[2px_0_12px_-2px_rgba(15,23,42,0.03)]"
           style={{ width: 232 }}
         >
           {/* Role Header Indicator */}
-          <div className="px-4 py-3 border-b border-[#e4e4e3] bg-[#fafaf9]">
-            <span className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider">
+          <div className="px-4 py-3.5 border-b border-slate-100 bg-slate-50/60">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               {currentMeta.tag} Workspace
             </span>
-            <p className="text-xs font-semibold text-[#1a1a19] truncate mt-0.5">
+            <p className="text-xs font-bold text-slate-900 truncate mt-0.5">
               {currentMeta.label}
             </p>
-            <p className="text-[11px] text-[#8a8a87] truncate">
+            <p className="text-[11px] text-slate-500 truncate mt-0.5">
               {currentMeta.sub}
             </p>
           </div>
 
           {/* Grouped Navigation */}
-          <nav className="flex-1 py-3 px-2 overflow-y-auto space-y-4">
+          <nav className="flex-1 py-3 px-2.5 overflow-y-auto space-y-4">
             {navGroups.map((group) => (
               <div key={group.title} className="space-y-1">
-                <p className="px-2.5 text-[10px] font-bold text-[#a1a19f] uppercase tracking-wider">
+                <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {group.title}
                 </p>
 
@@ -235,16 +236,16 @@ export function Sidebar() {
                         to={item.to}
                         end={item.to === `/${role}` || item.to === `/${role}/`}
                         className={cn(
-                          'group flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer',
+                          'group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer',
                           isActive
                             ? role === 'driver'
-                              ? 'bg-[#eff6ff] text-[#1e40af] font-semibold'
+                              ? 'bg-blue-50/90 text-blue-900 border border-blue-200/60 font-semibold shadow-2xs'
                               : role === 'dispatcher'
-                                ? 'bg-[#fff7ed] text-[#9a3412] font-semibold'
+                                ? 'bg-emerald-50/90 text-emerald-900 border border-emerald-200/60 font-semibold shadow-2xs'
                                 : role === 'sdma'
-                                  ? 'bg-[#f0fdf4] text-[#166534] font-semibold'
-                                  : 'bg-[#fdf4ff] text-[#86198f] font-semibold'
-                            : 'text-[#5a5a57] hover:bg-[#f4f4f3] hover:text-[#1a1a19]'
+                                  ? 'bg-purple-50/90 text-purple-900 border border-purple-200/60 font-semibold shadow-2xs'
+                                  : 'bg-amber-50/90 text-amber-900 border border-amber-200/60 font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                         )}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -253,13 +254,13 @@ export function Sidebar() {
                               'shrink-0 transition-colors',
                               isActive
                                 ? role === 'driver'
-                                  ? 'text-[#2563eb]'
+                                  ? 'text-blue-600'
                                   : role === 'dispatcher'
-                                    ? 'text-[#ea580c]'
+                                    ? 'text-emerald-600'
                                     : role === 'sdma'
-                                      ? 'text-[#16a34a]'
-                                      : 'text-[#86198f]'
-                                : 'text-[#8a8a87] group-hover:text-[#1a1a19]'
+                                      ? 'text-purple-600'
+                                      : 'text-amber-600'
+                                : 'text-slate-400 group-hover:text-slate-700'
                             )}
                           >
                             {item.icon}
@@ -270,12 +271,12 @@ export function Sidebar() {
                         {item.badge !== undefined && (
                           <span
                             className={cn(
-                              'px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ml-1.5',
+                              'px-2 py-0.5 rounded-full text-[10px] font-bold leading-none shrink-0 ml-1.5 shadow-2xs',
                               item.badgeVariant === 'danger'
-                                ? 'bg-[#dc2626] text-white'
+                                ? 'bg-rose-600 text-white'
                                 : item.badgeVariant === 'warning'
-                                  ? 'bg-[#d97706] text-white'
-                                  : 'bg-[#2563eb] text-white'
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-blue-600 text-white'
                             )}
                           >
                             {item.badge}
@@ -290,10 +291,10 @@ export function Sidebar() {
           </nav>
 
           {/* Clean Bottom Status */}
-          <div className="px-3.5 py-2.5 border-t border-[#e4e4e3] bg-[#fafaf9] flex items-center justify-between text-[11px]">
-            <span className="text-[#8a8a87]">Platform Core</span>
-            <span className="text-[#16a34a] font-medium flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#16a34a] animate-pulse" />
+          <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between text-[11px]">
+            <span className="text-slate-400 font-medium">Platform Core</span>
+            <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Operational
             </span>
           </div>

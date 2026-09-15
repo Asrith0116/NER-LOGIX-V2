@@ -57,29 +57,29 @@ export function DispatcherOps() {
   });
 
   return (
-    <div className="h-full flex flex-col bg-[#f8f8f7]">
+    <div className="h-full flex flex-col bg-[#f4f6f8]">
       {/* Operations Center Header Strip */}
-      <div className="px-6 py-3 bg-white border-b border-[#e4e4e3] shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2.5">
+      <div className="px-6 py-4 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.03)] shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#fff7ed] text-[#c2410c] border border-[#fed7aa]">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-50/90 text-amber-700 border border-amber-200/80 shadow-2xs">
                 Fleet Operations Command
               </span>
-              <span className="text-xs text-[#8a8a87]">· North Eastern Region Corridor Dispatch</span>
+              <span className="text-xs text-slate-500">· North Eastern Region Corridor Dispatch</span>
             </div>
-            <h1 className="text-base sm:text-lg font-bold text-[#1a1a19] tracking-tight mt-0.5">
+            <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight mt-0.5">
               Operations Control Center
             </h1>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#f0fdf4] border border-[#bbf7d0] text-xs font-semibold text-[#166534]">
-              <span className="w-2 h-2 rounded-full bg-[#16a34a] animate-pulse" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50/90 border border-emerald-200/80 text-xs font-semibold text-emerald-800 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>Regional Operations Grid</span>
             </div>
             {affectedVehicles.length > 0 && (
-              <div className="px-2.5 py-1 rounded-md bg-[#fef2f2] border border-[#fca5a5] text-xs font-bold text-[#dc2626]">
+              <div className="px-3 py-1.5 rounded-xl bg-rose-50/90 border border-rose-200/80 text-xs font-bold text-rose-700 shadow-2xs">
                 {affectedVehicles.length} Disrupted Shipment{affectedVehicles.length > 1 ? 's' : ''}
               </div>
             )}
@@ -93,20 +93,20 @@ export function DispatcherOps() {
             value={affectedVehicles.length.toString().padStart(2, '0')}
             subtext={affectedVehicles.length > 0 ? 'Requires route intervention' : 'All shipments clear'}
             riskLevel={affectedVehicles.length > 0 ? 'high' : 'low'}
-            icon={<AlertTriangle className="w-4 h-4 text-[#dc2626]" />}
+            icon={<AlertTriangle className="w-4 h-4 text-rose-600" />}
           />
           <MetricCard
             label="Corridor Disruptions"
             value={activeDisruptions.length.toString().padStart(2, '0')}
             subtext={activeDisruptions.length > 0 ? `${activeDisruptions.length} active corridor cut${activeDisruptions.length > 1 ? 's' : ''}` : 'All corridors operational'}
             riskLevel={activeDisruptions.length > 0 ? 'high' : 'low'}
-            icon={<Activity className="w-4 h-4 text-[#ea580c]" />}
+            icon={<Activity className="w-4 h-4 text-amber-600" />}
           />
           <MetricCard
             label="Active Fleet Tracked"
             value={activeVehicles.length}
             subtext={`${safeVehiclesCount} on schedule · ${reroutedVehicles.length} rerouted`}
-            icon={<Truck className="w-4 h-4 text-[#2563eb]" />}
+            icon={<Truck className="w-4 h-4 text-blue-600" />}
           />
         </div>
       </div>
@@ -114,7 +114,7 @@ export function DispatcherOps() {
       {/* Main Command Surface: Map (Prominent) + Right Tactical Console */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
         {/* Prominent Regional Geospatial Map */}
-        <div className="flex-1 h-80 lg:h-full relative border-b lg:border-b-0 lg:border-r border-[#e4e4e3]">
+        <div className="flex-1 h-80 lg:h-full relative border-b lg:border-b-0 lg:border-r border-slate-200/80">
           <MapContainer
             center={[25.5, 93.0]}
             zoom={7}
@@ -130,21 +130,21 @@ export function DispatcherOps() {
         </div>
 
         {/* Tactical Right Command Desk */}
-        <div className="w-full lg:w-96 border-l border-[#e4e4e3] bg-white overflow-y-auto shrink-0 flex flex-col">
+        <div className="w-full lg:w-96 border-l border-slate-200/80 bg-white/95 backdrop-blur-md overflow-y-auto shrink-0 flex flex-col">
           {/* Tab Navigation */}
-          <div className="p-2.5 border-b border-[#e4e4e3] bg-[#fafaf9] flex items-center gap-1.5 shrink-0">
+          <div className="p-2 border-b border-slate-100 bg-slate-50/70 flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => setActiveTab('interventions')}
               className={cn(
-                'flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer',
+                'flex-1 py-1.5 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer',
                 activeTab === 'interventions'
-                  ? 'bg-white text-[#1a1a19] shadow-xs border border-[#e4e4e3]'
-                  : 'text-[#8a8a87] hover:text-[#1a1a19]'
+                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-900'
               )}
             >
               <span>Interventions</span>
               {affectedVehicles.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#dc2626] text-white">
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-600 text-white shadow-2xs">
                   {affectedVehicles.length}
                 </span>
               )}
@@ -153,10 +153,10 @@ export function DispatcherOps() {
             <button
               onClick={() => setActiveTab('fleet')}
               className={cn(
-                'flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer',
+                'flex-1 py-1.5 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer',
                 activeTab === 'fleet'
-                  ? 'bg-white text-[#1a1a19] shadow-xs border border-[#e4e4e3]'
-                  : 'text-[#8a8a87] hover:text-[#1a1a19]'
+                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-900'
               )}
             >
               <span>Fleet ({activeVehicles.length})</span>
@@ -165,10 +165,10 @@ export function DispatcherOps() {
             <button
               onClick={() => setActiveTab('hazards')}
               className={cn(
-                'flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer',
+                'flex-1 py-1.5 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer',
                 activeTab === 'hazards'
-                  ? 'bg-white text-[#1a1a19] shadow-xs border border-[#e4e4e3]'
-                  : 'text-[#8a8a87] hover:text-[#1a1a19]'
+                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-900'
               )}
             >
               <span>Hazards ({activeIncidents.length})</span>
@@ -181,7 +181,7 @@ export function DispatcherOps() {
               {affectedVehicles.length > 0 ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-[#991b1b] uppercase tracking-wider">
+                    <p className="text-xs font-bold text-rose-800 uppercase tracking-wider">
                       Pending Route Interventions ({affectedVehicles.length})
                     </p>
                   </div>
@@ -189,29 +189,29 @@ export function DispatcherOps() {
                   {affectedVehicles.map((v) => (
                     <div
                       key={v.id}
-                      className="p-3.5 rounded-xl bg-white border border-[#fca5a5] shadow-xs space-y-2.5"
+                      className="p-4 rounded-2xl bg-white border border-rose-200/90 shadow-[0_4px_16px_-4px_rgba(244,63,94,0.08)] space-y-3"
                     >
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-[#1a1a19]">{v.id}</span>
-                            <span className="text-[11px] text-[#5a5a57]">· {v.driverName}</span>
+                            <span className="text-xs font-bold text-slate-900">{v.id}</span>
+                            <span className="text-[11px] text-slate-500">· {v.driverName}</span>
                           </div>
-                          <p className="text-[11px] text-[#2563eb] font-medium mt-0.5">
+                          <p className="text-[11px] text-blue-600 font-medium mt-0.5">
                             📦 {v.cargoType || 'Medical Relief Consignment'}
                           </p>
                         </div>
                         <StatusBadge label="Disrupted" variant="danger" pulse />
                       </div>
 
-                      <div className="text-[11px] text-[#5a5a57] flex items-center justify-between">
+                      <div className="text-[11px] text-slate-600 flex items-center justify-between">
                         <span className="flex items-center gap-1 font-medium">
-                          {v.origin} <ArrowRight className="w-3 h-3 text-[#8a8a87]" /> {v.destination}
+                          {v.origin} <ArrowRight className="w-3 h-3 text-slate-400" /> {v.destination}
                         </span>
-                        {v.etaMinutes && <span className="font-semibold text-[#1a1a19]">ETA {formatEta(v.etaMinutes)}</span>}
+                        {v.etaMinutes && <span className="font-semibold text-slate-900">ETA {formatEta(v.etaMinutes)}</span>}
                       </div>
 
-                      <div className="p-2 rounded bg-[#fef2f2] border border-[#fee2e2] text-[11px] text-[#991b1b] leading-tight">
+                      <div className="p-2.5 rounded-xl bg-rose-50/80 border border-rose-200/70 text-[11px] text-rose-800 leading-tight">
                         <strong>Hazard:</strong> {v.impactReason || 'Blocked corridor on NH-2 Mao Gate.'}
                       </div>
 
@@ -223,17 +223,17 @@ export function DispatcherOps() {
 
                           if (pendingPickupReq) {
                             return (
-                              <div className="p-2.5 rounded-lg bg-[#fffbeb] border border-[#fde68a] text-xs space-y-1.5">
+                              <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-xs space-y-1.5">
                                 <div className="flex items-center justify-between">
-                                  <span className="font-bold text-[#92400e] flex items-center gap-1.5">
+                                  <span className="font-bold text-amber-800 flex items-center gap-1.5">
                                     <Clock className="w-3.5 h-3.5" /> Emergency Pickup Requested
                                   </span>
                                   <StatusBadge label="Awaiting Approval" variant="warning" pulse />
                                 </div>
-                                <p className="text-[11px] text-[#78350f]">
+                                <p className="text-[11px] text-amber-900">
                                   <strong>{pendingPickupReq.godownName}</strong> · {pendingPickupReq.cargoType}
                                 </p>
-                                <p className="text-[10px] text-[#92400e]/80">
+                                <p className="text-[10px] text-amber-800/80">
                                   Awaiting supply operator approval ({pendingPickupReq.quantity} units buffer stock).
                                 </p>
                               </div>
@@ -249,28 +249,28 @@ export function DispatcherOps() {
 
                             return (
                               <div className="space-y-2">
-                                <div className="p-2 rounded bg-[#fef2f2] border border-[#fecaca] text-[11px] space-y-0.5">
-                                  <div className="flex items-center gap-1.5 font-bold text-[#991b1b]">
+                                <div className="p-2.5 rounded-xl bg-rose-50/80 border border-rose-200/70 text-[11px] space-y-0.5">
+                                  <div className="flex items-center gap-1.5 font-bold text-rose-800">
                                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                                     <span>Emergency Continuity Required</span>
                                   </div>
-                                  <p className="text-[#7f1d1d] text-[10px]">
+                                  <p className="text-rose-700 text-[10px]">
                                     No viable alternate highway corridor from current position.
                                   </p>
                                 </div>
 
                                 {targetGodown && (
-                                  <div className="p-2.5 rounded-lg bg-[#fff7ed] border border-[#fed7aa] text-xs space-y-1.5">
+                                  <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/70 text-xs space-y-1.5">
                                     <div className="flex items-center justify-between">
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#9a3412]">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
                                         Recommended Emergency Godown
                                       </span>
-                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white border border-[#fed7aa] text-[#c2410c]">
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-amber-200 text-amber-700 shadow-2xs">
                                         {targetGodown.availableStock} units available
                                       </span>
                                     </div>
-                                    <p className="font-bold text-[#1a1a19] text-xs">{targetGodown.name}</p>
-                                    <div className="flex items-center justify-between text-[11px] text-[#7c2d12]">
+                                    <p className="font-bold text-slate-900 text-xs">{targetGodown.name}</p>
+                                    <div className="flex items-center justify-between text-[11px] text-amber-900">
                                       <span>Distance: ~{distanceKm} km</span>
                                       <span>Suitability: Compatible ({v.cargoType || 'Relief Rations & Grain'})</span>
                                     </div>
@@ -294,7 +294,7 @@ export function DispatcherOps() {
                             <Button
                               size="sm"
                               variant="primary"
-                              className="w-full text-xs bg-[#dc2626] hover:bg-[#b91c1c] text-white"
+                              className="w-full text-xs bg-rose-600 hover:bg-rose-700 text-white"
                               onClick={() => rerouteVehicle(v.id)}
                               iconLeft={<Navigation className="w-3.5 h-3.5" />}
                             >
@@ -307,10 +307,10 @@ export function DispatcherOps() {
                   ))}
                 </div>
               ) : (
-                <div className="p-6 rounded-xl bg-[#fafaf9] border border-[#e4e4e3] text-center space-y-2">
-                  <ShieldCheck className="w-8 h-8 text-[#16a34a] mx-auto" />
-                  <p className="text-xs font-bold text-[#1a1a19]">All Shipments Clear</p>
-                  <p className="text-[11px] text-[#8a8a87]">
+                <div className="p-6 rounded-2xl bg-slate-50/80 border border-slate-200/80 text-center space-y-2">
+                  <ShieldCheck className="w-8 h-8 text-emerald-600 mx-auto" />
+                  <p className="text-xs font-bold text-slate-900">All Shipments Clear</p>
+                  <p className="text-[11px] text-slate-500">
                     No active shipments require route intervention at this time.
                   </p>
                 </div>
@@ -318,26 +318,26 @@ export function DispatcherOps() {
 
               {/* Active Reroutes Sub-section */}
               {reroutedVehicles.length > 0 && (
-                <div className="pt-3 border-t border-[#e4e4e3] space-y-2.5">
+                <div className="pt-3 border-t border-slate-200/80 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                       Active Detours ({reroutedVehicles.length})
                     </span>
-                    <span className="text-[10px] font-bold text-[#2563eb]">In Progress</span>
+                    <span className="text-[10px] font-bold text-blue-600">In Progress</span>
                   </div>
 
                   <div className="space-y-2">
                     {reroutedVehicles.map((v) => (
-                      <div key={v.id} className="p-3 rounded-lg bg-[#f8fbff] border border-[#bfdbfe] text-xs space-y-1.5">
+                      <div key={v.id} className="p-3 rounded-xl bg-blue-50/60 border border-blue-200/70 text-xs space-y-1.5 shadow-2xs">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-[#1a1a19]">{v.id} ({v.driverName})</span>
+                          <span className="font-bold text-slate-900">{v.id} ({v.driverName})</span>
                           <StatusBadge label="Rerouted" variant="info" />
                         </div>
-                        <p className="text-[11px] text-[#5a5a57]">
-                          Diverted from <strong className="text-[#1a1a19]">{v.rerouteFromLabel}</strong> to {v.destination}
+                        <p className="text-[11px] text-slate-600">
+                          Diverted from <strong className="text-slate-900">{v.rerouteFromLabel}</strong> to {v.destination}
                         </p>
                         {v.etaMinutes && (
-                          <p className="text-[10px] text-[#2563eb] font-semibold">
+                          <p className="text-[10px] text-blue-600 font-semibold">
                             Adjusted ETA: {formatEta(v.etaMinutes)}
                           </p>
                         )}
@@ -349,18 +349,18 @@ export function DispatcherOps() {
 
               {/* Godown Continuity Sub-section */}
               {pickupRequests.length > 0 && (
-                <div className="pt-3 border-t border-[#e4e4e3] space-y-2.5">
+                <div className="pt-3 border-t border-slate-200/80 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                       Emergency Godown Dispatches ({pickupRequests.length})
                     </span>
-                    <span className="text-[10px] text-[#8a8a87]">Cross-role status</span>
+                    <span className="text-[10px] text-slate-400">Cross-role status</span>
                   </div>
 
                   {pickupRequests.map((req) => (
-                    <div key={req.id} className="p-3 rounded-lg bg-[#fffbeb] border border-[#fed7aa] text-xs space-y-2">
+                    <div key={req.id} className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200/70 text-xs space-y-2 shadow-2xs">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-[#1a1a19]">{req.vehicleId}</span>
+                        <span className="font-bold text-slate-900">{req.vehicleId}</span>
                         <StatusBadge
                           label={
                             req.status === 'dispatched'
@@ -379,14 +379,14 @@ export function DispatcherOps() {
                           pulse={req.status === 'requested'}
                         />
                       </div>
-                      <p className="text-[11px] text-[#7c2d12]">
+                      <p className="text-[11px] text-amber-950">
                         {req.status === 'dispatched'
                           ? `Emergency storage secured at ${req.godownName} (${req.quantity} units). Stock reserved by ${req.contractorName || 'Contractor'}.`
                           : req.status === 'declined'
                           ? `Storage request declined at ${req.godownName}. Alternative corridor evaluation required.`
                           : `Emergency storage requested at ${req.godownName} (${req.quantity} units). Pending supply operator approval.`}
                       </p>
-                      <div className="flex items-center justify-between text-[10px] text-[#92400e]/80">
+                      <div className="flex items-center justify-between text-[10px] text-amber-900/80">
                         <span>Cargo: {req.cargoType}</span>
                         <span>Dest: {req.destination}</span>
                       </div>
@@ -401,22 +401,22 @@ export function DispatcherOps() {
           {activeTab === 'fleet' && (
             <div className="p-4 space-y-3 flex-1">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1 bg-[#f4f4f3] p-0.5 rounded-lg text-[10px] font-semibold">
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-[10px] font-semibold">
                   <button
                     onClick={() => setFleetFilter('all')}
-                    className={cn('px-2 py-0.5 rounded cursor-pointer', fleetFilter === 'all' ? 'bg-white text-[#1a1a19] shadow-xs' : 'text-[#8a8a87]')}
+                    className={cn('px-2.5 py-1 rounded-lg cursor-pointer transition-all', fleetFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900')}
                   >
                     All ({activeVehicles.length})
                   </button>
                   <button
                     onClick={() => setFleetFilter('affected')}
-                    className={cn('px-2 py-0.5 rounded cursor-pointer', fleetFilter === 'affected' ? 'bg-white text-[#dc2626] shadow-xs' : 'text-[#8a8a87]')}
+                    className={cn('px-2.5 py-1 rounded-lg cursor-pointer transition-all', fleetFilter === 'affected' ? 'bg-white text-rose-600 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900')}
                   >
                     Alerts
                   </button>
                   <button
                     onClick={() => setFleetFilter('rerouted')}
-                    className={cn('px-2 py-0.5 rounded cursor-pointer', fleetFilter === 'rerouted' ? 'bg-white text-[#2563eb] shadow-xs' : 'text-[#8a8a87]')}
+                    className={cn('px-2.5 py-1 rounded-lg cursor-pointer transition-all', fleetFilter === 'rerouted' ? 'bg-white text-blue-600 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-900')}
                   >
                     Rerouted
                   </button>
@@ -427,31 +427,31 @@ export function DispatcherOps() {
                 {filteredFleet.map((v) => (
                   <div
                     key={v.id}
-                    className="p-2.5 rounded-lg border border-[#e4e4e3] bg-white flex items-center justify-between text-xs hover:border-[#c4c4c2] transition-colors"
+                    className="p-3 rounded-xl border border-slate-200/80 bg-white flex items-center justify-between text-xs hover:border-slate-300 transition-all shadow-2xs"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-[#1a1a19]">{v.id}</span>
-                        <span className="text-[11px] text-[#8a8a87]">· {v.driverName}</span>
+                        <span className="font-bold text-slate-900">{v.id}</span>
+                        <span className="text-[11px] text-slate-400">· {v.driverName}</span>
                         {v.affectedByDisruptionId && v.rerouteStatus !== 'active' && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#fef2f2] text-[#dc2626]">
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200/60 shadow-2xs">
                             DISRUPTED
                           </span>
                         )}
                         {v.rerouteStatus === 'active' && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#eff6ff] text-[#2563eb]">
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200/60 shadow-2xs">
                             REROUTED
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-[#5a5a57] truncate mt-0.5">
+                      <p className="text-[10px] text-slate-500 truncate mt-0.5">
                         {v.origin} → {v.destination} {v.cargoType ? `· ${v.cargoType}` : ''}
                       </p>
                     </div>
                     <div className="text-right shrink-0 ml-2">
                       <RiskBadge level={v.riskLevel} size="sm" />
                       {v.etaMinutes && (
-                        <p className="text-[10px] font-bold text-[#1a1a19] mt-0.5">{formatEta(v.etaMinutes)}</p>
+                        <p className="text-[10px] font-bold text-slate-900 mt-0.5">{formatEta(v.etaMinutes)}</p>
                       )}
                     </div>
                   </div>
@@ -463,15 +463,15 @@ export function DispatcherOps() {
           {/* TAB 3: CORRIDOR HAZARDS */}
           {activeTab === 'hazards' && (
             <div className="p-4 space-y-3 flex-1">
-              <span className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 Active Corridor Hazards ({activeIncidents.length})
               </span>
 
               <div className="space-y-2.5">
                 {activeIncidents.map((inc) => (
-                  <div key={inc.id} className="p-3 rounded-lg border border-[#fca5a5] bg-[#fff8f8] space-y-1.5 text-xs">
+                  <div key={inc.id} className="p-3.5 rounded-xl border border-rose-200/80 bg-rose-50/40 space-y-1.5 text-xs shadow-2xs">
                     <div className="flex items-start justify-between">
-                      <p className="font-bold text-[#991b1b]">
+                      <p className="font-bold text-rose-900">
                         {getIncidentTypeLabel(inc.type)} · {inc.locationName}
                       </p>
                       <StatusBadge
@@ -479,8 +479,8 @@ export function DispatcherOps() {
                         variant={inc.syncStatus === 'verified' ? 'success' : 'warning'}
                       />
                     </div>
-                    <p className="text-[11px] text-[#5a5a57]">{inc.description}</p>
-                    <div className="flex items-center justify-between text-[10px] text-[#8a8a87] pt-1">
+                    <p className="text-[11px] text-slate-600">{inc.description}</p>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
                       <span>Reported by {inc.reportedBy}</span>
                       <span>Severeness: High</span>
                     </div>

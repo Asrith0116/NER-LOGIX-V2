@@ -19,26 +19,26 @@ export function DispatcherMap() {
     .filter((r): r is NonNullable<typeof r> => Boolean(r));
 
   return (
-    <div className="h-full flex flex-col bg-[#f8f8f7]">
-      <div className="px-6 py-3 bg-white border-b border-[#e4e4e3] flex items-center justify-between">
+    <div className="h-full flex flex-col bg-[#f4f6f8]">
+      <div className="px-6 py-3.5 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex items-center justify-between shrink-0 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.03)]">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-md bg-[#eff6ff] border border-[#bfdbfe] flex items-center justify-center text-[#2563eb]">
+          <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-2xs">
             <Map className="w-4 h-4" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-[#1a1a19]">Fleet GIS Tactical Map</h1>
-            <p className="text-[11px] text-[#8a8a87]">Real-time spatial visualization of all 18 active regional transports</p>
+            <h1 className="text-sm font-bold text-slate-900 tracking-tight">Fleet GIS Tactical Map</h1>
+            <p className="text-[11px] text-slate-500 font-medium">Real-time spatial visualization of all 18 active regional transports</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-[#5a5a57]">
-            <Truck className="w-3.5 h-3.5 text-[#2563eb]" />
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold px-2.5 py-1 rounded-xl bg-slate-100/80 border border-slate-200/60 shadow-2xs">
+            <Truck className="w-3.5 h-3.5 text-blue-600" />
             <span>{activeVehicles.length} Vehicles</span>
           </div>
           {affectedCount > 0 && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#fef2f2] border border-[#fecaca] text-xs font-semibold text-[#dc2626]">
-              <AlertTriangle className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700 shadow-2xs">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
               <span>{affectedCount} Disrupted</span>
             </div>
           )}

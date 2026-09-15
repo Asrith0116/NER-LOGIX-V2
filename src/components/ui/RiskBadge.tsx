@@ -11,28 +11,28 @@ interface RiskBadgeProps {
 
 const riskConfig = {
   low: {
-    bg: 'bg-[#f0fdf4]',
-    text: 'text-[#16a34a]',
-    border: 'border-[#bbf7d0]',
-    dot: 'bg-[#16a34a]',
+    bg: 'bg-emerald-50/90',
+    text: 'text-emerald-700',
+    border: 'border-emerald-200/80',
+    dot: 'bg-emerald-500',
   },
   moderate: {
-    bg: 'bg-[#fffbeb]',
-    text: 'text-[#d97706]',
-    border: 'border-[#fde68a]',
-    dot: 'bg-[#d97706]',
+    bg: 'bg-amber-50/90',
+    text: 'text-amber-700',
+    border: 'border-amber-200/80',
+    dot: 'bg-amber-500',
   },
   high: {
-    bg: 'bg-[#fef2f2]',
-    text: 'text-[#dc2626]',
-    border: 'border-[#fecaca]',
-    dot: 'bg-[#dc2626]',
+    bg: 'bg-rose-50/90',
+    text: 'text-rose-700',
+    border: 'border-rose-200/80',
+    dot: 'bg-rose-500',
   },
   blocked: {
-    bg: 'bg-[#fef2f2]',
-    text: 'text-[#7f1d1d]',
-    border: 'border-[#fca5a5]',
-    dot: 'bg-[#7f1d1d]',
+    bg: 'bg-red-950 text-white',
+    text: 'text-red-100',
+    border: 'border-red-900',
+    dot: 'bg-red-400',
   },
 };
 
@@ -41,7 +41,7 @@ export function RiskBadge({ level, score, className, size = 'md' }: RiskBadgePro
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border font-medium',
+        'inline-flex items-center gap-1.5 rounded-full border font-semibold shadow-2xs',
         cfg.bg,
         cfg.text,
         cfg.border,
@@ -49,10 +49,10 @@ export function RiskBadge({ level, score, className, size = 'md' }: RiskBadgePro
         className,
       )}
     >
-      <span className={cn('rounded-full', cfg.dot, size === 'sm' ? 'w-1.5 h-1.5' : 'w-2 h-2')} />
-      {getRiskLabel(level)}
+      <span className={cn('rounded-full shrink-0', cfg.dot, size === 'sm' ? 'w-1.5 h-1.5' : 'w-2 h-2')} />
+      <span>{getRiskLabel(level)}</span>
       {score !== undefined && (
-        <span className="opacity-70 font-normal">{score}/100</span>
+        <span className="opacity-75 font-normal tabular-nums">{score}/100</span>
       )}
     </span>
   );

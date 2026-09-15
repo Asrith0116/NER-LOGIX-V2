@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/store/appStore';
 import { useNetworkStore } from '@/store/networkStore';
+import { useAuthStore } from '@/store/authStore';
 import type { Vehicle } from '@/types';
 import {
   Truck,
@@ -74,6 +75,16 @@ export function DriverVehicleSelector({
   const handleSelect = (vehicleId: string) => {
     setSelectedDriverVehicleId(vehicleId);
     setIsOpen(false);
+    const v = activeVehicles.find((veh) => veh.id === vehicleId);
+    if (v) {
+      const { user, updateUser } = useAuthStore.getState();
+      if (user && user.role === 'driver') {
+        updateUser({
+          name: v.driverName,
+          vehicleId: v.id,
+        });
+      }
+    }
   };
 
   const getStatusDisplay = (v: Vehicle) => {

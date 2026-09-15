@@ -22,6 +22,7 @@ interface AuthState {
   login: (emailOrRole: string, password?: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
   initAuth: () => Promise<void>;
+  updateUser: (partial: Partial<AuthUser>) => void;
 }
 
 const STORAGE_KEY = 'nerlogix_auth_token';
@@ -32,6 +33,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   isAuthLoading: true,
   loginError: null,
+
+  updateUser: (partial: Partial<AuthUser>) => {
+    set((state) => ({
+      user: state.user ? { ...state.user, ...partial } : null,
+    }));
+  },
 
   login: async (emailOrRole: string, password?: string) => {
     set({ isAuthLoading: true, loginError: null });

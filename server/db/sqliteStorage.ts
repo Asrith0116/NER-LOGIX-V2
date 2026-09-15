@@ -68,8 +68,8 @@ export class OperationalDatabase {
   }
 
   private initTables() {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS incidents (
+    const tableQueries = [
+      `CREATE TABLE IF NOT EXISTS incidents (
         id TEXT PRIMARY KEY,
         type TEXT NOT NULL,
         severity TEXT NOT NULL,
@@ -91,9 +91,8 @@ export class OperationalDatabase {
         notes TEXT,
         correlation_json TEXT,
         raw_json TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS road_segments (
+      )`,
+      `CREATE TABLE IF NOT EXISTS road_segments (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         from_location TEXT NOT NULL,
@@ -103,9 +102,8 @@ export class OperationalDatabase {
         last_updated TEXT NOT NULL,
         affected_by_incident_id TEXT,
         raw_json TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS vehicles (
+      )`,
+      `CREATE TABLE IF NOT EXISTS vehicles (
         id TEXT PRIMARY KEY,
         driver_name TEXT NOT NULL,
         type TEXT NOT NULL,
@@ -131,9 +129,8 @@ export class OperationalDatabase {
         recommended_godown_id TEXT,
         recommended_godown_distance_km REAL,
         raw_json TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS disruptions (
+      )`,
+      `CREATE TABLE IF NOT EXISTS disruptions (
         id TEXT PRIMARY KEY,
         incident_id TEXT NOT NULL,
         affected_segment_id TEXT NOT NULL,
@@ -142,9 +139,8 @@ export class OperationalDatabase {
         updated_at TEXT NOT NULL,
         affected_vehicle_ids_json TEXT,
         raw_json TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS emergency_pickups (
+      )`,
+      `CREATE TABLE IF NOT EXISTS emergency_pickups (
         id TEXT PRIMARY KEY,
         vehicle_id TEXT NOT NULL,
         driver_name TEXT NOT NULL,
@@ -163,9 +159,8 @@ export class OperationalDatabase {
         alternative_godown_id TEXT,
         decline_reason TEXT,
         raw_json TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS shipments (
+      )`,
+      `CREATE TABLE IF NOT EXISTS shipments (
         id TEXT PRIMARY KEY,
         vehicle_id TEXT NOT NULL,
         driver_name TEXT NOT NULL,
@@ -191,9 +186,8 @@ export class OperationalDatabase {
         pickup_request_id TEXT,
         last_updated TEXT NOT NULL,
         raw_json TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS godowns (
+      )`,
+      `CREATE TABLE IF NOT EXISTS godowns (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         location_json TEXT NOT NULL,
@@ -203,25 +197,38 @@ export class OperationalDatabase {
         total_capacity REAL,
         status TEXT,
         raw_json TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS idempotency_records (
+      )`,
+      `CREATE TABLE IF NOT EXISTS idempotency_records (
         key TEXT PRIMARY KEY,
         status_code INTEGER NOT NULL,
         response_json TEXT NOT NULL,
         created_at TEXT NOT NULL
-      );
-    `);
+      )`
+    ];
+
+    for (const sql of tableQueries) {
+      try {
+        this.db.exec(sql);
+      } catch (err) {
+        console.warn('[OperationalDatabase] Error initializing table:', err);
+      }
+    }
   }
 
   public seedBaselineIfEmpty() {
-    const countQuery = this.db.prepare('SELECT COUNT(*) as count FROM road_segments');
-    const row = countQuery.get() as { count: number };
-    if (row && row.count > 0) {
-      return;
-    }
+    this.initTables();
+    try {
+      const roadCount = (this.db.prepare('SELECT COUNT(*) as count FROM road_segments').get() as { count: number })?.count ?? 0;
+      const vehicleCount = (this.db.prepare('SELECT COUNT(*) as count FROM vehicles').get() as { count: number })?.count ?? 0;
+      const godownCount = (this.db.prepare('SELECT COUNT(*) as count FROM godowns').get() as { count: number })?.count ?? 0;
+      const shipmentCount = (this.db.prepare('SELECT COUNT(*) as count FROM shipments').get() as { count: number })?.count ?? 0;
 
-    this.resetToBaseline();
+      if (roadCount === 0 || vehicleCount === 0 || godownCount === 0 || shipmentCount === 0) {
+        this.resetToBaseline();
+      }
+    } catch {
+      this.resetToBaseline();
+    }
   }
 
   public resetToBaseline() {
@@ -691,353 +698,413 @@ export class OperationalDatabase {
     }
   }
 
+  private safeQuery<T>(queryFn: () => T): T {
+    try {
+      return queryFn();
+    } catch (err: any) {
+      if (err?.message?.includes('no such table')) {
+        console.warn('[OperationalDatabase] Table missing during query, repairing schema and baseline:', err.message);
+        this.initTables();
+        this.seedBaselineIfEmpty();
+        return queryFn();
+      }
+      throw err;
+    }
+  }
+
   // ── Incidents ─────────────────────────────────────────────────────────────
   public getAllIncidents(): Incident[] {
-    const stmt = this.db.prepare('SELECT raw_json FROM incidents ORDER BY reported_at DESC');
-    const rows = stmt.all() as { raw_json: string }[];
-    return rows.map((r) => JSON.parse(r.raw_json) as Incident);
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM incidents ORDER BY reported_at DESC');
+      const rows = stmt.all() as { raw_json: string }[];
+      return rows.map((r) => JSON.parse(r.raw_json) as Incident);
+    });
   }
 
   public getIncidentById(id: string): Incident | null {
-    const stmt = this.db.prepare('SELECT raw_json FROM incidents WHERE id = ?');
-    const row = stmt.get(id) as { raw_json: string } | undefined;
-    return row ? (JSON.parse(row.raw_json) as Incident) : null;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM incidents WHERE id = ?');
+      const row = stmt.get(id) as { raw_json: string } | undefined;
+      return row ? (JSON.parse(row.raw_json) as Incident) : null;
+    });
   }
 
   public saveIncident(incident: Incident): Incident {
-    const existing = this.getIncidentById(incident.id);
-    if (existing) {
-      const stmt = this.db.prepare(`
-        UPDATE incidents SET
-          type = ?, severity = ?, location_json = ?, location_name = ?,
-          location_source = ?, description = ?, reported_by = ?,
-          reported_vehicle_id = ?, reported_at = ?, sync_status = ?,
-          photo_url = ?, voice_transcript = ?, voice_language = ?,
-          ai_analysis_json = ?, affected_route_id = ?, verified_by = ?,
-          verified_at = ?, notes = ?, correlation_json = ?, raw_json = ?
-        WHERE id = ?
-      `);
-      stmt.run(
-        incident.type,
-        incident.severity,
-        JSON.stringify(incident.location),
-        incident.locationName,
-        incident.locationSource || null,
-        incident.description,
-        incident.reportedBy,
-        incident.reportedVehicleId || null,
-        incident.reportedAt,
-        incident.syncStatus,
-        incident.photoUrl || null,
-        incident.voiceTranscript || null,
-        incident.voiceLanguage || null,
-        incident.aiAnalysis ? JSON.stringify(incident.aiAnalysis) : null,
-        incident.affectedRouteId || null,
-        incident.verifiedBy || null,
-        incident.verifiedAt || null,
-        incident.notes || null,
-        incident.correlation ? JSON.stringify(incident.correlation) : null,
-        JSON.stringify(incident),
-        incident.id
-      );
-    } else {
-      const stmt = this.db.prepare(`
-        INSERT INTO incidents (
-          id, type, severity, location_json, location_name, location_source,
-          description, reported_by, reported_vehicle_id, reported_at,
-          sync_status, photo_url, voice_transcript, voice_language,
-          ai_analysis_json, affected_route_id, verified_by, verified_at,
-          notes, correlation_json, raw_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      stmt.run(
-        incident.id,
-        incident.type,
-        incident.severity,
-        JSON.stringify(incident.location),
-        incident.locationName,
-        incident.locationSource || null,
-        incident.description,
-        incident.reportedBy,
-        incident.reportedVehicleId || null,
-        incident.reportedAt,
-        incident.syncStatus,
-        incident.photoUrl || null,
-        incident.voiceTranscript || null,
-        incident.voiceLanguage || null,
-        incident.aiAnalysis ? JSON.stringify(incident.aiAnalysis) : null,
-        incident.affectedRouteId || null,
-        incident.verifiedBy || null,
-        incident.verifiedAt || null,
-        incident.notes || null,
-        incident.correlation ? JSON.stringify(incident.correlation) : null,
-        JSON.stringify(incident)
-      );
-    }
-    return incident;
+    return this.safeQuery(() => {
+      const existing = this.getIncidentById(incident.id);
+      if (existing) {
+        const stmt = this.db.prepare(`
+          UPDATE incidents SET
+            type = ?, severity = ?, location_json = ?, location_name = ?,
+            location_source = ?, description = ?, reported_by = ?,
+            reported_vehicle_id = ?, reported_at = ?, sync_status = ?,
+            photo_url = ?, voice_transcript = ?, voice_language = ?,
+            ai_analysis_json = ?, affected_route_id = ?, verified_by = ?,
+            verified_at = ?, notes = ?, correlation_json = ?, raw_json = ?
+          WHERE id = ?
+        `);
+        stmt.run(
+          incident.type,
+          incident.severity,
+          JSON.stringify(incident.location),
+          incident.locationName,
+          incident.locationSource || null,
+          incident.description,
+          incident.reportedBy,
+          incident.reportedVehicleId || null,
+          incident.reportedAt,
+          incident.syncStatus,
+          incident.photoUrl || null,
+          incident.voiceTranscript || null,
+          incident.voiceLanguage || null,
+          incident.aiAnalysis ? JSON.stringify(incident.aiAnalysis) : null,
+          incident.affectedRouteId || null,
+          incident.verifiedBy || null,
+          incident.verifiedAt || null,
+          incident.notes || null,
+          incident.correlation ? JSON.stringify(incident.correlation) : null,
+          JSON.stringify(incident),
+          incident.id
+        );
+      } else {
+        const stmt = this.db.prepare(`
+          INSERT INTO incidents (
+            id, type, severity, location_json, location_name, location_source,
+            description, reported_by, reported_vehicle_id, reported_at,
+            sync_status, photo_url, voice_transcript, voice_language,
+            ai_analysis_json, affected_route_id, verified_by, verified_at,
+            notes, correlation_json, raw_json
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        stmt.run(
+          incident.id,
+          incident.type,
+          incident.severity,
+          JSON.stringify(incident.location),
+          incident.locationName,
+          incident.locationSource || null,
+          incident.description,
+          incident.reportedBy,
+          incident.reportedVehicleId || null,
+          incident.reportedAt,
+          incident.syncStatus,
+          incident.photoUrl || null,
+          incident.voiceTranscript || null,
+          incident.voiceLanguage || null,
+          incident.aiAnalysis ? JSON.stringify(incident.aiAnalysis) : null,
+          incident.affectedRouteId || null,
+          incident.verifiedBy || null,
+          incident.verifiedAt || null,
+          incident.notes || null,
+          incident.correlation ? JSON.stringify(incident.correlation) : null,
+          JSON.stringify(incident)
+        );
+      }
+      return incident;
+    });
   }
 
   // ── Road Segments ─────────────────────────────────────────────────────────
   public getAllRoadSegments(): RoadSegment[] {
-    const stmt = this.db.prepare('SELECT raw_json FROM road_segments ORDER BY id ASC');
-    const rows = stmt.all() as { raw_json: string }[];
-    return rows.map((r) => JSON.parse(r.raw_json) as RoadSegment);
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM road_segments ORDER BY id ASC');
+      const rows = stmt.all() as { raw_json: string }[];
+      return rows.map((r) => JSON.parse(r.raw_json) as RoadSegment);
+    });
   }
 
   public getRoadSegmentById(id: string): RoadSegment | null {
-    const stmt = this.db.prepare('SELECT raw_json FROM road_segments WHERE id = ?');
-    const row = stmt.get(id) as { raw_json: string } | undefined;
-    return row ? (JSON.parse(row.raw_json) as RoadSegment) : null;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM road_segments WHERE id = ?');
+      const row = stmt.get(id) as { raw_json: string } | undefined;
+      return row ? (JSON.parse(row.raw_json) as RoadSegment) : null;
+    });
   }
 
   public saveRoadSegment(segment: RoadSegment): RoadSegment {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO road_segments (
-        id, name, from_location, to_location, status, risk_level, last_updated, affected_by_incident_id, raw_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(
-      segment.id,
-      segment.name,
-      segment.fromLocation,
-      segment.toLocation,
-      segment.status,
-      segment.riskLevel,
-      segment.lastUpdated,
-      segment.affectedByIncidentId || null,
-      JSON.stringify(segment)
-    );
-    return segment;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO road_segments (
+          id, name, from_location, to_location, status, risk_level, last_updated, affected_by_incident_id, raw_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        segment.id,
+        segment.name,
+        segment.fromLocation,
+        segment.toLocation,
+        segment.status,
+        segment.riskLevel,
+        segment.lastUpdated,
+        segment.affectedByIncidentId || null,
+        JSON.stringify(segment)
+      );
+      return segment;
+    });
   }
 
   // ── Vehicles ──────────────────────────────────────────────────────────────
   public getAllVehicles(): Vehicle[] {
-    const stmt = this.db.prepare('SELECT raw_json FROM vehicles ORDER BY id ASC');
-    const rows = stmt.all() as { raw_json: string }[];
-    return rows.map((r) => JSON.parse(r.raw_json) as Vehicle);
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM vehicles ORDER BY id ASC');
+      const rows = stmt.all() as { raw_json: string }[];
+      return rows.map((r) => JSON.parse(r.raw_json) as Vehicle);
+    });
   }
 
   public getVehicleById(id: string): Vehicle | null {
-    const stmt = this.db.prepare('SELECT raw_json FROM vehicles WHERE id = ?');
-    const row = stmt.get(id) as { raw_json: string } | undefined;
-    return row ? (JSON.parse(row.raw_json) as Vehicle) : null;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM vehicles WHERE id = ?');
+      const row = stmt.get(id) as { raw_json: string } | undefined;
+      return row ? (JSON.parse(row.raw_json) as Vehicle) : null;
+    });
   }
 
   public saveVehicle(vehicle: Vehicle): Vehicle {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO vehicles (
-        id, driver_name, type, status, risk_level, location_json, origin, destination,
-        eta_minutes, cargo_type, planned_route_id, assigned_corridor_id,
-        planned_segment_ids_json, affected_by_disruption_id, impact_reason,
-        reroute_status, reroute_reason, rerouted_at, reroute_from_json,
-        reroute_from_label, reroute_to, reroute_waypoints_json,
-        recommended_godown_id, recommended_godown_distance_km, raw_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(
-      vehicle.id,
-      vehicle.driverName,
-      vehicle.type,
-      vehicle.status,
-      vehicle.riskLevel,
-      JSON.stringify(vehicle.location),
-      vehicle.origin || null,
-      vehicle.destination || null,
-      vehicle.etaMinutes || null,
-      vehicle.cargoType || null,
-      vehicle.plannedRouteId || null,
-      vehicle.assignedCorridorId || null,
-      vehicle.plannedSegmentIds ? JSON.stringify(vehicle.plannedSegmentIds) : null,
-      vehicle.affectedByDisruptionId || null,
-      vehicle.impactReason || null,
-      vehicle.rerouteStatus || null,
-      vehicle.rerouteReason || null,
-      vehicle.reroutedAt || null,
-      vehicle.rerouteFrom ? JSON.stringify(vehicle.rerouteFrom) : null,
-      vehicle.rerouteFromLabel || null,
-      vehicle.rerouteTo || null,
-      vehicle.rerouteWaypoints ? JSON.stringify(vehicle.rerouteWaypoints) : null,
-      vehicle.recommendedGodownId || null,
-      vehicle.recommendedGodownDistanceKm || null,
-      JSON.stringify(vehicle)
-    );
-    return vehicle;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO vehicles (
+          id, driver_name, type, status, risk_level, location_json, origin, destination,
+          eta_minutes, cargo_type, planned_route_id, assigned_corridor_id,
+          planned_segment_ids_json, affected_by_disruption_id, impact_reason,
+          reroute_status, reroute_reason, rerouted_at, reroute_from_json,
+          reroute_from_label, reroute_to, reroute_waypoints_json,
+          recommended_godown_id, recommended_godown_distance_km, raw_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        vehicle.id,
+        vehicle.driverName,
+        vehicle.type,
+        vehicle.status,
+        vehicle.riskLevel,
+        JSON.stringify(vehicle.location),
+        vehicle.origin || null,
+        vehicle.destination || null,
+        vehicle.etaMinutes || null,
+        vehicle.cargoType || null,
+        vehicle.plannedRouteId || null,
+        vehicle.assignedCorridorId || null,
+        vehicle.plannedSegmentIds ? JSON.stringify(vehicle.plannedSegmentIds) : null,
+        vehicle.affectedByDisruptionId || null,
+        vehicle.impactReason || null,
+        vehicle.rerouteStatus || null,
+        vehicle.rerouteReason || null,
+        vehicle.reroutedAt || null,
+        vehicle.rerouteFrom ? JSON.stringify(vehicle.rerouteFrom) : null,
+        vehicle.rerouteFromLabel || null,
+        vehicle.rerouteTo || null,
+        vehicle.rerouteWaypoints ? JSON.stringify(vehicle.rerouteWaypoints) : null,
+        vehicle.recommendedGodownId || null,
+        vehicle.recommendedGodownDistanceKm || null,
+        JSON.stringify(vehicle)
+      );
+      return vehicle;
+    });
   }
 
   // ── Disruptions ───────────────────────────────────────────────────────────
   public getAllDisruptions(): Disruption[] {
-    const stmt = this.db.prepare('SELECT raw_json FROM disruptions ORDER BY created_at DESC');
-    const rows = stmt.all() as { raw_json: string }[];
-    return rows.map((r) => JSON.parse(r.raw_json) as Disruption);
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM disruptions ORDER BY created_at DESC');
+      const rows = stmt.all() as { raw_json: string }[];
+      return rows.map((r) => JSON.parse(r.raw_json) as Disruption);
+    });
   }
 
   public getDisruptionById(id: string): Disruption | null {
-    const stmt = this.db.prepare('SELECT raw_json FROM disruptions WHERE id = ?');
-    const row = stmt.get(id) as { raw_json: string } | undefined;
-    return row ? (JSON.parse(row.raw_json) as Disruption) : null;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM disruptions WHERE id = ?');
+      const row = stmt.get(id) as { raw_json: string } | undefined;
+      return row ? (JSON.parse(row.raw_json) as Disruption) : null;
+    });
   }
 
   public saveDisruption(disruption: Disruption): Disruption {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO disruptions (
-        id, incident_id, affected_segment_id, status, created_at, updated_at, affected_vehicle_ids_json, raw_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(
-      disruption.id,
-      disruption.incidentId,
-      disruption.affectedSegmentId,
-      disruption.status,
-      disruption.createdAt,
-      disruption.updatedAt,
-      disruption.affectedVehicleIds ? JSON.stringify(disruption.affectedVehicleIds) : null,
-      JSON.stringify(disruption)
-    );
-    return disruption;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO disruptions (
+          id, incident_id, affected_segment_id, status, created_at, updated_at, affected_vehicle_ids_json, raw_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        disruption.id,
+        disruption.incidentId,
+        disruption.affectedSegmentId,
+        disruption.status,
+        disruption.createdAt,
+        disruption.updatedAt,
+        disruption.affectedVehicleIds ? JSON.stringify(disruption.affectedVehicleIds) : null,
+        JSON.stringify(disruption)
+      );
+      return disruption;
+    });
   }
 
   // ── Emergency Logistics ───────────────────────────────────────────────────
   public getAllEmergencyPickups(): EmergencyPickupRequest[] {
-    const stmt = this.db.prepare('SELECT raw_json FROM emergency_pickups ORDER BY requested_at DESC');
-    const rows = stmt.all() as { raw_json: string }[];
-    return rows.map((r) => JSON.parse(r.raw_json) as EmergencyPickupRequest);
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM emergency_pickups ORDER BY requested_at DESC');
+      const rows = stmt.all() as { raw_json: string }[];
+      return rows.map((r) => JSON.parse(r.raw_json) as EmergencyPickupRequest);
+    });
   }
 
   public getEmergencyPickupById(id: string): EmergencyPickupRequest | null {
-    const stmt = this.db.prepare('SELECT raw_json FROM emergency_pickups WHERE id = ?');
-    const row = stmt.get(id) as { raw_json: string } | undefined;
-    return row ? (JSON.parse(row.raw_json) as EmergencyPickupRequest) : null;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM emergency_pickups WHERE id = ?');
+      const row = stmt.get(id) as { raw_json: string } | undefined;
+      return row ? (JSON.parse(row.raw_json) as EmergencyPickupRequest) : null;
+    });
   }
 
   public saveEmergencyPickup(req: EmergencyPickupRequest): EmergencyPickupRequest {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO emergency_pickups (
-        id, vehicle_id, driver_name, cargo_type, destination, godown_id, godown_name,
-        status, requested_at, approved_at, dispatched_at, contractor_name,
-        quantity, reason, destination_notified, alternative_godown_id, decline_reason, raw_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(
-      req.id,
-      req.vehicleId,
-      req.driverName,
-      req.cargoType,
-      req.destination,
-      req.godownId,
-      req.godownName,
-      req.status,
-      req.requestedAt,
-      req.approvedAt || null,
-      req.dispatchedAt || null,
-      req.contractorName || null,
-      req.quantity,
-      req.reason,
-      req.destinationNotified ? 1 : 0,
-      req.alternativeGodownId || null,
-      req.declineReason || null,
-      JSON.stringify(req)
-    );
-    return req;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO emergency_pickups (
+          id, vehicle_id, driver_name, cargo_type, destination, godown_id, godown_name,
+          status, requested_at, approved_at, dispatched_at, contractor_name,
+          quantity, reason, destination_notified, alternative_godown_id, decline_reason, raw_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        req.id,
+        req.vehicleId,
+        req.driverName,
+        req.cargoType,
+        req.destination,
+        req.godownId,
+        req.godownName,
+        req.status,
+        req.requestedAt,
+        req.approvedAt || null,
+        req.dispatchedAt || null,
+        req.contractorName || null,
+        req.quantity,
+        req.reason,
+        req.destinationNotified ? 1 : 0,
+        req.alternativeGodownId || null,
+        req.declineReason || null,
+        JSON.stringify(req)
+      );
+      return req;
+    });
   }
 
   // ── Shipments (Step 9) ────────────────────────────────────────────────────
   public getAllShipments(): Shipment[] {
-    const stmt = this.db.prepare('SELECT raw_json FROM shipments ORDER BY id ASC');
-    const rows = stmt.all() as { raw_json: string }[];
-    return rows.map((r) => JSON.parse(r.raw_json) as Shipment);
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM shipments ORDER BY id ASC');
+      const rows = stmt.all() as { raw_json: string }[];
+      return rows.map((r) => JSON.parse(r.raw_json) as Shipment);
+    });
   }
 
   public getShipmentById(id: string): Shipment | null {
-    const stmt = this.db.prepare('SELECT raw_json FROM shipments WHERE id = ?');
-    const row = stmt.get(id) as { raw_json: string } | undefined;
-    return row ? (JSON.parse(row.raw_json) as Shipment) : null;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM shipments WHERE id = ?');
+      const row = stmt.get(id) as { raw_json: string } | undefined;
+      return row ? (JSON.parse(row.raw_json) as Shipment) : null;
+    });
   }
 
   public getShipmentByVehicleId(vehicleId: string): Shipment | null {
-    const stmt = this.db.prepare('SELECT raw_json FROM shipments WHERE vehicle_id = ?');
-    const row = stmt.get(vehicleId) as { raw_json: string } | undefined;
-    return row ? (JSON.parse(row.raw_json) as Shipment) : null;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM shipments WHERE vehicle_id = ?');
+      const row = stmt.get(vehicleId) as { raw_json: string } | undefined;
+      return row ? (JSON.parse(row.raw_json) as Shipment) : null;
+    });
   }
 
   public saveShipment(shipment: Shipment): Shipment {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO shipments (
-        id, vehicle_id, driver_name, origin, destination, cargo_category, cargo_sensitivity,
-        priority, priority_score, priority_explanation, quantity, unit, cold_chain_required,
-        current_temperature_c, current_status, affected, disruption_id, delay_minutes,
-        continuity_status, impact_reason, recommended_action, assigned_godown_id,
-        pickup_request_id, last_updated, raw_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(
-      shipment.id,
-      shipment.vehicleId,
-      shipment.driverName,
-      shipment.origin,
-      shipment.destination,
-      shipment.cargoCategory,
-      shipment.cargoSensitivity,
-      shipment.priority,
-      shipment.priorityScore,
-      shipment.priorityExplanation,
-      shipment.quantity,
-      shipment.unit,
-      shipment.coldChainRequired ? 1 : 0,
-      shipment.currentTemperatureC ?? null,
-      shipment.currentStatus,
-      shipment.affected ? 1 : 0,
-      shipment.disruptionId || null,
-      shipment.delayMinutes || null,
-      shipment.continuityStatus,
-      shipment.impactReason || null,
-      shipment.recommendedAction || null,
-      shipment.assignedGodownId || null,
-      shipment.pickupRequestId || null,
-      shipment.lastUpdated,
-      JSON.stringify(shipment)
-    );
-    return shipment;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO shipments (
+          id, vehicle_id, driver_name, origin, destination, cargo_category, cargo_sensitivity,
+          priority, priority_score, priority_explanation, quantity, unit, cold_chain_required,
+          current_temperature_c, current_status, affected, disruption_id, delay_minutes,
+          continuity_status, impact_reason, recommended_action, assigned_godown_id,
+          pickup_request_id, last_updated, raw_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        shipment.id,
+        shipment.vehicleId,
+        shipment.driverName,
+        shipment.origin,
+        shipment.destination,
+        shipment.cargoCategory,
+        shipment.cargoSensitivity,
+        shipment.priority,
+        shipment.priorityScore,
+        shipment.priorityExplanation,
+        shipment.quantity,
+        shipment.unit,
+        shipment.coldChainRequired ? 1 : 0,
+        shipment.currentTemperatureC ?? null,
+        shipment.currentStatus,
+        shipment.affected ? 1 : 0,
+        shipment.disruptionId || null,
+        shipment.delayMinutes || null,
+        shipment.continuityStatus,
+        shipment.impactReason || null,
+        shipment.recommendedAction || null,
+        shipment.assignedGodownId || null,
+        shipment.pickupRequestId || null,
+        shipment.lastUpdated,
+        JSON.stringify(shipment)
+      );
+      return shipment;
+    });
   }
 
   // ── Godowns & Buffer Inventory (Step 9) ───────────────────────────────────
   public getAllGodowns(): Godown[] {
-    const stmt = this.db.prepare('SELECT raw_json FROM godowns ORDER BY id ASC');
-    const rows = stmt.all() as { raw_json: string }[];
-    return rows.map((r) => JSON.parse(r.raw_json) as Godown);
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM godowns ORDER BY id ASC');
+      const rows = stmt.all() as { raw_json: string }[];
+      return rows.map((r) => JSON.parse(r.raw_json) as Godown);
+    });
   }
 
   public getGodownById(id: string): Godown | null {
-    const stmt = this.db.prepare('SELECT raw_json FROM godowns WHERE id = ?');
-    const row = stmt.get(id) as { raw_json: string } | undefined;
-    return row ? (JSON.parse(row.raw_json) as Godown) : null;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare('SELECT raw_json FROM godowns WHERE id = ?');
+      const row = stmt.get(id) as { raw_json: string } | undefined;
+      return row ? (JSON.parse(row.raw_json) as Godown) : null;
+    });
   }
 
   public saveGodown(godown: Godown): Godown {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO godowns (
-        id, name, location_json, location_label, suitable_cargo_types_json, available_stock, total_capacity, status, raw_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(
-      godown.id,
-      godown.name,
-      JSON.stringify(godown.location),
-      godown.locationLabel,
-      JSON.stringify(godown.suitableCargoTypes),
-      godown.availableStock,
-      godown.totalCapacity || null,
-      godown.status || 'operational',
-      JSON.stringify(godown)
-    );
-    return godown;
+    return this.safeQuery(() => {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO godowns (
+          id, name, location_json, location_label, suitable_cargo_types_json, available_stock, total_capacity, status, raw_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        godown.id,
+        godown.name,
+        JSON.stringify(godown.location),
+        godown.locationLabel,
+        JSON.stringify(godown.suitableCargoTypes),
+        godown.availableStock,
+        godown.totalCapacity || null,
+        godown.status || 'operational',
+        JSON.stringify(godown)
+      );
+      return godown;
+    });
   }
 
   public updateGodownStock(godownId: string, decrementBy: number): Godown | null {
-    const godown = this.getGodownById(godownId);
-    if (!godown) return null;
-    const newStock = Math.max(0, godown.availableStock - decrementBy);
-    godown.availableStock = newStock;
-    return this.saveGodown(godown);
+    return this.safeQuery(() => {
+      const godown = this.getGodownById(godownId);
+      if (!godown) return null;
+      const newStock = Math.max(0, godown.availableStock - decrementBy);
+      godown.availableStock = newStock;
+      return this.saveGodown(godown);
+    });
   }
 
   // ── Idempotency Management ──────────────────────────────────────────────────

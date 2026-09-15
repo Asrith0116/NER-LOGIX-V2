@@ -1,23 +1,22 @@
-import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/store/appStore';
 import { useNetworkStore } from '@/store/networkStore';
 import { useAuthStore } from '@/store/authStore';
+import { useCurrentDriver } from '@/hooks/useCurrentDriver';
 import { useNavigate } from 'react-router-dom';
 import { DriverVehicleSelector } from '@/components/ui/DriverVehicleSelector';
+import { BrandLogo } from '@/components/ui/BrandLogo';
 import {
   Wifi,
   WifiOff,
   RefreshCw,
   ChevronRight,
-  ChevronDown,
   Truck,
   Activity,
   ShieldCheck,
   Warehouse,
   AlertTriangle,
-  Check,
   LogOut,
 } from 'lucide-react';
 import type { NetworkStatus, UserRole } from '@/types';
@@ -30,9 +29,9 @@ function NetworkIndicator({
   onToggle: () => void;
 }) {
   const config = {
-    online: { icon: <Wifi className="w-3.5 h-3.5" />, label: 'Network Connected', color: 'text-[#16a34a] bg-[#f0fdf4] border-[#bbf7d0]' },
-    offline: { icon: <WifiOff className="w-3.5 h-3.5" />, label: 'Offline Mode (Local IDB)', color: 'text-[#dc2626] bg-[#fef2f2] border-[#fecaca]' },
-    syncing: { icon: <RefreshCw className="w-3.5 h-3.5 animate-spin" />, label: 'Syncing Queue...', color: 'text-[#d97706] bg-[#fffbeb] border-[#fde68a]' },
+    online: { icon: <Wifi className="w-3.5 h-3.5" />, label: 'Network Connected', color: 'text-emerald-700 bg-emerald-50/90 border-emerald-200/80' },
+    offline: { icon: <WifiOff className="w-3.5 h-3.5" />, label: 'Offline Mode (Local IDB)', color: 'text-rose-700 bg-rose-50/90 border-rose-200/80' },
+    syncing: { icon: <RefreshCw className="w-3.5 h-3.5 animate-spin" />, label: 'Syncing Queue...', color: 'text-amber-700 bg-amber-50/90 border-amber-200/80' },
   };
   const cfg = config[status];
 
@@ -40,7 +39,7 @@ function NetworkIndicator({
     <button
       onClick={onToggle}
       className={cn(
-        'flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shadow-2xs',
+        'flex items-center gap-1.5 h-8.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shadow-2xs hover:opacity-90 active:scale-[0.98]',
         cfg.color
       )}
       title="Toggle Network Simulation (Online / Offline IDB cache)"
@@ -57,40 +56,17 @@ interface TopBarProps {
 
 export function TopBar({ className }: TopBarProps) {
   const role = useAppStore((state) => state.role);
-  const setRole = useAppStore((state) => state.setRole);
   const networkStatus = useAppStore((state) => state.networkStatus);
   const setNetworkStatus = useAppStore((state) => state.setNetworkStatus);
   const toggleSidebar = useAppStore((state) => state.toggleSidebar);
   const backendStatus = useAppStore((state) => state.backendStatus);
   const checkBackendConnection = useAppStore((state) => state.checkBackendConnection);
 
-  const { user, login, logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const currentDriver = useCurrentDriver();
 
   const activeVehicles = useNetworkStore((state) => state.activeVehicles);
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setMenuOpen(false);
-      }
-    }
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside, true);
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside, true);
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-    }
-  }, [menuOpen]);
 
   const roleConfigs: Record<UserRole, {
     title: string;
@@ -106,8 +82,8 @@ export function TopBar({ className }: TopBarProps) {
       roleName: 'Driver / Field Operator',
       subtitle: 'Field Operations',
       description: 'Journey safety & field reporting',
-      icon: <Truck className="w-3.5 h-3.5 text-[#2563eb]" />,
-      badgeBg: 'bg-[#eff6ff] text-[#1e40af] border-[#bfdbfe]',
+      icon: <Truck className="w-3.5 h-3.5 text-blue-600" />,
+      badgeBg: 'bg-blue-50/90 text-blue-700 border-blue-200/80 shadow-2xs',
       path: '/driver',
     },
     dispatcher: {
@@ -115,8 +91,8 @@ export function TopBar({ className }: TopBarProps) {
       roleName: 'Fleet Dispatcher',
       subtitle: `${activeVehicles.length} Transports Active`,
       description: 'Fleet monitoring & response',
-      icon: <Activity className="w-3.5 h-3.5 text-[#c2410c]" />,
-      badgeBg: 'bg-[#fff7ed] text-[#9a3412] border-[#fed7aa]',
+      icon: <Activity className="w-3.5 h-3.5 text-emerald-600" />,
+      badgeBg: 'bg-emerald-50/90 text-emerald-700 border-emerald-200/80 shadow-2xs',
       path: '/dispatcher',
     },
     sdma: {
@@ -124,8 +100,8 @@ export function TopBar({ className }: TopBarProps) {
       roleName: 'SDMA / Govt Authority',
       subtitle: 'Disaster Management Authority',
       description: 'Verification & road status',
-      icon: <ShieldCheck className="w-3.5 h-3.5 text-[#16a34a]" />,
-      badgeBg: 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]',
+      icon: <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />,
+      badgeBg: 'bg-purple-50/90 text-purple-700 border-purple-200/80 shadow-2xs',
       path: '/sdma',
     },
     contractor: {
@@ -133,8 +109,8 @@ export function TopBar({ className }: TopBarProps) {
       roleName: 'Contractor / Supply Operator',
       subtitle: 'Godown & Relief Buffer',
       description: 'Emergency supply operations',
-      icon: <Warehouse className="w-3.5 h-3.5 text-[#86198f]" />,
-      badgeBg: 'bg-[#fdf4ff] text-[#86198f] border-[#f5d0fe]',
+      icon: <Warehouse className="w-3.5 h-3.5 text-amber-600" />,
+      badgeBg: 'bg-amber-50/90 text-amber-700 border-amber-200/80 shadow-2xs',
       path: '/contractor',
     },
   };
@@ -158,27 +134,6 @@ export function TopBar({ className }: TopBarProps) {
     }
   };
 
-  const handleSelectRole = async (r: UserRole, targetPath: string) => {
-    setRole(r);
-    setMenuOpen(false);
-    if (!user || user.role !== r) {
-      const emailMap: Record<UserRole, string> = {
-        driver: 'driver@nerlogix.in',
-        dispatcher: 'dispatcher@nerlogix.in',
-        sdma: 'sdma@nerlogix.in',
-        contractor: 'contractor@nerlogix.in',
-      };
-      const pwdMap: Record<UserRole, string> = {
-        driver: 'driver123',
-        dispatcher: 'dispatch123',
-        sdma: 'sdma123',
-        contractor: 'contractor123',
-      };
-      await login(emailMap[r], pwdMap[r]);
-    }
-    navigate(targetPath);
-  };
-
   const handleSignOut = () => {
     logout();
     navigate('/login');
@@ -187,15 +142,15 @@ export function TopBar({ className }: TopBarProps) {
   return (
     <header
       className={cn(
-        'relative z-50 h-13 bg-white border-b border-[#e4e4e3] flex items-center px-4 gap-3 shrink-0 select-none',
-        'shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]',
+        'relative z-50 h-14 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex items-center px-4 sm:px-5 gap-3 shrink-0 select-none',
+        'shadow-[0_4px_20px_-4px_rgba(15,23,42,0.03)]',
         className
       )}
     >
       {/* Hamburger */}
       <button
         onClick={toggleSidebar}
-        className="text-[#8a8a87] hover:text-[#1a1a19] transition-colors p-1.5 rounded-md hover:bg-[#f4f4f3]"
+        className="text-slate-500 hover:text-slate-900 transition-colors p-2 rounded-xl hover:bg-slate-100 cursor-pointer"
         aria-label="Toggle navigation menu"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -206,32 +161,19 @@ export function TopBar({ className }: TopBarProps) {
       </button>
 
       {/* Brand Identity */}
-      <div className="flex items-center gap-2">
-        <div className="w-6.5 h-6.5 bg-[#1a1a19] rounded-md flex items-center justify-center shadow-xs">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-          </svg>
-        </div>
-        <span className="text-sm font-bold text-[#1a1a19] tracking-tight">NER-LOGIX</span>
-      </div>
+      <BrandLogo size="md" onClick={() => navigate('/')} className="cursor-pointer" />
 
-      <div className="hidden sm:flex items-center text-[#c4c4c2]">
+      <div className="hidden sm:flex items-center text-slate-300">
         <ChevronRight className="w-3.5 h-3.5" />
       </div>
 
-      {/* Role Context & Secondary Workspace Switcher */}
-      <div className="relative shrink-0" ref={menuRef}>
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
+      {/* Role Context Display (Static Role Indicator) */}
+      <div className="shrink-0">
+        <div
           className={cn(
-            'flex items-center gap-2 h-8 px-2.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shadow-2xs',
-            currentWorkspace.badgeBg,
-            'hover:opacity-90'
+            'flex items-center gap-2 h-8.5 px-3 rounded-xl border text-xs font-semibold whitespace-nowrap shadow-2xs',
+            currentWorkspace.badgeBg
           )}
-          title="Switch operational workspace"
         >
           {currentWorkspace.icon}
           <div className="flex items-center gap-1.5 min-w-0">
@@ -240,71 +182,15 @@ export function TopBar({ className }: TopBarProps) {
               · {currentWorkspace.subtitle}
             </span>
           </div>
-          <ChevronDown className={cn('w-3.5 h-3.5 opacity-60 transition-transform ml-0.5 shrink-0', menuOpen && 'rotate-180')} />
-        </button>
-
-        {/* Floating Switcher Dropdown */}
-        <AnimatePresence>
-          {menuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 4, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.98 }}
-              transition={{ duration: 0.12 }}
-              role="menu"
-              aria-label="Workspace Switcher"
-              className="absolute left-0 top-full mt-1.5 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-xl border border-[#e4e4e3] shadow-lg py-1 z-50 overflow-hidden"
-            >
-              <div className="px-3.5 py-2 bg-[#fafaf9] border-b border-[#f4f4f3]">
-                <p className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider">
-                  Operational Workspace
-                </p>
-              </div>
-
-              <div className="py-1">
-                {(Object.keys(roleConfigs) as UserRole[]).map((roleKey) => {
-                  const item = roleConfigs[roleKey];
-                  const isSelected = role === roleKey;
-                  return (
-                    <button
-                      key={roleKey}
-                      role="menuitem"
-                      onClick={() => handleSelectRole(roleKey, item.path)}
-                      className={cn(
-                        'w-full flex items-start gap-2.5 px-3.5 py-2 text-left transition-colors cursor-pointer',
-                        isSelected ? 'bg-[#f4f4f3]' : 'hover:bg-[#fafaf9]'
-                      )}
-                    >
-                      <div className={cn(
-                        'mt-0.5 shrink-0 p-1.5 rounded-md border shadow-2xs',
-                        isSelected ? 'bg-white border-[#d4d4d2]' : 'bg-[#fafaf9] border-[#e4e4e3]'
-                      )}>
-                        {item.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className={cn('text-xs font-semibold', isSelected ? 'text-[#1a1a19]' : 'text-[#2a2a28]')}>
-                            {item.roleName}
-                          </span>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-[#16a34a] shrink-0" />}
-                        </div>
-                        <p className="text-[11px] text-[#71717a] leading-tight mt-0.5">
-                          {item.description}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        </div>
       </div>
 
-      {/* Driver Workspace Vehicle Selector */}
+      {/* Driver Workspace Single Vehicle Identity Selector */}
       {role === 'driver' && (
         <div className="flex items-center gap-2">
-          <div className="hidden sm:block h-4 w-px bg-[#e4e4e3]" />
+          <div className="hidden sm:flex items-center text-slate-300">
+            <ChevronRight className="w-3.5 h-3.5" />
+          </div>
           <DriverVehicleSelector id="topbar-driver-vehicle-selector" compact />
         </div>
       )}
@@ -314,8 +200,8 @@ export function TopBar({ className }: TopBarProps) {
       {/* Global Status Bar */}
       <div className="flex items-center gap-2.5">
         {affectedCount > 0 && (
-          <div className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-[#fef2f2] border border-[#fecaca] text-[#dc2626] text-xs font-semibold whitespace-nowrap shadow-2xs">
-            <AlertTriangle className="w-3.5 h-3.5" />
+          <div className="hidden sm:flex items-center gap-1.5 h-8.5 px-3 rounded-xl bg-rose-50/90 border border-rose-200/80 text-rose-700 text-xs font-semibold whitespace-nowrap shadow-2xs">
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
             <span>{affectedCount} Disruption Impact{affectedCount > 1 ? 's' : ''}</span>
           </div>
         )}
@@ -324,12 +210,12 @@ export function TopBar({ className }: TopBarProps) {
         <button
           onClick={() => checkBackendConnection()}
           className={cn(
-            'hidden lg:flex items-center gap-1.5 h-8 px-2.5 rounded-md text-[11px] font-medium border transition-all cursor-pointer shadow-2xs whitespace-nowrap',
+            'hidden lg:flex items-center gap-1.5 h-8.5 px-3 rounded-xl text-[11px] font-medium border transition-all cursor-pointer shadow-2xs whitespace-nowrap',
             backendStatus === 'connected'
-              ? 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]'
+              ? 'bg-emerald-50/90 text-emerald-800 border-emerald-200/80'
               : backendStatus === 'checking'
-              ? 'bg-[#fffbeb] text-[#92400e] border-[#fde68a]'
-              : 'bg-[#fafaf9] text-[#52525b] border-[#e4e4e7]'
+              ? 'bg-amber-50/90 text-amber-800 border-amber-200/80'
+              : 'bg-slate-50 text-slate-600 border-slate-200'
           )}
           title="FastAPI Backend Status (Click to test connectivity)"
         >
@@ -337,10 +223,10 @@ export function TopBar({ className }: TopBarProps) {
             className={cn(
               'w-1.5 h-1.5 rounded-full shrink-0',
               backendStatus === 'connected'
-                ? 'bg-[#16a34a] animate-pulse'
+                ? 'bg-emerald-500 animate-pulse'
                 : backendStatus === 'checking'
-                ? 'bg-[#d97706] animate-spin'
-                : 'bg-[#a1a1aa]'
+                ? 'bg-amber-500 animate-spin'
+                : 'bg-slate-400'
             )}
           />
           <span>
@@ -366,20 +252,26 @@ export function TopBar({ className }: TopBarProps) {
         </AnimatePresence>
 
         {/* User Authenticated Profile & Logout */}
-        {user && (
-          <div className="flex items-center gap-2 pl-2 border-l border-[#e4e4e3]">
+        {(user || role === 'driver') && (
+          <div className="flex items-center gap-2.5 pl-2.5 border-l border-slate-200">
             <div className="hidden md:flex flex-col text-right">
-              <span className="text-xs font-bold text-neutral-900 leading-tight">{user.name}</span>
-              <span className="text-[10px] text-neutral-500 font-mono leading-tight">{user.role.toUpperCase()}</span>
+              <span className="text-xs font-bold text-slate-900 leading-tight">
+                {role === 'driver' ? currentDriver.driverName : user?.name}
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono leading-tight">
+                {role === 'driver' ? `DRIVER · ${currentDriver.vehicleId}` : user?.role.toUpperCase()}
+              </span>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-1 h-8 px-2 rounded-md text-xs font-semibold text-neutral-700 hover:text-red-600 hover:bg-red-50 border border-neutral-200 transition-colors cursor-pointer"
-              title="Sign Out of Session"
-            >
-              <LogOut className="w-3.5 h-3.5 text-neutral-500 hover:text-red-600" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </button>
+            {user && (
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-1.5 h-8.5 px-3 rounded-xl text-xs font-semibold text-slate-700 hover:text-rose-700 hover:bg-rose-50/80 border border-slate-200/80 hover:border-rose-200 transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
+                title="Sign Out of Session"
+              >
+                <LogOut className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-600" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            )}
           </div>
         )}
       </div>

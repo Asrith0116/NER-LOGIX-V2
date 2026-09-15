@@ -13,9 +13,6 @@ import {
   PlayCircle,
   ChevronUp,
   ChevronDown,
-  ShieldCheck,
-  Truck,
-  Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useNavigate } from 'react-router-dom';
@@ -75,7 +72,7 @@ export function DemoSimulationBar() {
   const [isOpen, setIsOpen] = useState(false);
   const [pitchStep, setPitchStep] = useState<number | null>(null);
 
-  const { networkStatus, setNetworkStatus, setRole, role } = useAppStore();
+  const { networkStatus, setNetworkStatus, setRole } = useAppStore();
   const disruptions = useNetworkStore((state) => state.disruptions);
   const addIncident = useNetworkStore((state) => state.addIncident);
   const verifyIncident = useNetworkStore((state) => state.verifyIncident);
@@ -245,82 +242,82 @@ export function DemoSimulationBar() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="mb-2 w-80 bg-white rounded-xl shadow-2xl border border-[#e4e4e3] p-3 text-xs divide-y divide-[#f0f0ef]"
+            className="mb-3 w-84 bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_20px_50px_-12px_rgba(15,23,42,0.25)] border border-slate-200/90 p-4 text-xs divide-y divide-slate-100"
           >
             {/* Header */}
-            <div className="pb-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 font-bold text-[#1a1a19]">
-                <Sliders className="w-4 h-4 text-[#2563eb]" />
+            <div className="pb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-slate-900">
+                <Sliders className="w-4 h-4 text-blue-600" />
                 <span>NER-LOGIX Jury Test Controls</span>
               </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#eff6ff] text-[#2563eb] font-bold">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200/60 shadow-2xs">
                 SIH26002
               </span>
             </div>
 
             {/* Guided Pitch Walkthrough */}
-            <div className="py-2.5 space-y-1.5">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-[#8a8a87]">
+            <div className="py-3 space-y-2">
+              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
                 3-Minute Evaluator Storyline
               </p>
               <Button
                 variant="primary"
                 size="sm"
-                className="w-full bg-[#1e293b] hover:bg-[#0f172a] text-white flex items-center justify-center gap-2"
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center gap-2 rounded-xl shadow-xs"
                 onClick={() => executeStage(0)}
               >
-                <PlayCircle className="w-3.5 h-3.5 text-[#38bdf8]" />
+                <PlayCircle className="w-4 h-4 text-cyan-400" />
                 <span>Launch Interactive Pitch Story</span>
               </Button>
             </div>
 
             {/* Manual Simulation Triggers */}
-            <div className="py-2.5 space-y-2">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-[#8a8a87]">
+            <div className="py-3 space-y-2">
+              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
                 Live Disruption & Environment Injections
               </p>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-[11px] h-8 justify-start px-2 hover:bg-[#fef2f2] hover:text-[#dc2626] border-[#fca5a5]"
+                  className="text-[11px] h-8.5 justify-start px-2.5 hover:bg-rose-50/90 hover:text-rose-700 border-rose-200/80 rounded-xl"
                   onClick={handleInjectLandslide}
                   title="Injects a major slope failure on NH-2 Mao Gate and immediately notifies fleet"
                 >
-                  <AlertTriangle className="w-3.5 h-3.5 text-[#dc2626] shrink-0" />
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                   <span className="truncate">Inject Landslide</span>
                 </Button>
 
                 <Button
                   size="sm"
                   variant="outline"
-                  className={`text-[11px] h-8 justify-start px-2 border transition-all ${
+                  className={`text-[11px] h-8.5 justify-start px-2.5 border rounded-xl transition-all ${
                     weatherSpikeActive
-                      ? 'bg-[#2563eb] text-white border-[#1d4ed8] hover:bg-[#1d4ed8]'
-                      : 'hover:bg-[#eff6ff] hover:text-[#2563eb] border-[#bfdbfe]'
+                      ? 'bg-blue-600 text-white border-blue-700 hover:bg-blue-700'
+                      : 'hover:bg-blue-50/90 hover:text-blue-700 border-blue-200/80'
                   }`}
                   onClick={handleSimulateWeatherSpike}
                   title="Simulates 45mm/h cloudburst over Karbi Anglong / Doyyang corridor"
                 >
-                  <CloudRain className={`w-3.5 h-3.5 shrink-0 ${weatherSpikeActive ? 'text-white' : 'text-[#2563eb]'}`} />
+                  <CloudRain className={`w-3.5 h-3.5 shrink-0 ${weatherSpikeActive ? 'text-white' : 'text-blue-600'}`} />
                   <span className="truncate">{weatherSpikeActive ? 'Rain Active (45mm)' : 'Rainfall Spike'}</span>
                 </Button>
 
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-[11px] h-8 justify-start px-2 hover:bg-[#fff7ed] hover:text-[#c2410c] border-[#fed7aa]"
+                  className="text-[11px] h-8.5 justify-start px-2.5 hover:bg-amber-50/90 hover:text-amber-700 border-amber-200/80 rounded-xl"
                   onClick={handleTriggerCorridorCollapse}
                   title="Collapses all alternative passes and routes heavy vehicle to nearest emergency godown"
                 >
-                  <Warehouse className="w-3.5 h-3.5 text-[#c2410c] shrink-0" />
+                  <Warehouse className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   <span className="truncate">Corridor Collapse</span>
                 </Button>
 
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-[11px] h-8 justify-start px-2"
+                  className="text-[11px] h-8.5 justify-start px-2.5 rounded-xl border-slate-200"
                   onClick={() =>
                     setNetworkStatus(networkStatus === 'online' ? 'offline' : 'online')
                   }
@@ -328,12 +325,12 @@ export function DemoSimulationBar() {
                 >
                   {networkStatus === 'online' ? (
                     <>
-                      <WifiOff className="w-3.5 h-3.5 text-[#dc2626] shrink-0" />
+                      <WifiOff className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                       <span className="truncate">Kill Network</span>
                     </>
                   ) : (
                     <>
-                      <Wifi className="w-3.5 h-3.5 text-[#16a34a] shrink-0" />
+                      <Wifi className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       <span className="truncate">Restore 4G</span>
                     </>
                   )}
@@ -342,42 +339,12 @@ export function DemoSimulationBar() {
             </div>
 
             {/* Quick Role Switcher for Jury */}
-            <div className="py-2.5 space-y-1.5">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-[#8a8a87]">
-                Quick Workspace Switch
-              </p>
-              <div className="grid grid-cols-4 gap-1">
-                {[
-                  { r: 'driver' as const, label: 'Driver', path: '/driver', icon: <Truck className="w-3 h-3" /> },
-                  { r: 'dispatcher' as const, label: 'Ops', path: '/dispatcher', icon: <Activity className="w-3 h-3" /> },
-                  { r: 'sdma' as const, label: 'SDMA', path: '/sdma', icon: <ShieldCheck className="w-3 h-3" /> },
-                  { r: 'contractor' as const, label: 'Godown', path: '/contractor', icon: <Warehouse className="w-3 h-3" /> },
-                ].map((item) => (
-                  <button
-                    key={item.r}
-                    onClick={() => {
-                      setRole(item.r);
-                      navigate(item.path);
-                    }}
-                    className={`flex flex-col items-center justify-center p-1.5 rounded-lg border text-[10px] font-semibold transition-all cursor-pointer ${
-                      role === item.r
-                        ? 'bg-[#1a1a19] text-white border-[#1a1a19]'
-                        : 'bg-[#fafaf9] hover:bg-[#f4f4f3] text-[#5a5a57] border-[#e4e4e3]'
-                    }`}
-                  >
-                    {item.icon}
-                    <span className="mt-0.5">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Reset */}
-            <div className="pt-2 flex items-center justify-between text-[11px] text-[#8a8a87]">
+            <div className="pt-3 flex items-center justify-between text-[11px] text-slate-400">
               <span>Active Disruptions: {disruptions.length}</span>
               <button
                 onClick={handleResetDemo}
-                className="flex items-center gap-1 text-[#dc2626] hover:underline cursor-pointer font-medium"
+                className="flex items-center gap-1.5 text-rose-600 hover:text-rose-700 hover:underline cursor-pointer font-semibold"
               >
                 <RotateCcw className="w-3 h-3" />
                 Reset System
@@ -390,11 +357,11 @@ export function DemoSimulationBar() {
       {/* Toggle Pill Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3.5 py-2 bg-[#1a1a19] text-white rounded-full shadow-xl hover:bg-[#2a2a29] transition-all text-xs font-semibold cursor-pointer border border-white/15"
+        className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-950/90 backdrop-blur-md text-white rounded-full shadow-[0_10px_30px_-4px_rgba(15,23,42,0.3)] hover:bg-slate-900 transition-all text-xs font-semibold cursor-pointer border border-white/20 active:scale-95"
       >
-        <Sliders className="w-3.5 h-3.5 text-[#38bdf8]" />
+        <Sliders className="w-3.5 h-3.5 text-cyan-400" />
         <span>SIH Jury Demo Panel</span>
-        {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+        {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronUp className="w-3.5 h-3.5 text-slate-400" />}
       </button>
     </div>
   );

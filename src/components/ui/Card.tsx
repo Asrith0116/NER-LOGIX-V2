@@ -13,10 +13,10 @@ export function Card({ className, children, onClick, hoverable = false, selected
     <div
       onClick={onClick}
       className={cn(
-        'bg-white border border-[#e4e4e3] rounded-lg',
-        'shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_1px_2px_-1px_rgba(0,0,0,0.04)]',
-        hoverable && 'cursor-pointer transition-shadow duration-150 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.08)]',
-        selected && 'border-[#2563eb] ring-1 ring-[#2563eb] ring-offset-0',
+        'bg-white/95 backdrop-blur-[2px] border border-slate-200/80 rounded-2xl',
+        'shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05),0_1px_3px_0_rgba(15,23,42,0.03)]',
+        hoverable && 'cursor-pointer transition-all duration-200 hover:shadow-[0_12px_28px_-6px_rgba(15,23,42,0.1)] hover:border-slate-300 hover:-translate-y-0.5',
+        selected && 'border-blue-600 ring-2 ring-blue-500/20 shadow-md',
         className,
       )}
     >
@@ -32,7 +32,7 @@ interface CardHeaderProps {
 
 export function CardHeader({ className, children }: CardHeaderProps) {
   return (
-    <div className={cn('px-4 py-3 border-b border-[#e4e4e3]', className)}>
+    <div className={cn('px-5 py-3.5 border-b border-slate-100', className)}>
       {children}
     </div>
   );
@@ -45,7 +45,7 @@ interface CardContentProps {
 
 export function CardContent({ className, children }: CardContentProps) {
   return (
-    <div className={cn('px-4 py-3', className)}>
+    <div className={cn('px-5 py-4', className)}>
       {children}
     </div>
   );
@@ -58,7 +58,7 @@ interface CardFooterProps {
 
 export function CardFooter({ className, children }: CardFooterProps) {
   return (
-    <div className={cn('px-4 py-2.5 border-t border-[#e4e4e3] bg-[#fafaf9] rounded-b-lg', className)}>
+    <div className={cn('px-5 py-3 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl', className)}>
       {children}
     </div>
   );

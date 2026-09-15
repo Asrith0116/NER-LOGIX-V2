@@ -174,57 +174,57 @@ export function UnifiedMapContainer({
         <div className="relative">
           <button
             onClick={() => setLayersOpen(!layersOpen)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-md rounded-lg border border-[#d4d4d2] text-xs font-semibold text-[#1a1a19] shadow-sm hover:bg-white transition-all cursor-pointer"
+            className="flex items-center gap-2 px-3 py-2 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/90 text-xs font-semibold text-slate-800 shadow-[0_4px_16px_-2px_rgba(15,23,42,0.08)] hover:bg-white transition-all cursor-pointer active:scale-95"
           >
-            <Layers className="w-3.5 h-3.5 text-[#2563eb]" />
+            <Layers className="w-3.5 h-3.5 text-blue-600" />
             <span>Map Layers</span>
           </button>
 
           {layersOpen && (
-            <div className="absolute top-10 left-0 bg-white rounded-xl border border-[#d4d4d2] shadow-xl p-2 w-52 space-y-1 text-xs z-[1000] animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute top-11 left-0 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-[0_12px_36px_-4px_rgba(15,23,42,0.15)] p-2 w-56 space-y-1 text-xs z-[1000] animate-in fade-in zoom-in-95 duration-150">
               <button
                 onClick={() => toggleLayer('routes')}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-[#f4f4f3] text-[#1a1a19] transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-slate-100/80 text-slate-800 transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-2">
-                  <RouteIcon className="w-3.5 h-3.5 text-[#2563eb]" />
+                  <RouteIcon className="w-3.5 h-3.5 text-blue-600" />
                   Corridor Candidates
                 </span>
-                {visibility.routes ? <Eye className="w-3.5 h-3.5 text-[#16a34a]" /> : <EyeOff className="w-3.5 h-3.5 text-[#8a8a87]" />}
+                {visibility.routes ? <Eye className="w-3.5 h-3.5 text-emerald-600" /> : <EyeOff className="w-3.5 h-3.5 text-slate-400" />}
               </button>
 
               <button
                 onClick={() => toggleLayer('vehicles')}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-[#f4f4f3] text-[#1a1a19] transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-slate-100/80 text-slate-800 transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-2">
-                  <Truck className="w-3.5 h-3.5 text-[#2563eb]" />
+                  <Truck className="w-3.5 h-3.5 text-blue-600" />
                   Active Transports
                 </span>
-                {visibility.vehicles ? <Eye className="w-3.5 h-3.5 text-[#16a34a]" /> : <EyeOff className="w-3.5 h-3.5 text-[#8a8a87]" />}
+                {visibility.vehicles ? <Eye className="w-3.5 h-3.5 text-emerald-600" /> : <EyeOff className="w-3.5 h-3.5 text-slate-400" />}
               </button>
 
               <button
                 onClick={() => toggleLayer('incidents')}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-[#f4f4f3] text-[#1a1a19] transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-slate-100/80 text-slate-800 transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 text-[#dc2626]" />
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
                   Hazard Disruption Pins
                 </span>
-                {visibility.incidents ? <Eye className="w-3.5 h-3.5 text-[#16a34a]" /> : <EyeOff className="w-3.5 h-3.5 text-[#8a8a87]" />}
+                {visibility.incidents ? <Eye className="w-3.5 h-3.5 text-emerald-600" /> : <EyeOff className="w-3.5 h-3.5 text-slate-400" />}
               </button>
 
               {godowns.length > 0 && (
                 <button
                   onClick={() => toggleLayer('godowns')}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-[#f4f4f3] text-[#1a1a19] transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-slate-100/80 text-slate-800 transition-colors cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <Warehouse className="w-3.5 h-3.5 text-[#ea580c]" />
+                    <Warehouse className="w-3.5 h-3.5 text-amber-600" />
                     Emergency Relief Godowns
                   </span>
-                  {visibility.godowns ? <Eye className="w-3.5 h-3.5 text-[#16a34a]" /> : <EyeOff className="w-3.5 h-3.5 text-[#8a8a87]" />}
+                  {visibility.godowns ? <Eye className="w-3.5 h-3.5 text-emerald-600" /> : <EyeOff className="w-3.5 h-3.5 text-slate-400" />}
                 </button>
               )}
             </div>
@@ -234,7 +234,7 @@ export function UnifiedMapContainer({
         {/* Recenter Button */}
         <button
           onClick={handleRecenter}
-          className="p-1.5 bg-white/95 backdrop-blur-md rounded-lg border border-[#d4d4d2] text-[#5a5a57] hover:text-[#1a1a19] shadow-sm hover:bg-white transition-colors cursor-pointer"
+          className="p-2 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/90 text-slate-600 hover:text-slate-900 shadow-[0_4px_16px_-2px_rgba(15,23,42,0.08)] hover:bg-white transition-all cursor-pointer active:scale-95"
           title="Reset Camera to Regional Corridor Overview"
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -245,20 +245,20 @@ export function UnifiedMapContainer({
       <div className="absolute top-3 right-3 z-[900]">
         <div
           className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1 bg-white/95 backdrop-blur-md rounded-lg border text-[11px] font-semibold shadow-sm transition-all',
+            'flex items-center gap-2 px-3 py-1.5 bg-white/95 backdrop-blur-md rounded-xl border text-[11px] font-semibold shadow-[0_4px_16px_-2px_rgba(15,23,42,0.08)] transition-all',
             providerState === 'google_live'
-              ? 'border-[#bbf7d0] text-[#166534]'
-              : 'border-[#e4e4e3] text-[#52525b]'
+              ? 'border-emerald-200/90 text-emerald-800'
+              : 'border-slate-200/90 text-slate-600'
           )}
         >
           <span
             className={cn(
               'w-2 h-2 rounded-full shrink-0',
               providerState === 'google_live'
-                ? 'bg-[#16a34a] animate-pulse'
+                ? 'bg-emerald-500 animate-pulse'
                 : providerState === 'loading'
-                ? 'bg-[#d97706] animate-ping'
-                : 'bg-[#71717a]'
+                ? 'bg-amber-500 animate-ping'
+                : 'bg-slate-400'
             )}
           />
           <span>

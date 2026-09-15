@@ -105,26 +105,26 @@ export function DispatcherLogistics() {
     switch (p) {
       case 'critical':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5] flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#dc2626] animate-pulse" />
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1.5 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
             P1 CRITICAL
           </span>
         );
       case 'high':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fffbeb] text-[#d97706] border border-[#fde68a]">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
             P2 HIGH
           </span>
         );
       case 'normal':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
             NORMAL
           </span>
         );
       default:
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#f4f4f3] text-[#5a5a57] border border-[#e4e4e3]">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 shadow-2xs">
             STANDARD
           </span>
         );
@@ -134,49 +134,49 @@ export function DispatcherLogistics() {
   const getContinuityStatusBadge = (s: Shipment) => {
     if (s.currentStatus === 'relief_buffered' || s.continuityStatus === 'relief_secured') {
       return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0] flex items-center gap-1">
-          <Warehouse className="w-3 h-3 text-[#16a34a]" />
+        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
+          <Warehouse className="w-3 h-3 text-emerald-600" />
           EMERGENCY STORAGE BUFFER
         </span>
       );
     }
     if (s.currentStatus === 'rerouted' || s.continuityStatus === 'rerouting') {
       return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe] flex items-center gap-1">
-          <RotateCw className="w-3 h-3 text-[#2563eb]" />
+        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5 shadow-2xs">
+          <RotateCw className="w-3 h-3 text-blue-600" />
           DETOURED (CONTINUITY SECURED)
         </span>
       );
     }
     if (s.currentStatus === 'disrupted' || s.affected || s.continuityStatus === 'at_risk' || s.continuityStatus === 'escalated') {
       return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5] flex items-center gap-1">
-          <AlertTriangle className="w-3 h-3 text-[#dc2626]" />
+        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1.5 shadow-2xs">
+          <AlertTriangle className="w-3 h-3 text-rose-600" />
           DISRUPTED BY CORRIDOR HAZARD
         </span>
       );
     }
     return (
-      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0] flex items-center gap-1">
-        <CheckCircle2 className="w-3 h-3 text-[#16a34a]" />
+      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
+        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
         ON TRACK
       </span>
     );
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#f8f8f7] overflow-hidden" id="dispatcher-logistics-page">
+    <div className="h-full flex flex-col bg-[#f4f6f8] overflow-hidden" id="dispatcher-logistics-page">
       {/* Header */}
-      <div className="px-6 py-3.5 bg-white border-b border-[#e4e4e3] shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
+      <div className="px-6 py-4 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shrink-0 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.03)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#fff7ed] text-[#c2410c] border border-[#fed7aa]">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
                 Supply Continuity Workspace
               </span>
-              <span className="text-xs text-[#8a8a87]">· Regional Freight & Emergency Godowns</span>
+              <span className="text-xs text-slate-400 font-medium">· Regional Freight & Emergency Godowns</span>
             </div>
-            <h1 className="text-lg font-bold text-[#1a1a19] tracking-tight mt-0.5">
+            <h1 className="text-lg font-bold text-slate-900 tracking-tight mt-1">
               Logistics Intelligence & Supply Continuity
             </h1>
           </div>
@@ -186,7 +186,8 @@ export function DispatcherLogistics() {
               size="sm"
               variant="outline"
               onClick={() => navigate('/contractor')}
-              iconLeft={<Warehouse className="w-3.5 h-3.5 text-[#86198f]" />}
+              iconLeft={<Warehouse className="w-3.5 h-3.5 text-purple-600" />}
+              className="rounded-xl shadow-2xs font-semibold text-xs"
             >
               Open Contractor Operations
             </Button>
@@ -195,6 +196,7 @@ export function DispatcherLogistics() {
               variant="primary"
               onClick={() => navigate('/dispatcher/fleet')}
               iconLeft={<Truck className="w-3.5 h-3.5" />}
+              className="rounded-xl shadow-2xs font-semibold text-xs"
             >
               Fleet Command
             </Button>
@@ -208,40 +210,40 @@ export function DispatcherLogistics() {
             value={totalShipments.toString().padStart(2, '0')}
             subtext={`${onTrackShipments.length} on track, ${reroutedShipments.length} detoured`}
             riskLevel="low"
-            icon={<Package className="w-4 h-4 text-[#2563eb]" />}
+            icon={<Package className="w-4 h-4 text-blue-600" />}
           />
           <MetricCard
             label="Disrupted Shipments"
             value={disruptedShipments.length.toString().padStart(2, '0')}
             subtext={disruptedShipments.length > 0 ? 'Requires route or godown action' : 'Zero corridor disruption'}
             riskLevel={disruptedShipments.length > 0 ? 'high' : 'low'}
-            icon={<AlertTriangle className="w-4 h-4 text-[#dc2626]" />}
+            icon={<AlertTriangle className="w-4 h-4 text-rose-600" />}
           />
           <MetricCard
             label="Buffer Storage Available"
             value={`${availableBufferStock} MT`}
             subtext={`Across ${godowns.length} regional relief godowns`}
             riskLevel="moderate"
-            icon={<Warehouse className="w-4 h-4 text-[#16a34a]" />}
+            icon={<Warehouse className="w-4 h-4 text-emerald-600" />}
           />
           <MetricCard
             label="Emergency Pickups"
             value={pickupRequests.length.toString().padStart(2, '0')}
             subtext={`${pickupRequests.filter((p) => p.status === 'dispatched').length} approved & dispatched`}
             riskLevel={pickupRequests.length > 0 ? 'high' : 'low'}
-            icon={<Send className="w-4 h-4 text-[#86198f]" />}
+            icon={<Send className="w-4 h-4 text-purple-600" />}
           />
         </div>
       </div>
 
       {/* Action Feedback Banner */}
       {actionFeedback && (
-        <div className="mx-6 mt-3 p-3 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] text-xs font-semibold text-[#166534] flex items-center justify-between shadow-xs">
+        <div className="mx-6 mt-3 p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200 text-xs font-semibold text-emerald-800 flex items-center justify-between shadow-2xs">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-[#16a34a] shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{actionFeedback}</span>
           </div>
-          <button onClick={() => setActionFeedback(null)} className="text-[#166534] hover:text-[#14532d]">
+          <button onClick={() => setActionFeedback(null)} className="text-emerald-700 hover:text-emerald-900 cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -250,30 +252,30 @@ export function DispatcherLogistics() {
       {/* Main Grid: Shipments List + Side Inspection / Godown Network */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
         {/* Left: Filterable Shipments List */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-[#e4e4e3] bg-white overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200/80 bg-white overflow-hidden">
           {/* Filter Bar */}
-          <div className="p-3 bg-[#fafaf9] border-b border-[#e4e4e3] flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
+          <div className="p-3.5 bg-slate-50/80 backdrop-blur-xs border-b border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
             {/* Search Input */}
             <div className="relative w-full sm:w-72">
-              <Search className="w-3.5 h-3.5 text-[#8a8a87] absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search shipment ID, cargo, vehicle, route..."
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-[#e4e4e3] text-xs bg-white text-[#1a1a19] placeholder:text-[#8a8a87] focus:outline-none focus:border-[#2563eb]"
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 shadow-2xs transition-all"
               />
             </div>
 
             {/* Filter Buttons */}
-            <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+            <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
               {/* Status Filters */}
-              <div className="flex items-center gap-1 bg-[#f4f4f3] p-0.5 rounded-lg border border-[#e4e4e3] shrink-0">
+              <div className="flex items-center gap-1 bg-slate-200/60 p-1 rounded-xl shrink-0">
                 <button
                   onClick={() => setStatusFilter('all')}
                   className={cn(
-                    'px-2 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer',
-                    statusFilter === 'all' ? 'bg-white text-[#1a1a19] shadow-2xs' : 'text-[#5a5a57] hover:text-[#1a1a19]'
+                    'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer',
+                    statusFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   )}
                 >
                   All ({totalShipments})
@@ -281,10 +283,10 @@ export function DispatcherLogistics() {
                 <button
                   onClick={() => setStatusFilter('disrupted')}
                   className={cn(
-                    'px-2 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1',
+                    'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1',
                     statusFilter === 'disrupted'
-                      ? 'bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5] shadow-2xs'
-                      : 'text-[#dc2626] hover:bg-[#fee2e2]/60'
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs'
+                      : 'text-rose-600 hover:bg-rose-50/60'
                   )}
                 >
                   Disrupted ({disruptedShipments.length})
@@ -292,8 +294,8 @@ export function DispatcherLogistics() {
                 <button
                   onClick={() => setStatusFilter('detoured')}
                   className={cn(
-                    'px-2 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer',
-                    statusFilter === 'detoured' ? 'bg-white text-[#2563eb] shadow-2xs' : 'text-[#5a5a57] hover:text-[#1a1a19]'
+                    'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer',
+                    statusFilter === 'detoured' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   )}
                 >
                   Detoured ({reroutedShipments.length})
@@ -301,8 +303,8 @@ export function DispatcherLogistics() {
                 <button
                   onClick={() => setStatusFilter('buffered')}
                   className={cn(
-                    'px-2 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer',
-                    statusFilter === 'buffered' ? 'bg-white text-[#166534] shadow-2xs' : 'text-[#5a5a57] hover:text-[#1a1a19]'
+                    'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer',
+                    statusFilter === 'buffered' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   )}
                 >
                   Buffered ({bufferedShipments.length})
@@ -310,8 +312,8 @@ export function DispatcherLogistics() {
                 <button
                   onClick={() => setStatusFilter('on_track')}
                   className={cn(
-                    'px-2 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer',
-                    statusFilter === 'on_track' ? 'bg-white text-[#166534] shadow-2xs' : 'text-[#5a5a57] hover:text-[#1a1a19]'
+                    'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer',
+                    statusFilter === 'on_track' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   )}
                 >
                   On Track ({onTrackShipments.length})
@@ -319,12 +321,12 @@ export function DispatcherLogistics() {
               </div>
 
               {/* Priority Filters */}
-              <div className="flex items-center gap-1 bg-[#f4f4f3] p-0.5 rounded-lg border border-[#e4e4e3] shrink-0">
+              <div className="flex items-center gap-1 bg-slate-200/60 p-1 rounded-xl shrink-0">
                 <button
                   onClick={() => setPriorityFilter('all')}
                   className={cn(
-                    'px-2 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer',
-                    priorityFilter === 'all' ? 'bg-white text-[#1a1a19] shadow-2xs' : 'text-[#5a5a57] hover:text-[#1a1a19]'
+                    'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer',
+                    priorityFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   )}
                 >
                   Priority: All
@@ -332,8 +334,8 @@ export function DispatcherLogistics() {
                 <button
                   onClick={() => setPriorityFilter('critical')}
                   className={cn(
-                    'px-2 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer',
-                    priorityFilter === 'critical' ? 'bg-[#fef2f2] text-[#dc2626] shadow-2xs' : 'text-[#dc2626] hover:bg-[#fee2e2]/60'
+                    'px-2 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer',
+                    priorityFilter === 'critical' ? 'bg-rose-50 text-rose-700 shadow-2xs' : 'text-rose-600 hover:bg-rose-50/60'
                   )}
                 >
                   P1
@@ -341,8 +343,8 @@ export function DispatcherLogistics() {
                 <button
                   onClick={() => setPriorityFilter('high')}
                   className={cn(
-                    'px-2 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer',
-                    priorityFilter === 'high' ? 'bg-[#fffbeb] text-[#d97706] shadow-2xs' : 'text-[#d97706] hover:bg-[#fef3c7]/60'
+                    'px-2 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer',
+                    priorityFilter === 'high' ? 'bg-amber-50 text-amber-700 shadow-2xs' : 'text-amber-600 hover:bg-amber-50/60'
                   )}
                 >
                   P2
@@ -352,12 +354,12 @@ export function DispatcherLogistics() {
           </div>
 
           {/* Shipment Rows List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-[#f4f4f3] p-3 space-y-2.5">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {filteredShipments.length === 0 ? (
-              <div className="py-12 text-center">
-                <Package className="w-8 h-8 text-[#8a8a87] mx-auto mb-2 opacity-50" />
-                <p className="text-sm font-semibold text-[#1a1a19]">No consignments match your filter</p>
-                <p className="text-xs text-[#8a8a87] mt-1">Try resetting search or status filters</p>
+              <div className="py-16 text-center">
+                <Package className="w-10 h-10 text-slate-300 mx-auto mb-2.5" />
+                <p className="text-sm font-bold text-slate-800">No consignments match your filter</p>
+                <p className="text-xs text-slate-400 mt-1">Try resetting search or status filters</p>
               </div>
             ) : (
               filteredShipments.map((s) => {
@@ -370,27 +372,27 @@ export function DispatcherLogistics() {
                     key={s.id}
                     onClick={() => setSelectedShipment(s)}
                     className={cn(
-                      'p-3.5 rounded-xl border transition-all cursor-pointer select-none',
+                      'p-4 rounded-2xl border transition-all cursor-pointer select-none shadow-2xs',
                       isSelected
-                        ? 'border-[#2563eb] bg-[#eff6ff]/40 shadow-xs'
+                        ? 'border-blue-500 bg-blue-50/40 ring-2 ring-blue-100'
                         : isDisrupted
-                        ? 'border-[#fca5a5] bg-[#fff8f8] hover:border-[#f87171]'
-                        : 'border-[#e4e4e3] bg-white hover:border-[#d4d4d2] hover:bg-[#fafaf9]'
+                        ? 'border-rose-200 bg-rose-50/40 hover:border-rose-300'
+                        : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-xs'
                     )}
                   >
                     {/* Top Row: IDs, Priority, Continuity Badge */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-xs font-bold text-[#1a1a19] bg-[#f4f4f3] px-2 py-0.5 rounded border border-[#e4e4e3]">
+                        <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
                           {s.id}
                         </span>
-                        <span className="font-semibold text-xs text-[#1a1a19]">
+                        <span className="font-bold text-xs text-slate-900">
                           {s.cargoCategory}
                         </span>
                         {getPriorityBadge(s.priority)}
                         {s.coldChainRequired && (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#eff6ff] text-[#1d4ed8] border border-[#bfdbfe] flex items-center gap-1">
-                            <Thermometer className="w-3 h-3 text-[#2563eb]" />
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1 shadow-2xs">
+                            <Thermometer className="w-3 h-3 text-blue-600" />
                             {s.currentTemperatureC !== undefined ? `${s.currentTemperatureC} °C` : 'Cold-Chain'}
                           </span>
                         )}
@@ -402,28 +404,28 @@ export function DispatcherLogistics() {
                     </div>
 
                     {/* Middle Row: Corridor, Cargo specs, SLA */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2.5 pt-2.5 border-t border-[#f4f4f3] text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-3 pt-3 border-t border-slate-100 text-xs">
                       <div>
-                        <span className="text-[10px] text-[#8a8a87] font-semibold uppercase">Corridor:</span>
-                        <p className="font-medium text-[#1a1a19] truncate">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Corridor:</span>
+                        <p className="font-semibold text-slate-800 truncate mt-0.5">
                           {s.origin} → {s.destination}
                         </p>
                       </div>
 
                       <div>
-                        <span className="text-[10px] text-[#8a8a87] font-semibold uppercase">Payload / Quantity:</span>
-                        <p className="font-medium text-[#1a1a19] truncate">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Payload / Quantity:</span>
+                        <p className="font-semibold text-slate-800 truncate mt-0.5">
                           {s.quantity} {s.unit} ({s.cargoCategory})
                         </p>
                       </div>
 
                       <div>
-                        <span className="text-[10px] text-[#8a8a87] font-semibold uppercase">Assigned Transport:</span>
-                        <div className="flex items-center gap-1">
-                          <Truck className="w-3.5 h-3.5 text-[#2563eb]" />
-                          <span className="font-mono font-bold text-[#1a1a19]">{s.vehicleId || 'Unassigned'}</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Assigned Transport:</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Truck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span className="font-mono font-bold text-slate-900">{s.vehicleId || 'Unassigned'}</span>
                           {assignedVehicle && (
-                            <span className="text-[#8a8a87]">({assignedVehicle.driverName})</span>
+                            <span className="text-slate-500 font-medium">({assignedVehicle.driverName})</span>
                           )}
                         </div>
                       </div>
@@ -431,8 +433,8 @@ export function DispatcherLogistics() {
 
                     {/* Disruption Alert Note if affected */}
                     {isDisrupted && s.impactReason && (
-                      <div className="mt-2.5 p-2 rounded-lg bg-[#fee2e2]/80 border border-[#fca5a5] text-xs text-[#991b1b] flex items-start gap-2">
-                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#dc2626]" />
+                      <div className="mt-3 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2 shadow-2xs font-medium">
+                        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
                         <div className="flex-1 min-w-0">
                           <span className="font-bold">Corridor Hazard Impact: </span>
                           <span>{s.impactReason}</span>
@@ -441,20 +443,20 @@ export function DispatcherLogistics() {
                     )}
 
                     {/* Action Bar */}
-                    <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-[#f4f4f3]">
-                      <span className="text-[11px] text-[#8a8a87]">
+                    <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-slate-100">
+                      <span className="text-[11px] text-slate-400 font-medium">
                         {s.delayMinutes ? `Expected Delay: +${s.delayMinutes} min` : 'Corridor Timeline: Nominal'}
                       </span>
 
-                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         {isDisrupted && assignedVehicle && (
                           <>
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => handleEmergencyPickup(s)}
-                              iconLeft={<Warehouse className="w-3 h-3 text-[#16a34a]" />}
-                              className="text-xs py-1 h-7 border-[#bbf7d0] text-[#166534] bg-[#f0fdf4] hover:bg-[#dcfce7]"
+                              iconLeft={<Warehouse className="w-3 h-3 text-emerald-600" />}
+                              className="text-xs py-1 h-7 rounded-xl border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 shadow-2xs font-semibold"
                             >
                               Emergency Godown
                             </Button>
@@ -463,7 +465,7 @@ export function DispatcherLogistics() {
                               variant="primary"
                               onClick={() => handleRerouteShipment(s)}
                               iconLeft={<RotateCw className="w-3 h-3" />}
-                              className="text-xs py-1 h-7 bg-[#dc2626] hover:bg-[#b91c1c] text-white"
+                              className="text-xs py-1 h-7 rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-2xs font-semibold"
                             >
                               Reroute Detour
                             </Button>
@@ -475,7 +477,7 @@ export function DispatcherLogistics() {
                             variant="ghost"
                             onClick={() => handleInspectVehicleInCockpit(assignedVehicle.id)}
                             iconRight={<ArrowRight className="w-3 h-3" />}
-                            className="text-xs py-1 h-7"
+                            className="text-xs py-1 h-7 rounded-xl font-semibold"
                           >
                             Open Cockpit
                           </Button>
@@ -490,56 +492,56 @@ export function DispatcherLogistics() {
         </div>
 
         {/* Right: Regional Godowns & Emergency Pickup Status */}
-        <div className="w-full lg:w-96 bg-[#fafaf9] overflow-y-auto p-4 space-y-4 shrink-0">
+        <div className="w-full lg:w-96 bg-slate-50/60 border-l border-slate-200/80 overflow-y-auto p-4 space-y-4 shrink-0">
           {/* Section 1: Regional Relief Godowns Buffer */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-[#1a1a19] uppercase tracking-wider flex items-center gap-1.5">
-                <Warehouse className="w-4 h-4 text-[#16a34a]" />
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Warehouse className="w-4 h-4 text-emerald-600" />
                 Regional Buffer Godowns
               </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0]">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
                 {godowns.length} Facilities Active
               </span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {godowns.map((g: Godown) => {
                 const totalCap = g.totalCapacity || (g.availableStock + 30);
                 const stockPercent = Math.min(100, Math.round((g.availableStock / totalCap) * 100));
                 return (
-                  <div key={g.id} className="p-3 rounded-xl bg-white border border-[#e4e4e3] shadow-2xs space-y-2">
-                    <div className="flex items-start justify-between gap-1">
+                  <div key={g.id} className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-2.5 hover:shadow-xs transition-shadow">
+                    <div className="flex items-start justify-between gap-1.5">
                       <div>
-                        <h4 className="font-bold text-xs text-[#1a1a19]">{g.name}</h4>
-                        <p className="text-[11px] text-[#8a8a87]">{g.locationLabel}</p>
+                        <h4 className="font-bold text-xs text-slate-900">{g.name}</h4>
+                        <p className="text-[11px] text-slate-500 font-medium">{g.locationLabel}</p>
                       </div>
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#f0fdf4] text-[#166534] border border-[#bbf7d0]">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs shrink-0">
                         {g.availableStock} MT Available
                       </span>
                     </div>
 
                     {/* Stock capacity bar */}
                     <div>
-                      <div className="flex items-center justify-between text-[10px] text-[#8a8a87] mb-1">
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium mb-1">
                         <span>Stock Level</span>
-                        <span>{stockPercent}% ({g.availableStock}/{totalCap} MT)</span>
+                        <span className="font-semibold text-slate-700">{stockPercent}% ({g.availableStock}/{totalCap} MT)</span>
                       </div>
-                      <div className="w-full h-1.5 bg-[#f4f4f3] rounded-full overflow-hidden">
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#16a34a] rounded-full transition-all"
+                          className="h-full bg-emerald-500 rounded-full transition-all"
                           style={{ width: `${stockPercent}%` }}
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-1 border-t border-[#f4f4f3] text-[10px] text-[#5a5a57]">
-                      <span className="flex items-center gap-1">
-                        <Building2 className="w-3 h-3 text-[#2563eb]" />
-                        {g.suitableCargoTypes?.join(', ') || 'General & Pharma'}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] text-slate-500 font-medium">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="truncate">{g.suitableCargoTypes?.join(', ') || 'General & Pharma'}</span>
                       </span>
-                      <span className="font-medium text-[#2563eb]">
-                        Status: {g.status || 'operational'}
+                      <span className="font-bold text-blue-700 capitalize shrink-0">
+                        {g.status || 'operational'}
                       </span>
                     </div>
                   </div>
@@ -550,50 +552,50 @@ export function DispatcherLogistics() {
 
           {/* Section 2: Active Emergency Pickups Pipeline */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-[#1a1a19] uppercase tracking-wider flex items-center gap-1.5">
-                <Send className="w-4 h-4 text-[#86198f]" />
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Send className="w-4 h-4 text-purple-600" />
                 Emergency Pickups Pipeline
               </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#fdf4ff] text-[#86198f] border border-[#f5d0fe]">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
                 {pickupRequests.length} Active
               </span>
             </div>
 
             {pickupRequests.length === 0 ? (
-              <div className="p-3.5 rounded-xl bg-white border border-[#e4e4e3] text-center text-xs text-[#8a8a87]">
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 text-center text-xs text-slate-400 font-medium shadow-2xs">
                 No active emergency pickup requests. All disrupted corridors handled via standard rerouting or on track.
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {pickupRequests.map((req) => (
-                  <div key={req.id} className="p-3 rounded-xl bg-white border border-[#e4e4e3] shadow-2xs space-y-1.5">
+                  <div key={req.id} className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-[#1a1a19]">{req.id}</span>
+                      <span className="font-mono text-xs font-bold text-slate-800">{req.id}</span>
                       <span
                         className={cn(
-                          'text-[10px] font-bold px-1.5 py-0.2 rounded border',
+                          'text-[10px] font-bold px-2 py-0.5 rounded-full border shadow-2xs',
                           req.status === 'dispatched'
-                            ? 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : req.status === 'declined'
-                            ? 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5]'
-                            : 'bg-[#fffbeb] text-[#92400e] border-[#fde68a]'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-amber-50 text-amber-800 border-amber-200'
                         )}
                       >
                         {req.status === 'dispatched' ? 'DISPATCHED' : req.status === 'declined' ? 'DECLINED' : 'PENDING APPROVAL'}
                       </span>
                     </div>
 
-                    <p className="text-xs text-[#1a1a19] font-semibold">
-                      Vehicle: <span className="font-mono">{req.vehicleId}</span> ({req.driverName})
+                    <p className="text-xs text-slate-800 font-bold">
+                      Vehicle: <span className="font-mono text-blue-700">{req.vehicleId}</span> ({req.driverName})
                     </p>
 
-                    <p className="text-[11px] text-[#5a5a57]">
-                      Diverted to <span className="font-semibold text-[#1a1a19]">{req.godownName}</span> · {req.quantity} MT {req.cargoType}
+                    <p className="text-[11px] text-slate-600 font-medium">
+                      Diverted to <span className="font-bold text-slate-900">{req.godownName}</span> · {req.quantity} MT {req.cargoType}
                     </p>
 
                     {req.contractorName && (
-                      <p className="text-[10px] text-[#86198f] font-medium pt-1 border-t border-[#f4f4f3]">
+                      <p className="text-[10px] text-purple-700 font-semibold pt-1.5 border-t border-slate-100">
                         Fulfillment Contractor: {req.contractorName}
                       </p>
                     )}
@@ -615,19 +617,21 @@ export function DispatcherLogistics() {
         const distKm = assignedV?.recommendedGodownDistanceKm ?? bestGodownMatch?.distanceKm ?? 45;
 
         return (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-lg w-full border border-[#e4e4e3] shadow-xl overflow-hidden animate-in fade-in duration-200">
-              <div className="p-4 bg-[#f0fdf4] border-b border-[#bbf7d0] flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Warehouse className="w-5 h-5 text-[#166534]" />
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200/80 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-4.5 bg-emerald-50/80 border-b border-emerald-100 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100/80 flex items-center justify-center text-emerald-700 shadow-2xs">
+                    <Warehouse className="w-4.5 h-4.5" />
+                  </div>
                   <div>
-                    <h3 className="font-bold text-sm text-[#166534]">Emergency Godown Recommendation</h3>
-                    <p className="text-[11px] text-[#15803d]">Relief Storage Allocation & Pickup Request</p>
+                    <h3 className="font-bold text-sm text-emerald-900 tracking-tight">Emergency Godown Recommendation</h3>
+                    <p className="text-[11px] text-emerald-700 font-medium">Relief Storage Allocation & Pickup Request</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setGodownModalShipment(null)}
-                  className="p-1 rounded-lg hover:bg-[#dcfce7] text-[#166534] transition-colors"
+                  className="p-1.5 rounded-xl hover:bg-emerald-100/80 text-emerald-800 transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -635,70 +639,71 @@ export function DispatcherLogistics() {
 
               <div className="p-5 space-y-4">
                 {/* Target Shipment Summary */}
-                <div className="p-3 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] text-xs space-y-1">
-                  <div className="flex items-center justify-between font-bold text-[#0f172a]">
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs space-y-1 shadow-2xs">
+                  <div className="flex items-center justify-between font-bold text-slate-900">
                     <span>Consignment {godownModalShipment.id}</span>
-                    <span className="font-mono text-[#2563eb]">{godownModalShipment.vehicleId}</span>
+                    <span className="font-mono text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">{godownModalShipment.vehicleId}</span>
                   </div>
-                  <p className="text-[#475569]">{godownModalShipment.cargoCategory} · {godownModalShipment.quantity} {godownModalShipment.unit}</p>
-                  <p className="text-[#64748b] text-[11px]">{godownModalShipment.origin} → {godownModalShipment.destination}</p>
+                  <p className="text-slate-700 font-medium">{godownModalShipment.cargoCategory} · {godownModalShipment.quantity} {godownModalShipment.unit}</p>
+                  <p className="text-slate-400 text-[11px] font-medium">{godownModalShipment.origin} → {godownModalShipment.destination}</p>
                 </div>
 
                 {/* Godown Recommendation Card */}
                 {targetGodown ? (
-                  <div className="p-4 rounded-xl bg-[#f0fdf4] border border-[#bbf7d0] text-xs space-y-2.5">
+                  <div className="p-4.5 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 text-xs space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#166534] flex items-center gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
                         Optimal Emergency Storage Node
                       </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#dcfce7] text-[#166534] border border-[#86efac]">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
                         {targetGodown.availableStock} Units Stock Available
                       </span>
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-sm text-[#14532d]">{targetGodown.name}</h4>
-                      <p className="text-[#166534] text-[11px] flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" />
+                      <h4 className="font-bold text-sm text-emerald-950">{targetGodown.name}</h4>
+                      <p className="text-emerald-800 text-[11px] font-medium flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         {targetGodown.locationLabel}
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#bbf7d0]/60 text-[11px]">
+                    <div className="grid grid-cols-2 gap-2.5 pt-2.5 border-t border-emerald-200/80 text-[11px]">
                       <div>
-                        <span className="text-[#15803d] font-medium">Proximity / Distance:</span>
-                        <p className="font-bold text-[#14532d]">~{distKm} km from current position</p>
+                        <span className="text-emerald-800 font-medium">Proximity / Distance:</span>
+                        <p className="font-bold text-emerald-950">~{distKm} km from position</p>
                       </div>
                       <div>
-                        <span className="text-[#15803d] font-medium">Cargo Compatibility:</span>
-                        <p className="font-bold text-[#14532d]">
+                        <span className="text-emerald-800 font-medium">Cargo Compatibility:</span>
+                        <p className="font-bold text-emerald-950">
                           {godownModalShipment.coldChainRequired ? 'Cold-Chain Refrigerated' : 'Relief Rations Compatible'}
                         </p>
                       </div>
                       <div>
-                        <span className="text-[#15803d] font-medium">Shipment Urgency:</span>
-                        <p className="font-bold text-[#dc2626]">
+                        <span className="text-emerald-800 font-medium">Shipment Urgency:</span>
+                        <p className="font-bold text-rose-700">
                           {godownModalShipment.priority === 'critical' ? 'P1 Critical Allocation' : 'P2 High Allocation'}
                         </p>
                       </div>
                       <div>
-                        <span className="text-[#15803d] font-medium">Corridor Accessibility:</span>
-                        <p className="font-bold text-[#14532d]">Open Feeder Access</p>
+                        <span className="text-emerald-800 font-medium">Corridor Accessibility:</span>
+                        <p className="font-bold text-emerald-950">Open Feeder Access</p>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="p-3 rounded-xl bg-[#fef2f2] border border-[#fca5a5] text-xs text-[#991b1b]">
+                  <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-medium shadow-2xs">
                     No suitable godown found matching cargo requirements.
                   </div>
                 )}
 
-                <div className="flex items-center justify-end gap-2 pt-2">
+                <div className="flex items-center justify-end gap-2.5 pt-2">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setGodownModalShipment(null)}
+                    className="rounded-xl shadow-2xs font-semibold text-xs"
                   >
                     Cancel
                   </Button>
@@ -707,7 +712,7 @@ export function DispatcherLogistics() {
                     variant="primary"
                     onClick={() => handleConfirmEmergencyPickup(godownModalShipment)}
                     iconLeft={<Send className="w-3.5 h-3.5" />}
-                    className="bg-[#166534] hover:bg-[#14532d] text-white font-bold cursor-pointer"
+                    className="rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-2xs cursor-pointer"
                   >
                     Request Emergency Pickup & Allocation
                   </Button>

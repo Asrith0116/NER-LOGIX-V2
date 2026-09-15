@@ -14,31 +14,38 @@ export function DispatcherIncidents() {
   }, [syncFromIndexedDB]);
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="px-6 py-4 bg-white border-b border-[#e4e4e3]">
-        <h1 className="text-base font-semibold text-[#1a1a19]">Incident Feed</h1>
-        <p className="text-xs text-[#8a8a87]">Real-time reports from field operators across NE Region</p>
+    <div className="h-full flex flex-col bg-[#f4f6f8]">
+      <div className="px-6 py-4 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shrink-0 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.03)]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shadow-2xs">
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-slate-900 tracking-tight">Incident Feed</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Real-time verified and crowd hazard reports across NE corridors</p>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <div className="max-w-3xl space-y-3">
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="max-w-3xl space-y-3.5">
           {activeIncidents.map((inc) => (
             <div
               key={inc.id}
-              className="bg-white border border-[#e4e4e3] rounded-lg shadow-[0_1px_3px_0_rgba(0,0,0,0.05)]"
+              className="bg-white border border-slate-200/80 rounded-2xl shadow-2xs hover:shadow-xs transition-shadow"
             >
-              <div className="px-4 py-3 border-b border-[#e4e4e3] flex items-start justify-between gap-4">
+              <div className="px-5 py-3.5 border-b border-slate-100 flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-[#fef2f2] flex items-center justify-center shrink-0">
-                    <AlertTriangle className="w-3.5 h-3.5 text-[#dc2626]" />
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-100/80 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-4 h-4 text-rose-600" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-[#1a1a19]">{inc.id}</span>
+                      <span className="text-sm font-bold text-slate-900">{inc.id}</span>
                       <StatusBadge syncStatus={inc.syncStatus} />
                     </div>
-                    <p className="text-xs text-[#5a5a57]">
-                      {getIncidentTypeLabel(inc.type)} — {inc.severity.toUpperCase()}
+                    <p className="text-xs font-medium text-slate-600">
+                      {getIncidentTypeLabel(inc.type)} — <span className="uppercase font-bold text-slate-700">{inc.severity}</span>
                     </p>
                   </div>
                 </div>
@@ -56,30 +63,30 @@ export function DispatcherIncidents() {
                 />
               </div>
 
-              <div className="px-4 py-3">
-                <p className="text-sm text-[#1a1a19] mb-3 leading-relaxed">{inc.description}</p>
+              <div className="px-5 py-4">
+                <p className="text-sm text-slate-800 mb-3.5 leading-relaxed font-medium">{inc.description}</p>
 
-                <div className="grid grid-cols-2 gap-2 text-xs text-[#8a8a87]">
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="w-3 h-3" />
+                <div className="grid grid-cols-2 gap-2.5 text-xs text-slate-500 font-medium">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span className="truncate">{inc.locationName}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <User className="w-3 h-3" />
+                  <div className="flex items-center gap-2">
+                    <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span className="truncate">{inc.reportedBy}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-3 h-3" />
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span>{formatDateTime(inc.reportedAt)}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px]">{formatTimeAgo(inc.reportedAt)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-400">{formatTimeAgo(inc.reportedAt)}</span>
                   </div>
                 </div>
 
                 {inc.verifiedBy && (
-                  <div className="mt-2 pt-2 border-t border-[#f4f4f3] text-[11px] text-[#8a8a87]">
-                    Verified by {inc.verifiedBy} · {inc.verifiedAt ? formatTimeAgo(inc.verifiedAt) : ''}
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 text-[11px] text-slate-500 font-medium">
+                    Verified by <span className="font-semibold text-slate-700">{inc.verifiedBy}</span> · {inc.verifiedAt ? formatTimeAgo(inc.verifiedAt) : ''}
                   </div>
                 )}
               </div>

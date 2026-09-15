@@ -7,9 +7,9 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Notification } from '@/components/ui/Notification';
 import { MapContainer } from '@/components/map/MapContainer';
 import { RiskBreakdownCard } from '@/components/ui/RiskBreakdownCard';
-import { DriverVehicleSelector } from '@/components/ui/DriverVehicleSelector';
 import { useAppStore } from '@/store/appStore';
 import { useNetworkStore } from '@/store/networkStore';
+import { useCurrentDriver } from '@/hooks/useCurrentDriver';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -97,9 +97,8 @@ const CARGO_CATALOG = [
 
 export function TripPlanner() {
   const navigate = useNavigate();
-  const { setTripState, commitVehicleTrip, vehicleTripContexts, selectedDriverVehicleId } = useAppStore();
+  const { setTripState, commitVehicleTrip, vehicleTripContexts } = useAppStore();
 
-  const activeVehicles = useNetworkStore((state) => state.activeVehicles);
   const roadSegments = useNetworkStore((state) => state.roadSegments);
   const disruptions = useNetworkStore((state) => state.disruptions);
   const activeIncidents = useNetworkStore((state) => state.activeIncidents);
@@ -112,10 +111,8 @@ export function TripPlanner() {
   const osmNetwork = useNetworkStore((state) => state.osmNetwork);
 
   // Active Vehicle Context
-  const activeVehicle =
-    activeVehicles.find((v) => v.id === selectedDriverVehicleId) ||
-    activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
-    activeVehicles[0];
+  const currentDriver = useCurrentDriver();
+  const activeVehicle = currentDriver.vehicle;
 
   const vehicleTripCtx = activeVehicle ? vehicleTripContexts[activeVehicle.id] : undefined;
 
@@ -226,9 +223,9 @@ export function TripPlanner() {
     return {
       origin: originLocation,
       destination: destLocation,
-      vehicleId: activeVehicle?.id || 'AS-01-J-4422',
+      vehicleId: currentDriver.vehicleId,
       vehicleType: activeVehicle?.type || 'Refrigerated Truck',
-      driverName: activeVehicle?.driverName || 'Biren Gogoi',
+      driverName: currentDriver.driverName,
       cargoCategory: selectedCargoOption.category,
       cargoSensitivity,
       priority: tripPriority,
@@ -246,6 +243,8 @@ export function TripPlanner() {
     requireColdChain,
     avoidHighRiskCorridors,
     riskTolerance,
+    currentDriver.driverName,
+    currentDriver.vehicleId,
   ]);
 
   // Multi-Factor Corridor Candidates dynamically generated and scored
@@ -364,32 +363,32 @@ export function TripPlanner() {
   }, [prepState]);
 
   return (
-    <div className="h-full flex flex-col bg-[#fbfbfa]">
+    <div className="h-full flex flex-col bg-[#f4f6f8]">
       {/* Top Header & Active Vehicle Context */}
-      <div className="px-6 py-3 bg-white border-b border-[#e4e4e3] shrink-0">
+      <div className="px-6 py-4 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shrink-0 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.03)]">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe]">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
                 Layer 1: Pre-Trip Intelligent Routing
               </span>
-              <DriverVehicleSelector id="tripplanner-driver-vehicle-selector" compact />
             </div>
-            <h1 className="text-base font-bold text-[#1a1a19] mt-1 flex items-center gap-2">
+            <h1 className="text-base font-bold text-slate-900 mt-1 flex items-center gap-2 tracking-tight">
               <span>Trip Route Planner & Risk Scorer</span>
-              <span className="text-xs font-normal text-[#71717a] hidden sm:inline">
+              <span className="text-xs font-medium text-slate-500 hidden sm:inline">
                 · {candidateRoutes.length} Corridors Evaluated
               </span>
             </h1>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Active Vehicle Info Tag */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Active Vehicle Info Tag & Driver */}
             {activeVehicle && (
-              <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#f8f8f7] border border-[#e4e4e3] text-xs">
-                <Truck className="w-3.5 h-3.5 text-[#2563eb]" />
-                <span className="font-semibold text-[#1a1a19]">{activeVehicle.id}</span>
-                <span className="text-[#8a8a87]">({activeVehicle.type})</span>
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs shadow-2xs">
+                <Truck className="w-3.5 h-3.5 text-blue-600" />
+                <span className="font-bold text-slate-900">{currentDriver.vehicleId}</span>
+                <span className="text-slate-600">· {currentDriver.driverName}</span>
+                <span className="text-slate-400">({activeVehicle.type})</span>
               </div>
             )}
 
@@ -412,24 +411,24 @@ export function TripPlanner() {
 
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Left Section: Inputs & Evaluated Candidates */}
-        <div className="w-full lg:w-[460px] bg-[#fafaf9] border-r border-[#e4e4e3] flex flex-col overflow-y-auto shrink-0 divide-y divide-[#e4e4e3]">
+        <div className="w-full lg:w-[460px] bg-slate-50/60 border-r border-slate-200/80 flex flex-col overflow-y-auto shrink-0 divide-y divide-slate-100">
           {/* Section 1: Journey Nodes & Live Weather */}
-          <div className="p-4 bg-white space-y-3">
+          <div className="p-4 bg-white space-y-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">
                 1. Corridor Nodes & Weather Ingestion
               </span>
-              <span className="flex items-center gap-1 text-[11px] text-[#2563eb] font-semibold">
+              <span className="flex items-center gap-1.5 text-xs text-blue-600 font-bold">
                 <CloudRain className="w-3.5 h-3.5" /> Live Open-Meteo
               </span>
             </div>
 
-            <div className="space-y-2">
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr,auto,1fr] items-center gap-2">
+            <div className="space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr,auto,1fr] items-center gap-2.5">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-semibold text-[#52525b]">Origin Gateway</label>
-                    <span className="text-[10px] text-[#71717a] font-medium">
+                    <label className="text-[11px] font-bold text-slate-700">Origin Gateway</label>
+                    <span className="text-[10px] text-slate-400 font-medium">
                       {LOCATIONS[originKey as keyof typeof LOCATIONS]?.state || 'Assam'}
                     </span>
                   </div>
@@ -438,14 +437,13 @@ export function TripPlanner() {
                     onChange={(e) => {
                       const newOrigin = e.target.value;
                       if (newOrigin === destKey) {
-                        // Automatically swap if same is chosen
                         setDestKey(originKey);
                       }
                       setOriginKey(newOrigin);
                       setUserSelectedRouteId(null);
                       setPrepState('idle');
                     }}
-                    className="w-full text-xs font-semibold p-2 bg-[#f8f8f7] border border-[#e4e4e3] rounded-lg text-[#1a1a19] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+                    className="w-full text-xs font-semibold p-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-600 shadow-2xs cursor-pointer"
                   >
                     <option value="guwahati">Guwahati Logistics Hub (Kamrup · Assam)</option>
                     <option value="dimapur">Dimapur Supply Node (Dimapur · Nagaland)</option>
@@ -454,7 +452,7 @@ export function TripPlanner() {
                     <option value="imphal">Imphal District Hospital (Imphal West · Manipur)</option>
                   </select>
                   {originWeather && (
-                    <p className="text-[10px] text-[#71717a] mt-1 font-medium">
+                    <p className="text-[10px] text-slate-500 mt-1 font-medium">
                       {originWeather.temperatureC}°C · {originWeather.precipitationMm} mm/h precipitation
                     </p>
                   )}
@@ -471,7 +469,7 @@ export function TripPlanner() {
                       setUserSelectedRouteId(null);
                       setPrepState('idle');
                     }}
-                    className="p-1.5 rounded-lg border border-[#e4e4e3] bg-white text-[#52525b] hover:text-[#2563eb] hover:border-[#2563eb] transition-colors"
+                    className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-600 transition-colors shadow-2xs cursor-pointer"
                   >
                     <ArrowLeftRight className="w-3.5 h-3.5" />
                   </button>
@@ -479,8 +477,8 @@ export function TripPlanner() {
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-semibold text-[#52525b]">Destination Node</label>
-                    <span className="text-[10px] text-[#71717a] font-medium">
+                    <label className="text-[11px] font-bold text-slate-700">Destination Node</label>
+                    <span className="text-[10px] text-slate-400 font-medium">
                       {LOCATIONS[destKey as keyof typeof LOCATIONS]?.state || 'Manipur'}
                     </span>
                   </div>
@@ -489,14 +487,13 @@ export function TripPlanner() {
                     onChange={(e) => {
                       const newDest = e.target.value;
                       if (newDest === originKey) {
-                        // Automatically swap if same is chosen
                         setOriginKey(destKey);
                       }
                       setDestKey(newDest);
                       setUserSelectedRouteId(null);
                       setPrepState('idle');
                     }}
-                    className="w-full text-xs font-semibold p-2 bg-[#f8f8f7] border border-[#e4e4e3] rounded-lg text-[#1a1a19] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+                    className="w-full text-xs font-semibold p-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-600 shadow-2xs cursor-pointer"
                   >
                     <option value="imphal">Imphal District Hospital (Imphal West · Manipur)</option>
                     <option value="kohima">Kohima Relief Camp (Kohima · Nagaland)</option>
@@ -505,7 +502,7 @@ export function TripPlanner() {
                     <option value="guwahati">Guwahati Logistics Hub (Kamrup · Assam)</option>
                   </select>
                   {destWeather && (
-                    <p className="text-[10px] text-[#71717a] mt-1 font-medium">
+                    <p className="text-[10px] text-slate-500 mt-1 font-medium">
                       {destWeather.temperatureC}°C · {destWeather.precipitationMm} mm/h precipitation
                     </p>
                   )}
@@ -514,8 +511,8 @@ export function TripPlanner() {
             </div>
 
             {weatherSpikeActive && (
-              <div className="flex items-center gap-2 p-2 rounded-lg bg-[#eff6ff] border border-[#bfdbfe] text-xs text-[#1e40af]">
-                <CloudRain className="w-4 h-4 text-[#2563eb] shrink-0" />
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-blue-50/80 border border-blue-200/90 text-xs text-blue-900 shadow-2xs">
+                <CloudRain className="w-4 h-4 text-blue-600 shrink-0" />
                 <div>
                   <span className="font-bold">Regional Cloudburst Active (45 mm/h):</span> Karbi Anglong / Doyyang corridor precipitation spike ingested into corridor risk calculations.
                 </div>
@@ -524,25 +521,25 @@ export function TripPlanner() {
           </div>
 
           {/* Section 2: Cargo Profile & Priority Intelligence */}
-          <div className="p-4 bg-white space-y-3">
+          <div className="p-4 bg-white space-y-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">
                 2. Cargo Profile & Urgency
               </span>
               {requireColdChain && (
-                <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#eff6ff] text-[#1e40af] border border-[#bfdbfe]">
-                  <Thermometer className="w-3 h-3 text-[#2563eb]" /> Cold-Chain Required
+                <span className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+                  <Thermometer className="w-3 h-3 text-blue-600" /> Cold-Chain Required
                 </span>
               )}
             </div>
 
             {/* Cargo Category Dropdown */}
             <div>
-              <label className="text-[11px] font-semibold text-[#52525b] block mb-1">Cargo Category</label>
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">Cargo Category</label>
               <select
                 value={selectedCargoOption.category}
                 onChange={(e) => handleCargoChange(e.target.value)}
-                className="w-full text-xs font-semibold p-2 bg-[#f8f8f7] border border-[#e4e4e3] rounded-lg text-[#1a1a19] focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+                className="w-full text-xs font-semibold p-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-600 shadow-2xs cursor-pointer"
               >
                 {CARGO_CATALOG.map((c) => (
                   <option key={c.category} value={c.category}>
@@ -553,16 +550,16 @@ export function TripPlanner() {
             </div>
 
             {/* Sensitivity & Priority Selector */}
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-semibold text-[#52525b] block mb-1">Cargo Sensitivity</label>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Cargo Sensitivity</label>
                 <select
                   value={cargoSensitivity}
                   onChange={(e) => {
                     setCargoSensitivity(e.target.value as CargoSensitivity);
                     setPrepState('idle');
                   }}
-                  className="w-full text-xs font-semibold p-2 bg-[#f8f8f7] border border-[#e4e4e3] rounded-lg text-[#1a1a19]"
+                  className="w-full text-xs font-semibold p-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-600 shadow-2xs cursor-pointer"
                 >
                   <option value="critical">Critical (Zero Delay/Spoilage)</option>
                   <option value="high">High Vulnerability</option>
@@ -572,14 +569,14 @@ export function TripPlanner() {
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-[#52525b] block mb-1">Trip Priority</label>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Trip Priority</label>
                 <select
                   value={tripPriority}
                   onChange={(e) => {
                     setTripPriority(e.target.value as TripPriority);
                     setPrepState('idle');
                   }}
-                  className="w-full text-xs font-semibold p-2 bg-[#f8f8f7] border border-[#e4e4e3] rounded-lg text-[#1a1a19]"
+                  className="w-full text-xs font-semibold p-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-600 shadow-2xs cursor-pointer"
                 >
                   <option value="emergency">Emergency Intervention</option>
                   <option value="urgent">Urgent Replenishment</option>
@@ -592,12 +589,12 @@ export function TripPlanner() {
             {/* Departure Window & Advanced Constraints Toggle */}
             <div className="flex items-center justify-between pt-1">
               <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-[#8a8a87]" />
-                <span className="text-[11px] font-medium text-[#71717a]">Departure:</span>
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-[11px] font-medium text-slate-500">Departure:</span>
                 <select
                   value={departureWindow}
                   onChange={(e) => setDepartureWindow(e.target.value as any)}
-                  className="text-xs font-semibold bg-transparent border-0 text-[#1a1a19] focus:outline-none cursor-pointer"
+                  className="text-xs font-bold bg-transparent border-0 text-slate-900 focus:outline-none cursor-pointer"
                 >
                   <option value="immediate">Immediate Dispatch</option>
                   <option value="within_2h">Within 2 Hours</option>
@@ -607,7 +604,7 @@ export function TripPlanner() {
 
               <button
                 onClick={() => setShowAdvancedConstraints(!showAdvancedConstraints)}
-                className="text-[11px] font-semibold text-[#2563eb] hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 cursor-pointer transition-colors"
               >
                 <Sliders className="w-3 h-3" />
                 {showAdvancedConstraints ? 'Hide Constraints' : 'Edit Constraints'}
@@ -621,13 +618,13 @@ export function TripPlanner() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="p-3 bg-[#f8f8f7] rounded-lg border border-[#e4e4e3] space-y-2.5 overflow-hidden text-xs"
+                  className="p-3.5 bg-slate-50/70 rounded-2xl border border-slate-200/80 space-y-3 overflow-hidden text-xs shadow-2xs"
                 >
-                  <span className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider block">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                     Operational Safety Constraints
                   </span>
 
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex items-center gap-2.5 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={requireColdChain}
@@ -635,14 +632,14 @@ export function TripPlanner() {
                         setRequireColdChain(e.target.checked);
                         setPrepState('idle');
                       }}
-                      className="rounded border-[#d4d4d8] text-[#2563eb] focus:ring-[#2563eb]"
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-600"
                     />
-                    <span className="text-[#3f3f46] font-medium">
+                    <span className="text-slate-700 font-medium">
                       Enforce Cold-Chain continuous monitoring & avoid rough terrain
                     </span>
                   </label>
 
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex items-center gap-2.5 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={avoidHighRiskCorridors}
@@ -650,16 +647,16 @@ export function TripPlanner() {
                         setAvoidHighRiskCorridors(e.target.checked);
                         setPrepState('idle');
                       }}
-                      className="rounded border-[#d4d4d8] text-[#2563eb] focus:ring-[#2563eb]"
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-600"
                     />
-                    <span className="text-[#3f3f46] font-medium">
+                    <span className="text-slate-700 font-medium">
                       Strictly avoid corridors with active slide warnings or scree slopes
                     </span>
                   </label>
 
                   <div className="pt-1 flex items-center justify-between">
-                    <span className="text-[11px] text-[#52525b] font-medium">Risk Tolerance Profile:</span>
-                    <div className="flex gap-1">
+                    <span className="text-[11px] text-slate-600 font-medium">Risk Tolerance Profile:</span>
+                    <div className="flex gap-1.5">
                       {(['conservative', 'balanced', 'aggressive'] as const).map((mode) => (
                         <button
                           key={mode}
@@ -667,10 +664,10 @@ export function TripPlanner() {
                             setRiskTolerance(mode);
                             setPrepState('idle');
                           }}
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer shadow-2xs ${
                             riskTolerance === mode
-                              ? 'bg-[#1a1a19] text-white'
-                              : 'bg-white text-[#71717a] border border-[#e4e4e3]'
+                              ? 'bg-slate-900 text-white'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                           }`}
                         >
                           {mode}
@@ -684,15 +681,15 @@ export function TripPlanner() {
           </div>
 
           {/* Section 3: Evaluated Candidate Routes & Risk Engine */}
-          <div className="p-4 flex-1 space-y-3">
+          <div className="p-4 flex-1 space-y-3.5">
             {/* Tab Selector */}
-            <div className="flex border-b border-[#e4e4e3] gap-4">
+            <div className="flex border-b border-slate-200 gap-4">
               <button
                 onClick={() => setActiveTab('routes')}
-                className={`pb-2 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                className={`pb-2.5 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'routes'
-                    ? 'border-b-2 border-[#2563eb] text-[#2563eb]'
-                    : 'text-[#8a8a87] hover:text-[#1a1a19]'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-slate-400 hover:text-slate-900'
                 }`}
               >
                 <span>Evaluated Corridors ({candidateRoutes.length})</span>
@@ -700,13 +697,13 @@ export function TripPlanner() {
 
               <button
                 onClick={() => setActiveTab('risk_breakdown')}
-                className={`pb-2 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                className={`pb-2.5 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'risk_breakdown'
-                    ? 'border-b-2 border-[#2563eb] text-[#2563eb]'
-                    : 'text-[#8a8a87] hover:text-[#1a1a19]'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-slate-400 hover:text-slate-900'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5 text-[#2563eb]" />
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                 <span>Explainable Risk Matrix</span>
               </button>
             </div>
@@ -763,25 +760,25 @@ export function TripPlanner() {
                 ))}
 
                 {/* Pre-Trip Bundle Metadata Box */}
-                <div className="p-3.5 rounded-xl bg-white border border-[#e4e4e3] text-xs space-y-2.5 shadow-2xs">
-                  <span className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider block">
+                <div className="p-4 rounded-2xl bg-white border border-slate-200/80 text-xs space-y-3 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                     Zero-G Offline Safety Protocol
                   </span>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-[#52525b]">
-                    <div className="flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 text-[#16a34a]" />
+                  <div className="grid grid-cols-2 gap-2.5 text-[11px] text-slate-600 font-medium">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
                       <span>10 km corridor tile cache</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 text-[#16a34a]" />
+                    <div className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
                       <span>Elevation & slope profiles</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Volume2 className="w-3.5 h-3.5 text-[#2563eb]" />
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="w-3.5 h-3.5 text-blue-600" />
                       <span>Voice cues (Assamese / Manipuri)</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Database className="w-3.5 h-3.5 text-[#2563eb]" />
+                    <div className="flex items-center gap-2">
+                      <Database className="w-3.5 h-3.5 text-blue-600" />
                       <span>IndexedDB sync journal</span>
                     </div>
                   </div>
@@ -798,19 +795,19 @@ export function TripPlanner() {
           </div>
 
           {/* Action Dock */}
-          <div className="p-4 border-t border-[#e4e4e3] bg-white space-y-2 sticky bottom-0 z-10 shadow-lg">
+          <div className="p-4 border-t border-slate-200/80 bg-white/95 backdrop-blur-md space-y-2.5 sticky bottom-0 z-10 shadow-lg">
             {candidateRoutes.length > 0 && candidateRoutes.every((r) => r.isBlocked) ? (
-              <div className="p-3 bg-[#fef2f2] border border-[#fca5a5] rounded-xl space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-[#dc2626]">
+              <div className="p-4 bg-rose-50/80 border border-rose-200 rounded-2xl space-y-2.5 shadow-2xs">
+                <div className="flex items-center gap-2 text-xs font-bold text-rose-700">
                   <ShieldAlert className="w-4 h-4 shrink-0" />
                   <span>NO SAFE CORRIDOR AVAILABLE (All Corridors Blocked)</span>
                 </div>
-                <p className="text-[11px] text-[#991b1b]">
+                <p className="text-[11px] text-rose-900 leading-relaxed font-medium">
                   Verified disaster incidents affect all evaluated routes between {originLocation.shortName} and {destLocation.shortName}.
                 </p>
                 <Button
                   variant="primary"
-                  className="w-full bg-[#ea580c] hover:bg-[#c2410c] border-[#ea580c] text-xs font-bold"
+                  className="w-full bg-amber-600 hover:bg-amber-700 border-amber-600 text-xs font-bold rounded-xl shadow-2xs"
                   onClick={() => navigate('/contractor/godowns')}
                   iconLeft={<Warehouse className="w-4 h-4" />}
                 >
@@ -822,7 +819,7 @@ export function TripPlanner() {
                 {prepState === 'idle' && (
                   <Button
                     variant="primary"
-                    className="w-full font-semibold"
+                    className="w-full font-bold rounded-xl shadow-2xs"
                     onClick={handleConfirm}
                     disabled={!selectedRouteId || selectedCandidate?.isBlocked}
                     iconLeft={<ShieldCheck className="w-4 h-4" />}
@@ -836,9 +833,9 @@ export function TripPlanner() {
                 {(prepState === 'preparing' || prepState === 'saving') && (
                   <Button
                     variant="outline"
-                    className="w-full font-semibold"
+                    className="w-full font-bold rounded-xl shadow-2xs"
                     disabled
-                    iconLeft={<Loader2 className="w-4 h-4 animate-spin text-[#2563eb]" />}
+                    iconLeft={<Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
                   >
                     Building Offline Bundle...
                   </Button>
@@ -847,7 +844,7 @@ export function TripPlanner() {
                 {prepState === 'ready' && (
                   <Button
                     variant="primary"
-                    className="w-full bg-[#16a34a] hover:bg-[#15803d] border-[#16a34a] font-semibold shadow-sm"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 border-emerald-600 font-bold shadow-2xs rounded-xl"
                     onClick={handleConfirm}
                     iconLeft={<Navigation className="w-4 h-4" />}
                   >
@@ -857,7 +854,7 @@ export function TripPlanner() {
               </>
             )}
 
-            <p className="text-[10px] text-[#8a8a87] text-center">
+            <p className="text-[10px] text-slate-400 text-center font-medium">
               Routes ranked by terrain slope, verified road closures, and live Open-Meteo precipitation.
             </p>
           </div>

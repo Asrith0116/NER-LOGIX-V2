@@ -19,12 +19,12 @@ interface StatusBadgeProps {
 }
 
 const variantConfig: Record<StatusVariant, string> = {
-  default: 'bg-[#eff6ff] text-[#1e40af] border-[#bfdbfe]',
-  success: 'bg-[#f0fdf4] text-[#16a34a] border-[#bbf7d0]',
-  warning: 'bg-[#fffbeb] text-[#d97706] border-[#fde68a]',
-  danger: 'bg-[#fef2f2] text-[#dc2626] border-[#fecaca]',
-  info: 'bg-[#f0f9ff] text-[#0369a1] border-[#bae6fd]',
-  neutral: 'bg-[#f5f5f4] text-[#57534e] border-[#d6d3d1]',
+  default: 'bg-blue-50/90 text-blue-700 border-blue-200/80',
+  success: 'bg-emerald-50/90 text-emerald-700 border-emerald-200/80',
+  warning: 'bg-amber-50/90 text-amber-700 border-amber-200/80',
+  danger: 'bg-rose-50/90 text-rose-700 border-rose-200/80',
+  info: 'bg-cyan-50/90 text-cyan-800 border-cyan-200/80',
+  neutral: 'bg-slate-100 text-slate-700 border-slate-200',
 };
 
 const syncVariantMap: Record<IncidentSyncStatus, StatusVariant> = {
@@ -48,7 +48,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[11px] font-medium',
+        'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold tracking-tight shadow-2xs',
         variantConfig[resolvedVariant],
         className,
       )}

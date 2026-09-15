@@ -39,43 +39,43 @@ export function MapInspector({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 8, scale: 0.98 }}
         transition={{ duration: 0.18, ease: 'easeOut' }}
-        className="absolute bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-96 bg-white/95 backdrop-blur-md rounded-xl border border-[#d4d4d2] shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-4 z-[1000] text-[#1a1a19]"
+        className="absolute bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-96 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.2)] p-4.5 z-[1000] text-slate-900"
       >
         {/* Header */}
-        <div className="flex items-start justify-between pb-3 border-b border-[#e4e4e3]">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-3">
             {entity.type === 'incident' && (
-              <div className="w-8 h-8 rounded-lg bg-[#fef2f2] border border-[#fecaca] flex items-center justify-center text-[#dc2626]">
+              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200/80 flex items-center justify-center text-rose-600 shadow-2xs">
                 <AlertTriangle className="w-4 h-4" />
               </div>
             )}
             {entity.type === 'vehicle' && (
-              <div className="w-8 h-8 rounded-lg bg-[#eff6ff] border border-[#bfdbfe] flex items-center justify-center text-[#2563eb]">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-blue-600 shadow-2xs">
                 <Truck className="w-4 h-4" />
               </div>
             )}
             {entity.type === 'road' && (
-              <div className="w-8 h-8 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center text-[#16a34a]">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center text-emerald-600 shadow-2xs">
                 <Navigation className="w-4 h-4" />
               </div>
             )}
             {entity.type === 'godown' && (
-              <div className="w-8 h-8 rounded-lg bg-[#fff7ed] border border-[#fed7aa] flex items-center justify-center text-[#ea580c]">
+              <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-center text-amber-600 shadow-2xs">
                 <Warehouse className="w-4 h-4" />
               </div>
             )}
             {entity.type === 'route' && (
-              <div className="w-8 h-8 rounded-lg bg-[#faf5ff] border border-[#e9d5ff] flex items-center justify-center text-[#9333ea]">
+              <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-200/80 flex items-center justify-center text-purple-600 shadow-2xs">
                 <Navigation className="w-4 h-4" />
               </div>
             )}
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold tracking-wider uppercase text-[#8a8a87]">
+                <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
                   {entity.type === 'road' ? 'Road Corridor Segment' : entity.type.toUpperCase()}
                 </span>
               </div>
-              <h3 className="text-sm font-semibold text-[#1a1a19]">
+              <h3 className="text-sm font-bold text-slate-900">
                 {entity.type === 'incident' && getIncidentTypeLabel(entity.data.type)}
                 {entity.type === 'vehicle' && `${entity.data.id} · ${entity.data.driverName}`}
                 {entity.type === 'road' && entity.data.name}
@@ -86,7 +86,7 @@ export function MapInspector({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-[#8a8a87] hover:text-[#1a1a19] hover:bg-[#f4f4f3] transition-colors"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
             aria-label="Close inspector"
           >
             <X className="w-4 h-4" />

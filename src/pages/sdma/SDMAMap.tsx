@@ -11,20 +11,20 @@ export function SDMAMap() {
   const blockedCount = roadSegments.filter((s) => s.status === 'blocked').length;
 
   return (
-    <div className="h-full flex flex-col bg-[#f8f8f7]">
-      <div className="px-6 py-3 bg-white border-b border-[#e4e4e3] flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-md bg-[#f0fdf4] border border-[#bbf7d0] flex items-center justify-center text-[#16a34a]">
+    <div className="h-full flex flex-col bg-[#f4f6f8]">
+      <div className="px-6 py-3.5 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex items-center justify-between shadow-[0_4px_20px_-4px_rgba(15,23,42,0.03)] shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-2xs">
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-[#1a1a19]">Regional Hazard & Vulnerability GIS</h1>
-            <p className="text-[11px] text-[#8a8a87]">State Disaster Management Authority · Highway Network Command</p>
+            <h1 className="text-base font-bold text-slate-900 tracking-tight">Regional Hazard & Vulnerability GIS</h1>
+            <p className="text-xs text-slate-500 font-medium">State Disaster Management Authority · Highway Network Command</p>
           </div>
         </div>
 
         {blockedCount > 0 && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#fef2f2] border border-[#fecaca] text-xs font-semibold text-[#dc2626]">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700 shadow-2xs">
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>{blockedCount} Critical Corridor Cut</span>
           </div>

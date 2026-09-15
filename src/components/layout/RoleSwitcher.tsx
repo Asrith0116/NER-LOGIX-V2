@@ -1,7 +1,4 @@
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store/appStore';
-import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/utils';
 import type { UserRole } from '@/types';
 import { Truck, Activity, ShieldCheck, Warehouse } from 'lucide-react';
@@ -69,69 +66,38 @@ const roleStyles: Record<UserRole, { activeBorder: string; activeBg: string; tex
 };
 
 export function RoleSwitcher({ className }: RoleSwitcherProps) {
-  const { role, setRole } = useAppStore();
-  const { user, login } = useAuthStore();
-  const navigate = useNavigate();
+  const { role } = useAppStore();
 
-  const handleRoleChange = async (r: UserRole, to: string) => {
-    setRole(r);
-    if (!user || user.role !== r) {
-      const emailMap: Record<UserRole, string> = {
-        driver: 'driver@nerlogix.in',
-        dispatcher: 'dispatcher@nerlogix.in',
-        sdma: 'sdma@nerlogix.in',
-        contractor: 'contractor@nerlogix.in',
-      };
-      const pwdMap: Record<UserRole, string> = {
-        driver: 'driver123',
-        dispatcher: 'dispatch123',
-        sdma: 'sdma123',
-        contractor: 'contractor123',
-      };
-      await login(emailMap[r], pwdMap[r]);
-    }
-    navigate(to);
-  };
+  const currentRole = roles.find((r) => r.id === role) || roles[0];
+  const style = roleStyles[currentRole.id];
 
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       <div className="flex items-center justify-between px-1 mb-1">
-        <span className="text-[10px] font-bold text-[#8a8a87] uppercase tracking-wider">Role Workspace</span>
-        <span className="text-[10px] text-[#8a8a87] font-medium">Switch anytime</span>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assigned Workspace</span>
+        <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Active Session
+        </span>
       </div>
-      {roles.map((r) => {
-        const isActive = role === r.id;
-        const style = roleStyles[r.id];
-        return (
-          <motion.button
-            key={r.id}
-            onClick={() => handleRoleChange(r.id, r.to)}
-            whileTap={{ scale: 0.98 }}
-            className={cn(
-              'flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all duration-150 cursor-pointer',
-              isActive
-                ? `${style.activeBg} ${style.activeBorder} shadow-sm`
-                : 'bg-white border-[#e4e4e3] hover:bg-[#f8f8f7] text-[#5a5a57]'
-            )}
-          >
-            <span className={cn('p-1.5 rounded-md shrink-0', isActive ? `${style.activeBg} ${style.text}` : 'bg-[#f4f4f3] text-[#8a8a87]')}>
-              {r.icon}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className={cn('text-xs font-semibold leading-tight', isActive ? style.text : 'text-[#1a1a19]')}>
-                {r.title}
-              </p>
-              <p className="text-[10px] text-[#8a8a87] truncate mt-0.5">{r.objective}</p>
-            </div>
-            {isActive && (
-              <motion.div
-                layoutId="activeRoleIndicator"
-                className={cn('w-2 h-2 rounded-full shrink-0', style.dot)}
-              />
-            )}
-          </motion.button>
-        );
-      })}
+      <div
+        className={cn(
+          'flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left shadow-2xs',
+          style.activeBg,
+          style.activeBorder
+        )}
+      >
+        <span className={cn('p-1.5 rounded-lg shrink-0', style.activeBg, style.text)}>
+          {currentRole.icon}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className={cn('text-xs font-bold leading-tight', style.text)}>
+            {currentRole.title}
+          </p>
+          <p className="text-[10px] text-slate-500 truncate mt-0.5">{currentRole.objective}</p>
+        </div>
+        <div className={cn('w-2 h-2 rounded-full shrink-0', style.dot)} />
+      </div>
     </div>
   );
 }
