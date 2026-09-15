@@ -56,7 +56,7 @@ const PITCH_SCRIPT = [
   },
   {
     title: 'Step 7: Real-Time Rerouting from Current Position',
-    desc: 'Approaching vehicles receive WebSocket alerts. Route recalculates dynamically from CURRENT position rather than original start point.',
+    desc: 'Approaching vehicles receive backend-synchronized operational updates. Route recalculates dynamically from CURRENT position rather than original start point.',
     role: 'driver' as const,
     path: '/driver/navigation',
   },
@@ -179,7 +179,7 @@ export function DemoSimulationBar() {
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#2563eb] text-white">
-                SIH 2026 Jury Presentation Mode
+                Operational Scenario Walkthrough
               </span>
               <button
                 onClick={() => setPitchStep(null)}
@@ -248,17 +248,17 @@ export function DemoSimulationBar() {
             <div className="pb-3 flex items-center justify-between">
               <div className="flex items-center gap-2 font-bold text-slate-900">
                 <Sliders className="w-4 h-4 text-blue-600" />
-                <span>NER-LOGIX Jury Test Controls</span>
+                <span>Operational Simulation Controls</span>
               </div>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200/60 shadow-2xs">
-                SIH26002
+                NER-LOGIX
               </span>
             </div>
 
-            {/* Guided Pitch Walkthrough */}
+            {/* Guided Walkthrough */}
             <div className="py-3 space-y-2">
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                3-Minute Evaluator Storyline
+                Operational Workflow
               </p>
               <Button
                 variant="primary"
@@ -267,7 +267,7 @@ export function DemoSimulationBar() {
                 onClick={() => executeStage(0)}
               >
                 <PlayCircle className="w-4 h-4 text-cyan-400" />
-                <span>Launch Interactive Pitch Story</span>
+                <span>Launch Scenario Walkthrough</span>
               </Button>
             </div>
 
@@ -338,7 +338,6 @@ export function DemoSimulationBar() {
               </div>
             </div>
 
-            {/* Quick Role Switcher for Jury */}
             {/* Reset */}
             <div className="pt-3 flex items-center justify-between text-[11px] text-slate-400">
               <span>Active Disruptions: {disruptions.length}</span>
@@ -357,10 +356,10 @@ export function DemoSimulationBar() {
       {/* Toggle Pill Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-950/90 backdrop-blur-md text-white rounded-full shadow-[0_10px_30px_-4px_rgba(15,23,42,0.3)] hover:bg-slate-900 transition-all text-xs font-semibold cursor-pointer border border-white/20 active:scale-95"
+        className="flex items-center gap-2 px-3.5 py-2 bg-slate-950/90 backdrop-blur-md text-white rounded-full shadow-[0_10px_30px_-4px_rgba(15,23,42,0.3)] hover:bg-slate-900 transition-all text-xs font-semibold cursor-pointer border border-white/20 active:scale-95"
       >
         <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-        <span>SIH Jury Demo Panel</span>
+        <span>Simulation Controls</span>
         {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronUp className="w-3.5 h-3.5 text-slate-400" />}
       </button>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
@@ -94,12 +94,17 @@ export const LoginPage: React.FC = () => {
   const [manualRole, setManualRole] = useState<UserRole>('driver');
   const [manualSubmitting, setManualSubmitting] = useState(false);
 
-  // Role card click selects the role and expands/shows the Officer Manual Sign-In flow
+  const credentialsSectionRef = useRef<HTMLDivElement>(null);
+
+  // Role card selection: selects role, pre-fills static credentials, opens form, and focuses
   const handleSelectRoleCard = (item: RoleCardItem) => {
     setManualRole(item.role);
     setManualEmail(item.email);
     setManualPassword(item.defaultPassword);
     setShowManualLogin(true);
+    setTimeout(() => {
+      credentialsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
   };
 
   const handleManualFormSubmit = async (e: React.FormEvent) => {
@@ -265,7 +270,7 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {/* Collapsible Direct Credentials / Officer Login Option */}
-          <div className="mt-5 pt-4 border-t border-white/10">
+          <div ref={credentialsSectionRef} id="officer-credentials-section" className="mt-5 pt-4 border-t border-white/10">
             <button
               type="button"
               onClick={() => setShowManualLogin(!showManualLogin)}

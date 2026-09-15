@@ -224,6 +224,28 @@ class PredictiveService {
       factors.push(`Active field disruption report logged on corridor`);
     }
 
+    // 5. Cargo Sensitivity factor
+    if (cargoScore >= 20) {
+      structuredFactors.push({
+        factor: 'High-Sensitivity Cargo Profile',
+        impact: cargoScore >= 30 ? 'high' : 'moderate',
+        detail: `Cargo vulnerability factor (${cargoScore}/35) requires zero vibration & strict temperature compliance`,
+        weightContribution: Math.round((cargoScore / 35) * 0.15 * 100) / 100,
+      });
+      factors.push(`Critical cargo vulnerability profile (${cargoScore}/35)`);
+    }
+
+    // 6. Vehicle Suitability constraint
+    if (vehicleScore >= 4) {
+      structuredFactors.push({
+        factor: 'Vehicle Corridor Constraint',
+        impact: vehicleScore >= 8 ? 'critical' : 'moderate',
+        detail: `Vehicle class constraint on narrow mountain sector (+${vehicleScore} penalty)`,
+        weightContribution: Math.round((vehicleScore / 10) * 0.15 * 100) / 100,
+      });
+      factors.push(`Vehicle chassis / mountain axle suitability penalty (+${vehicleScore})`);
+    }
+
     if (factors.length === 0) {
       factors.push('Stable weather, gentle terrain gradient, and clear historical record');
       structuredFactors.push({

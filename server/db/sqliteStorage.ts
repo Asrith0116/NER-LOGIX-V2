@@ -291,7 +291,7 @@ export class OperationalDatabase {
     const baselineFleet: Vehicle[] = [
       {
         id: 'AS-01-J-4422',
-        driverName: 'Arjun Baruah',
+        driverName: 'Biren Gogoi',
         type: 'Refrigerated Truck',
         status: 'idle',
         riskLevel: 'low',
@@ -561,7 +561,7 @@ export class OperationalDatabase {
       {
         id: 'SHP-AS01-4422',
         vehicleId: 'AS-01-J-4422',
-        driverName: 'Arjun Baruah',
+        driverName: 'Biren Gogoi',
         origin: 'Guwahati',
         destination: 'Imphal',
         cargoCategory: 'Cold-Chain Medical Supplies',

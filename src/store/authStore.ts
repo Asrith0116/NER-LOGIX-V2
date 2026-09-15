@@ -116,13 +116,42 @@ export const useAuthStore = create<AuthState>((set) => ({
           isAuthenticated: true,
           isAuthLoading: false,
         });
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
-        set({ user: null, token: null, isAuthenticated: false, isAuthLoading: false });
+        return;
       }
     } catch {
-      localStorage.removeItem(STORAGE_KEY);
-      set({ user: null, token: null, isAuthenticated: false, isAuthLoading: false });
+      // Backend temporarily unreachable (e.g. offline simulation or network drop)
     }
+
+    // Resilient offline fallback: decode JWT token payload if valid
+    try {
+      const parts = storedToken.split('.');
+      if (parts.length === 3) {
+        const payloadJson = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+        const payload = JSON.parse(payloadJson);
+        if (payload.role && payload.email) {
+          const fallbackUser: AuthUser = {
+            id: payload.sub || 'usr-offline',
+            email: payload.email,
+            name: payload.name || payload.email,
+            role: payload.role as UserRole,
+            organization: payload.organization || 'NER Logistics Operations',
+            vehicleId: payload.vehicleId,
+          };
+          useAppStore.getState().setRole(fallbackUser.role);
+          set({
+            user: fallbackUser,
+            token: storedToken,
+            isAuthenticated: true,
+            isAuthLoading: false,
+          });
+          return;
+        }
+      }
+    } catch {
+      // Invalid token format
+    }
+
+    localStorage.removeItem(STORAGE_KEY);
+    set({ user: null, token: null, isAuthenticated: false, isAuthLoading: false });
   },
 }));
