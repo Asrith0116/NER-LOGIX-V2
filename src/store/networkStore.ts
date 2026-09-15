@@ -44,6 +44,9 @@ import {
   verifyOperationalIncident,
   updateOperationalRoadSegment,
   updateOperationalVehicle,
+  submitOperationalEmergencyRequest,
+  approveOperationalEmergencyRequest,
+  declineOperationalEmergencyRequest,
   resetBackendOperationalState,
   checkBackendHealth,
   type BackendHealthInfo,
@@ -733,7 +736,7 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
     }
 
     // Authoritative backend verification sync
-    verifyOperationalIncident(id, approved, verifiedBy).catch((err) => {
+    verifyOperationalIncident(id, approved, verifiedBy, undefined, updatedIncident).catch((err) => {
       console.warn('[OperationalBackend] Failed to verify incident on backend:', err);
     });
   },
@@ -945,6 +948,27 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       shipments,
     });
 
+    updateOperationalVehicle(vehicleId, {
+      plannedRouteId: alternate.id,
+      currentRoute: alternate.id,
+      plannedSegmentIds: alternate.segmentIds ? [...alternate.segmentIds] : vehicle.plannedSegmentIds,
+      previousRouteId: vehicle.plannedRouteId || vehicle.currentRoute,
+      etaMinutes,
+      status: 'on_route',
+      riskLevel: 'moderate',
+      affectedByDisruptionId: undefined,
+      impactReason: undefined,
+      rerouteStatus: 'active',
+      rerouteFrom: from,
+      rerouteFromLabel: fromLabel,
+      rerouteTo: vehicle.destination,
+      rerouteWaypoints: waypoints,
+      reroutedAt: updated.reroutedAt,
+      rerouteReason: updated.rerouteReason,
+    }).catch((err) => {
+      console.warn('[OperationalBackend] Failed to patch rerouted vehicle on backend:', err);
+    });
+
     return 'active';
   },
 
@@ -1034,6 +1058,16 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       shipments,
     });
 
+    submitOperationalEmergencyRequest(request).catch((err) => {
+      console.warn('[OperationalBackend] Failed to submit emergency request to backend:', err);
+    });
+    updateOperationalVehicle(vehicleId, {
+      rerouteStatus: 'no_alternative',
+      rerouteReason: 'No alternate highway corridor from current position.',
+      recommendedGodownId: godown.id,
+      recommendedGodownDistanceKm: distanceKm,
+    }).catch(() => {});
+
     return request.id;
   },
 
@@ -1090,6 +1124,10 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       activeVehicles,
       shipments,
     });
+
+    approveOperationalEmergencyRequest(request.id, DEMO_CONTRACTOR_NAME).catch((err) => {
+      console.warn('[OperationalBackend] Failed to approve emergency request on backend:', err);
+    });
   },
 
   declineEmergencyPickup: (requestIdOrVehicleId: string) => {
@@ -1114,6 +1152,10 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
     set({
       pickupRequests: updatedPickups,
       shipments,
+    });
+
+    declineOperationalEmergencyRequest(request.id, undefined, DEMO_CONTRACTOR_NAME).catch((err) => {
+      console.warn('[OperationalBackend] Failed to decline emergency request on backend:', err);
     });
   },
 
@@ -1300,38 +1342,107 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
           const snapshot = snapshotRes.data.data;
           
           set((state) => {
-            const rawIncidents = snapshot.incidents && snapshot.incidents.length > 0
-              ? snapshot.incidents
-              : state.activeIncidents;
-            const correlatedIncidents = correlateIncidents(rawIncidents);
+            // 1. Incidents: Merge state active incidents and snapshot incidents
+            const incidentMap = new Map<string, Incident>();
+            for (const inc of state.activeIncidents) {
+              incidentMap.set(inc.id, inc);
+            }
+            if (snapshot.incidents && Array.isArray(snapshot.incidents)) {
+              for (const inc of snapshot.incidents) {
+                incidentMap.set(inc.id, inc);
+              }
+            }
+            const mergedIncidents = Array.from(incidentMap.values());
+            const correlatedIncidents = correlateIncidents(mergedIncidents);
 
-            const roadSegments = snapshot.roads && snapshot.roads.length > 0
-              ? snapshot.roads
-              : state.roadSegments;
+            // 2. Disruptions: Combine snapshot and state disruptions; synthesise active ones for verified blocking incidents
+            const disruptionMap = new Map<string, Disruption>();
+            for (const d of state.disruptions) {
+              disruptionMap.set(d.id, d);
+            }
+            if (snapshot.disruptions && Array.isArray(snapshot.disruptions)) {
+              for (const d of snapshot.disruptions) {
+                disruptionMap.set(d.id, d);
+              }
+            }
+            for (const inc of correlatedIncidents) {
+              if (inc.syncStatus === 'verified' && incidentBlocksRoad(inc)) {
+                const seg = findAssociatedRoadSegment(inc, state.roadSegments);
+                if (seg) {
+                  const disId = `dis-${inc.id.replace('INC-', '')}`;
+                  if (!disruptionMap.has(disId)) {
+                    disruptionMap.set(disId, {
+                      id: disId,
+                      incidentId: inc.id,
+                      affectedSegmentId: seg.id,
+                      status: 'active',
+                      createdAt: inc.verifiedAt || inc.reportedAt,
+                      updatedAt: inc.verifiedAt || inc.reportedAt,
+                      affectedVehicleIds: [],
+                    });
+                  }
+                }
+              } else if (inc.syncStatus === 'rejected') {
+                for (const [id, dis] of disruptionMap.entries()) {
+                  if (dis.incidentId === inc.id) {
+                    disruptionMap.set(id, { ...dis, status: 'cleared' });
+                  }
+                }
+              }
+            }
+            const activeDisruptions = Array.from(disruptionMap.values()).filter((d) => d.status === 'active');
 
-            const disruptions = snapshot.disruptions || state.disruptions;
+            // 3. Road Segments: Preserve blockages for any active disruptions
+            const baseRoads = snapshot.roads && snapshot.roads.length > 0 ? snapshot.roads : state.roadSegments;
+            const roadSegments = baseRoads.map((road) => {
+              const activeDisruption = activeDisruptions.find((d) => d.affectedSegmentId === road.id);
+              if (activeDisruption) {
+                return {
+                  ...road,
+                  status: 'blocked' as RoadStatus,
+                  riskLevel: 'blocked' as RiskLevel,
+                  affectedByIncidentId: activeDisruption.incidentId,
+                  lastUpdated: activeDisruption.updatedAt || road.lastUpdated,
+                };
+              }
+              if (road.affectedByIncidentId) {
+                const inc = correlatedIncidents.find((i) => i.id === road.affectedByIncidentId);
+                if (inc && inc.syncStatus === 'rejected') {
+                  return {
+                    ...road,
+                    status: 'open' as RoadStatus,
+                    riskLevel: 'low' as RiskLevel,
+                    affectedByIncidentId: undefined,
+                  };
+                }
+              }
+              return road;
+            });
 
-            const computedFleet = computeFleetImpact(
-              snapshot.vehicles && snapshot.vehicles.length > 0 ? snapshot.vehicles : state.activeVehicles,
-              roadSegments,
-              disruptions,
-              correlatedIncidents
-            );
+            // 4. Vehicles: Compute fleet impact and merge reroute/emergency states
+            const baseVehicles = snapshot.vehicles && snapshot.vehicles.length > 0 ? snapshot.vehicles : state.activeVehicles;
+            const computedFleet = computeFleetImpact(baseVehicles, roadSegments, activeDisruptions, correlatedIncidents);
             const activeVehicles = mergeRerouteState(computedFleet, state.activeVehicles);
 
-            const pickupRequests = snapshot.emergencyPickups && snapshot.emergencyPickups.length > 0
-              ? snapshot.emergencyPickups
-              : state.pickupRequests;
+            // 5. Pickup Requests: Merge state and snapshot requests
+            const pickupMap = new Map<string, EmergencyPickupRequest>();
+            for (const req of state.pickupRequests) {
+              pickupMap.set(req.id, req);
+            }
+            if (snapshot.emergencyPickups && Array.isArray(snapshot.emergencyPickups)) {
+              for (const req of snapshot.emergencyPickups) {
+                pickupMap.set(req.id, req);
+              }
+            }
+            const pickupRequests = Array.from(pickupMap.values());
 
-            const baseShipments = snapshot.shipments && snapshot.shipments.length > 0
-              ? snapshot.shipments
-              : state.shipments;
-
+            // 6. Shipments:
+            const baseShipments = snapshot.shipments && snapshot.shipments.length > 0 ? snapshot.shipments : state.shipments;
             const shipments = computeUpdatedShipments(
               baseShipments,
               activeVehicles,
               roadSegments,
-              disruptions,
+              activeDisruptions,
               correlatedIncidents,
               pickupRequests
             );
@@ -1339,7 +1450,7 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
             return {
               activeIncidents: correlatedIncidents,
               roadSegments,
-              disruptions,
+              disruptions: activeDisruptions,
               activeVehicles,
               pickupRequests,
               shipments,

@@ -70,7 +70,8 @@ export async function verifyOperationalIncident(
   incidentId: string,
   approved: boolean,
   verifiedBy: string = 'SDMA Command Officer',
-  notes?: string
+  notes?: string,
+  incident?: Partial<Incident>
 ): Promise<
   ApiResponse<{
     ok: boolean;
@@ -88,7 +89,7 @@ export async function verifyOperationalIncident(
     affectedVehicles: Vehicle[];
   }>(`/api/v1/operations/incidents/${encodeURIComponent(incidentId)}/verify`, {
     method: 'POST',
-    body: JSON.stringify({ approved, verified_by: verifiedBy, notes }),
+    body: JSON.stringify({ approved, verified_by: verifiedBy, notes, incident }),
     timeoutMs: 4000,
   });
 }

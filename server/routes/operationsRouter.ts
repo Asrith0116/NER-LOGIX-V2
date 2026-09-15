@@ -9,7 +9,7 @@ import { backendElevationService } from '../services/elevationService.ts';
 import { geospatialSnappingService } from '../services/geospatialSnappingService.ts';
 import { predictiveService } from '../../src/services/predictive/predictiveService.ts';
 import { authService, type AuthTokenPayload } from '../services/authService.ts';
-import type { VehiclePositionUpdatePayload, PredictiveInputFeatures } from '../../src/types/index.ts';
+import type { VehiclePositionUpdatePayload, PredictiveInputFeatures, Incident } from '../../src/types/index.ts';
 
 export function sendJson(res: ServerResponse, statusCode: number, data: unknown) {
   const json = JSON.stringify(data);
@@ -255,10 +255,11 @@ export async function handleOperationsRequest(
         approved?: boolean;
         verified_by?: string;
         notes?: string;
+        incident?: Partial<Incident>;
       }>(req);
       const approved = body.approved ?? true;
       const verifiedBy = body.verified_by || authUser?.name || 'SDMA Command Officer';
-      const result = operationalEngine.verifyIncident(incidentId, approved, verifiedBy, body.notes);
+      const result = operationalEngine.verifyIncident(incidentId, approved, verifiedBy, body.notes, body.incident);
       const response = { ok: true, ...result };
       sendJsonWithIdempotency(res, 200, response, idKey);
     } catch (err) {
