@@ -32,6 +32,9 @@ export function DriverDashboard() {
   const activeIncidents = useNetworkStore((state) => state.activeIncidents);
   const roadSegments = useNetworkStore((state) => state.roadSegments);
   const godowns = useNetworkStore((state) => state.godowns);
+  const weatherData = useNetworkStore((state) => state.weatherData);
+  const elevationProfiles = useNetworkStore((state) => state.elevationProfiles);
+  const weatherSpikeActive = useNetworkStore((state) => state.weatherSpikeActive);
   const rerouteVehicle = useNetworkStore((state) => state.rerouteVehicle);
   const requestEmergencyPickup = useNetworkStore((state) => state.requestEmergencyPickup);
   const syncFromIndexedDB = useNetworkStore((state) => state.syncFromIndexedDB);
@@ -91,6 +94,32 @@ export function DriverDashboard() {
   const originDisplayName = driverTripCtx?.originName || driverVehicle?.origin || originLocation.shortName;
   const destDisplayName = driverTripCtx?.destinationName || driverVehicle?.destination || destLocation.shortName;
   const cargoDisplayName = driverTripCtx?.cargoType || driverTripCtx?.cargoCategory || driverVehicle?.cargoType || 'Essential Supplies';
+
+  // Dynamic Mountain Corridor Context derived from active corridor, route, weather & terrain
+  const activeCorridorKey = (activeRoute as unknown as { corridorKey?: string })?.corridorKey || (activeRoute.id === 'route-b' ? 'nh2_mountain_direct' : 'valley_low_risk');
+  const corridorDisplayName =
+    (activeRoute as unknown as { corridorName?: string })?.corridorName ||
+    (destLocation.shortName === 'Imphal' ? 'Mao Pass Corridor (NH-2)' :
+     destLocation.shortName === 'Kohima' ? 'Doyang Ridge / Naga Hills (NH-2)' :
+     destLocation.shortName === 'Silchar' ? 'Barail Mountain Pass (NH-27)' :
+     destLocation.shortName === 'Dimapur' ? 'Brahmaputra Lowland Approach' :
+     'Regional Strategic Corridor');
+
+  const destWeather = weatherData[destLocation.shortName] || weatherData[destLocation.name];
+  const originWeather = weatherData[originLocation.shortName] || weatherData[originLocation.name];
+  const livePrecip = destWeather?.precipitationMm ?? originWeather?.precipitationMm ?? (weatherSpikeActive ? 45.0 : 6.5);
+
+  const elevProfile = elevationProfiles[activeCorridorKey];
+  const passElevationMeters = elevProfile?.maxElevationMeters ?? (
+    destLocation.shortName === 'Imphal' ? 1740 :
+    destLocation.shortName === 'Kohima' ? 1444 :
+    destLocation.shortName === 'Silchar' ? 920 :
+    destLocation.shortName === 'Dimapur' ? 260 :
+    1650
+  );
+
+  // Atmospheric optical visibility derived deterministically from live corridor precipitation
+  const visibilityKm = Math.max(1.5, Math.round((13.5 - Math.min(11.5, livePrecip * 0.45)) * 10) / 10);
 
   const handleStartReroute = () => {
     if (!driverVehicle) return;
@@ -487,24 +516,24 @@ export function DriverDashboard() {
                 <Mountain className="w-3.5 h-3.5 text-slate-500" />
                 Mountain Corridor Status
               </span>
-              <span className="text-[10px] text-slate-500 font-medium">Mao Pass Corridor</span>
+              <span className="text-[10px] text-slate-700 font-semibold">{corridorDisplayName}</span>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div className="p-2.5 rounded-xl bg-slate-50/70 border border-slate-200/80 shadow-2xs">
                 <CloudRain className="w-4 h-4 mx-auto text-blue-600 mb-1" />
                 <p className="text-[10px] text-slate-500">Precipitation</p>
-                <p className="font-bold text-slate-900">3.5 mm/h</p>
+                <p className="font-bold text-slate-900">{livePrecip.toFixed(1)} mm/h</p>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-50/70 border border-slate-200/80 shadow-2xs">
                 <Eye className="w-4 h-4 mx-auto text-amber-600 mb-1" />
                 <p className="text-[10px] text-slate-500">Visibility</p>
-                <p className="font-bold text-slate-900">6.2 km</p>
+                <p className="font-bold text-slate-900">{visibilityKm.toFixed(1)} km</p>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-50/70 border border-slate-200/80 shadow-2xs">
                 <Mountain className="w-4 h-4 mx-auto text-slate-600 mb-1" />
                 <p className="text-[10px] text-slate-500">Pass Elevation</p>
-                <p className="font-bold text-slate-900">1,650 m</p>
+                <p className="font-bold text-slate-900">{passElevationMeters.toLocaleString()} m</p>
               </div>
             </div>
           </div>

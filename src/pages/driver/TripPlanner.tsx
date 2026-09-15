@@ -147,16 +147,6 @@ export function TripPlanner() {
   const [userSelectedRouteId, setUserSelectedRouteId] = useState<string | null>(null);
   const [prepState, setPrepState] = useState<PrepState>('idle');
 
-  // Synchronize when active vehicle context switches
-  const [prevVehicleId, setPrevVehicleId] = useState<string>(activeVehicle?.id || '');
-  if (activeVehicle && activeVehicle.id !== prevVehicleId) {
-    setPrevVehicleId(activeVehicle.id);
-    setOriginKey(defaultOrigin);
-    setDestKey(defaultDest);
-    setUserSelectedRouteId(null);
-    setPrepState('idle');
-  }
-
   // Trip Configuration Inputs
   const [selectedCargoOption, setSelectedCargoOption] = useState(CARGO_CATALOG[0]);
   const [cargoSensitivity, setCargoSensitivity] = useState<CargoSensitivity>('critical');
@@ -168,6 +158,31 @@ export function TripPlanner() {
   const [avoidHighRiskCorridors, setAvoidHighRiskCorridors] = useState<boolean>(true);
   const [riskTolerance, setRiskTolerance] = useState<'conservative' | 'balanced' | 'aggressive'>('conservative');
   const [showAdvancedConstraints, setShowAdvancedConstraints] = useState<boolean>(false);
+
+  // Synchronize when active vehicle context switches
+  const [prevVehicleId, setPrevVehicleId] = useState<string>(activeVehicle?.id || '');
+  if (activeVehicle && activeVehicle.id !== prevVehicleId) {
+    setPrevVehicleId(activeVehicle.id);
+    setOriginKey(defaultOrigin);
+    setDestKey(defaultDest);
+    setUserSelectedRouteId(null);
+    setPrepState('idle');
+
+    // Auto-align cargo options with vehicle profile
+    const matchedCargo =
+      CARGO_CATALOG.find((c) =>
+        (activeVehicle.cargoType && (
+          c.category.toLowerCase().includes(activeVehicle.cargoType.toLowerCase().split(' ')[0]) ||
+          activeVehicle.cargoType.toLowerCase().includes(c.category.toLowerCase().split(' ')[0]) ||
+          c.label.toLowerCase().includes(activeVehicle.cargoType.toLowerCase())
+        ))
+      ) || CARGO_CATALOG[0];
+
+    setSelectedCargoOption(matchedCargo);
+    setCargoSensitivity(matchedCargo.sensitivity);
+    setTripPriority(matchedCargo.priority);
+    setRequireColdChain(matchedCargo.coldChain);
+  }
 
   // State Management
   const [activeTab, setActiveTab] = useState<'routes' | 'risk_breakdown'>('routes');
