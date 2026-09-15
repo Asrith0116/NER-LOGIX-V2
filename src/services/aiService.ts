@@ -318,6 +318,7 @@ export class DeterministicFallbackIncidentIntelligenceProvider
       provider: 'Local NLP · Deterministic Fallback',
       statusLabel: 'Local NLP · Deterministic Fallback',
       isLiveGemini: false,
+      photoAnalyzedByAi: false,
       generatedAt: new Date().toISOString(),
     };
   }
@@ -414,6 +415,7 @@ export class GeminiIncidentIntelligenceProvider implements IncidentIntelligenceP
             isLiveGemini,
             isLiveGroq,
             isAiDriven,
+            photoAnalyzedByAi: Boolean(request.photo && request.photo.data && (isLiveGemini || isLiveGroq)),
             generatedAt: d.timestamp || new Date().toISOString(),
             diagnostics: {
               endpoint: '/api/v1/ai/analyze-incident',

@@ -34,7 +34,7 @@ export async function apiRequest<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<ApiResponse<T>> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, ...rest } = options;
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, method = 'GET', ...rest } = options;
   const baseUrl = getApiBaseUrl().replace(/\/+$/, '');
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${baseUrl}${cleanEndpoint}`;
@@ -42,12 +42,36 @@ export async function apiRequest<T>(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+  // Retrieve stored bearer token if present
+  let token: string | null = null;
+  if (typeof window !== 'undefined') {
+    token = localStorage.getItem('nerlogix_auth_token');
+  }
+
+  const reqHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  // Automatically attach Idempotency Key for mutation methods if not provided
+  const upperMethod = method.toUpperCase();
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(upperMethod)) {
+    const existingKey =
+      (headers as Record<string, string>)['Idempotency-Key'] ||
+      (headers as Record<string, string>)['x-idempotency-key'] ||
+      (headers as Record<string, string>)['IDEMPOTENCY-KEY'];
+    if (!existingKey) {
+      reqHeaders['Idempotency-Key'] = `idemp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    }
+  }
+
   try {
     const response = await fetch(url, {
       ...rest,
+      method,
       headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
+        ...reqHeaders,
         ...headers,
       },
       signal: controller.signal,

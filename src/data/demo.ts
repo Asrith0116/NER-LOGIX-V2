@@ -58,7 +58,7 @@ export const LOCATIONS = {
 
 export const DEMO_DRIVER: Driver = {
   id: 'DRV-001',
-  name: 'Arjun Baruah',
+  name: 'Biren Gogoi',
   vehicleId: 'AS-01-J-4422',
   vehicleType: 'Refrigerated Medium Truck',
   phone: '+91 98640 12345',
@@ -141,7 +141,7 @@ export const SCENARIO_INCIDENTS: Incident[] = [
     locationSource: 'DEVICE_GPS',
     description:
       'Major landslide blocking NH-2. Debris covers approximately 80m of road. Multiple boulders present. Road completely impassable.',
-    reportedBy: 'Arjun Baruah (DRV-001)',
+    reportedBy: 'Biren Gogoi (DRV-001)',
     reportedVehicleId: 'AS-01-J-4422',
     reportedAt: '2026-09-03T08:42:00+05:30',
     syncStatus: 'pending_verification',
@@ -304,7 +304,7 @@ export const DEMO_ROAD_SEGMENTS: RoadSegment[] = [
 export const DEMO_FLEET: Vehicle[] = [
   {
     id: 'AS-01-J-4422',
-    driverName: 'Arjun Baruah',
+    driverName: 'Biren Gogoi',
     type: 'Refrigerated Truck',
     status: 'idle',
     riskLevel: 'low',
@@ -553,7 +553,7 @@ export const DEMO_SHIPMENTS: import('@/types').Shipment[] = [
   {
     id: 'SHP-AS01-4422',
     vehicleId: 'AS-01-J-4422',
-    driverName: 'Arjun Baruah',
+    driverName: 'Biren Gogoi',
     origin: 'Guwahati',
     destination: 'Imphal',
     cargoCategory: 'Cold-Chain Medical Supplies',

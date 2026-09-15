@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store/appStore';
+import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/utils';
 import type { UserRole } from '@/types';
 import { Truck, Activity, ShieldCheck, Warehouse } from 'lucide-react';
@@ -69,10 +70,26 @@ const roleStyles: Record<UserRole, { activeBorder: string; activeBg: string; tex
 
 export function RoleSwitcher({ className }: RoleSwitcherProps) {
   const { role, setRole } = useAppStore();
+  const { user, login } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleRoleChange = (r: UserRole, to: string) => {
+  const handleRoleChange = async (r: UserRole, to: string) => {
     setRole(r);
+    if (!user || user.role !== r) {
+      const emailMap: Record<UserRole, string> = {
+        driver: 'driver@nerlogix.in',
+        dispatcher: 'dispatcher@nerlogix.in',
+        sdma: 'sdma@nerlogix.in',
+        contractor: 'contractor@nerlogix.in',
+      };
+      const pwdMap: Record<UserRole, string> = {
+        driver: 'driver123',
+        dispatcher: 'dispatch123',
+        sdma: 'sdma123',
+        contractor: 'contractor123',
+      };
+      await login(emailMap[r], pwdMap[r]);
+    }
     navigate(to);
   };
 

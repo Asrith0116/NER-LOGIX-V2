@@ -98,7 +98,7 @@ export function DemoSimulationBar() {
       location: [25.32, 93.55] as [number, number],
       locationName: 'NH-2 near Mao Gate, km 312',
       description: 'Major slope collapse after heavy rainfall. Both carriageways blocked by shale debris and boulders.',
-      reportedBy: 'Arjun Baruah (Field Driver)',
+      reportedBy: 'Biren Gogoi (Field Driver)',
       reportedAt: new Date().toISOString(),
       syncStatus: 'pending_verification' as const,
       voiceNote: true,

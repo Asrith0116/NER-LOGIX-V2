@@ -1391,7 +1391,28 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
   },
 }));
 
-// Automatically trigger sync on module load in browser
+// Automatically trigger sync on module load in browser and run periodic polling loop
 if (typeof window !== 'undefined') {
   useNetworkStore.getState().syncWithBackend();
+
+  // Active polling loop for live multi-browser cross-role state sync
+  let pollIntervalMs = 3000;
+  let consecutiveErrors = 0;
+
+  const runPoll = async () => {
+    // Only poll when window/document is visible to conserve bandwidth
+    if (document.visibilityState === 'visible') {
+      try {
+        await useNetworkStore.getState().syncWithBackend();
+        consecutiveErrors = 0;
+        pollIntervalMs = 3000;
+      } catch {
+        consecutiveErrors++;
+        pollIntervalMs = Math.min(30000, 3000 * Math.pow(1.5, consecutiveErrors));
+      }
+    }
+    setTimeout(runPoll, pollIntervalMs);
+  };
+
+  setTimeout(runPoll, pollIntervalMs);
 }

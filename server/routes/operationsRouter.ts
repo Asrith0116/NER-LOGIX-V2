@@ -8,6 +8,7 @@ import { backendVehiclePositionService } from '../services/vehiclePositionServic
 import { backendElevationService } from '../services/elevationService.ts';
 import { geospatialSnappingService } from '../services/geospatialSnappingService.ts';
 import { predictiveService } from '../../src/services/predictive/predictiveService.ts';
+import { authService, type AuthTokenPayload } from '../services/authService.ts';
 import type { VehiclePositionUpdatePayload, PredictiveInputFeatures } from '../../src/types/index.ts';
 
 export function sendJson(res: ServerResponse, statusCode: number, data: unknown) {
@@ -16,9 +17,34 @@ export function sendJson(res: ServerResponse, statusCode: number, data: unknown)
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Idempotency-Key, X-Idempotency-Key, X-Requested-With',
   });
   res.end(json);
+}
+
+export function sendJsonWithIdempotency(
+  res: ServerResponse,
+  statusCode: number,
+  data: unknown,
+  idempotencyKey?: string | null
+) {
+  if (idempotencyKey) {
+    opDb.saveIdempotencyRecord(idempotencyKey, statusCode, data);
+  }
+  sendJson(res, statusCode, data);
+}
+
+export function getAuthUser(req: IncomingMessage): AuthTokenPayload | null {
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+  if (!authHeader || typeof authHeader !== 'string') return null;
+  const parts = authHeader.split(' ');
+  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') return null;
+  return authService.verifyToken(parts[1]);
+}
+
+export function getIdempotencyKey(req: IncomingMessage): string | null {
+  const key = req.headers['idempotency-key'] || req.headers['x-idempotency-key'];
+  return typeof key === 'string' && key.trim() !== '' ? key.trim() : null;
 }
 
 export async function parseJsonBody<T = Record<string, unknown>>(req: IncomingMessage): Promise<T> {
@@ -48,6 +74,43 @@ export async function handleOperationsRequest(
   const method = req.method?.toUpperCase() || 'GET';
   const rawUrl = req.url || '';
   const url = rawUrl.split('?')[0];
+
+  // CORS Preflight
+  if (method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Idempotency-Key, X-Idempotency-Key, X-Requested-With',
+    });
+    res.end();
+    return true;
+  }
+
+  // 0. Auth Endpoints
+  if ((url === '/api/v1/auth/login' || url === '/api/v1/login') && method === 'POST') {
+    try {
+      const body = await parseJsonBody<{ email?: string; role?: string; password?: string }>(req);
+      const result = authService.authenticate(body.email || body.role || 'driver', body.password);
+      if (!result) {
+        sendJson(res, 401, { ok: false, error: 'Invalid authentication credentials or role.' });
+        return true;
+      }
+      sendJson(res, 200, { ok: true, token: result.token, user: result.user });
+    } catch (err) {
+      sendJson(res, 400, { ok: false, error: (err as Error).message });
+    }
+    return true;
+  }
+
+  if ((url === '/api/v1/auth/me' || url === '/api/v1/me') && method === 'GET') {
+    const user = getAuthUser(req);
+    if (!user) {
+      sendJson(res, 401, { ok: false, error: 'Missing or invalid authentication token.' });
+      return true;
+    }
+    sendJson(res, 200, { ok: true, user });
+    return true;
+  }
 
   // 1. Health Probe
   if (method === 'GET' && (url === '/health' || url === '/api/v1/operations/health' || url === '/api/health')) {
@@ -135,14 +198,30 @@ export async function handleOperationsRequest(
   }
 
   if ((url === '/api/v1/operations/incidents' || url === '/api/v1/incidents') && method === 'POST') {
+    const idKey = getIdempotencyKey(req);
+    if (idKey) {
+      const cached = opDb.getIdempotencyRecord(idKey);
+      if (cached) {
+        sendJson(res, cached.statusCode, cached.responseJson);
+        return true;
+      }
+    }
+
+    const authUser = getAuthUser(req);
+    if (authUser && authUser.role !== 'driver' && authUser.role !== 'dispatcher' && authUser.role !== 'sdma') {
+      sendJson(res, 403, { ok: false, error: 'Forbidden: Insufficient role permissions for incident reporting.' });
+      return true;
+    }
+
     try {
       const body = await parseJsonBody(req);
       const created = operationalEngine.createIncident(body);
-      sendJson(res, 201, {
+      const response = {
         ok: true,
         incident: created,
         message: 'Incident created with pending_verification state.',
-      });
+      };
+      sendJsonWithIdempotency(res, 201, response, idKey);
     } catch (err) {
       sendJson(res, 400, { ok: false, error: (err as Error).message });
     }
@@ -153,6 +232,24 @@ export async function handleOperationsRequest(
   const verifyMatch = url.match(/^\/api\/v1\/(?:operations\/)?incidents\/([^/]+)\/verify$/);
   if (verifyMatch && method === 'POST') {
     const incidentId = decodeURIComponent(verifyMatch[1]);
+    const idKey = getIdempotencyKey(req);
+    if (idKey) {
+      const cached = opDb.getIdempotencyRecord(idKey);
+      if (cached) {
+        sendJson(res, cached.statusCode, cached.responseJson);
+        return true;
+      }
+    }
+
+    const authUser = getAuthUser(req);
+    if (authUser && authUser.role !== 'sdma') {
+      sendJson(res, 403, {
+        ok: false,
+        error: 'Forbidden: SDMA / Government official authorization required to verify road status.',
+      });
+      return true;
+    }
+
     try {
       const body = await parseJsonBody<{
         approved?: boolean;
@@ -160,12 +257,10 @@ export async function handleOperationsRequest(
         notes?: string;
       }>(req);
       const approved = body.approved ?? true;
-      const verifiedBy = body.verified_by || 'SDMA Command Officer';
+      const verifiedBy = body.verified_by || authUser?.name || 'SDMA Command Officer';
       const result = operationalEngine.verifyIncident(incidentId, approved, verifiedBy, body.notes);
-      sendJson(res, 200, {
-        ok: true,
-        ...result,
-      });
+      const response = { ok: true, ...result };
+      sendJsonWithIdempotency(res, 200, response, idKey);
     } catch (err) {
       sendJson(res, 400, { ok: false, error: (err as Error).message });
     }
@@ -313,10 +408,19 @@ export async function handleOperationsRequest(
       url === '/api/v1/pickup-requests') &&
     method === 'POST'
   ) {
+    const idKey = getIdempotencyKey(req);
+    if (idKey) {
+      const cached = opDb.getIdempotencyRecord(idKey);
+      if (cached) {
+        sendJson(res, cached.statusCode, cached.responseJson);
+        return true;
+      }
+    }
+
     try {
       const body = (await parseJsonBody(req)) as Record<string, any>;
       const created = operationalEngine.createPickupRequest(body);
-      sendJson(res, 201, created);
+      sendJsonWithIdempotency(res, 201, created, idKey);
     } catch (err) {
       sendJson(res, 400, { ok: false, error: (err as Error).message });
     }
@@ -328,14 +432,31 @@ export async function handleOperationsRequest(
     /^\/api\/v1\/(?:operations\/)?(?:emergency-logistics\/)?(?:requests|pickup-requests)\/([^/?]+)\/approve$/
   );
   if (approveMatch && method === 'POST') {
+    const idKey = getIdempotencyKey(req);
+    if (idKey) {
+      const cached = opDb.getIdempotencyRecord(idKey);
+      if (cached) {
+        sendJson(res, cached.statusCode, cached.responseJson);
+        return true;
+      }
+    }
+
+    const authUser = getAuthUser(req);
+    if (authUser && authUser.role !== 'contractor') {
+      sendJson(res, 403, {
+        ok: false,
+        error: 'Forbidden: Contractor authorization required to approve emergency stock allocation.',
+      });
+      return true;
+    }
+
     try {
       const id = approveMatch[1];
       const body = (await parseJsonBody(req).catch(() => ({}))) as Record<string, any>;
-      const result = operationalEngine.approvePickupRequest(
-        id,
-        body.contractorName || 'North East Logistics Contractor'
-      );
-      sendJson(res, 200, { ok: true, ...result });
+      const contractorName = body.contractorName || authUser?.name || 'North East Logistics Contractor';
+      const result = operationalEngine.approvePickupRequest(id, contractorName);
+      const response = { ok: true, ...result };
+      sendJsonWithIdempotency(res, 200, response, idKey);
     } catch (err) {
       sendJson(res, 400, { ok: false, error: (err as Error).message });
     }
@@ -347,15 +468,31 @@ export async function handleOperationsRequest(
     /^\/api\/v1\/(?:operations\/)?(?:emergency-logistics\/)?(?:requests|pickup-requests)\/([^/?]+)\/decline$/
   );
   if (declineMatch && method === 'POST') {
+    const idKey = getIdempotencyKey(req);
+    if (idKey) {
+      const cached = opDb.getIdempotencyRecord(idKey);
+      if (cached) {
+        sendJson(res, cached.statusCode, cached.responseJson);
+        return true;
+      }
+    }
+
+    const authUser = getAuthUser(req);
+    if (authUser && authUser.role !== 'contractor') {
+      sendJson(res, 403, {
+        ok: false,
+        error: 'Forbidden: Contractor authorization required to decline emergency stock allocation.',
+      });
+      return true;
+    }
+
     try {
       const id = declineMatch[1];
       const body = (await parseJsonBody(req).catch(() => ({}))) as Record<string, any>;
-      const result = operationalEngine.declinePickupRequest(
-        id,
-        body.declineReason,
-        body.contractorName
-      );
-      sendJson(res, 200, { ok: true, ...result });
+      const contractorName = body.contractorName || authUser?.name;
+      const result = operationalEngine.declinePickupRequest(id, body.declineReason, contractorName);
+      const response = { ok: true, ...result };
+      sendJsonWithIdempotency(res, 200, response, idKey);
     } catch (err) {
       sendJson(res, 400, { ok: false, error: (err as Error).message });
     }

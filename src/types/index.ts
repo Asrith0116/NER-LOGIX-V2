@@ -281,6 +281,7 @@ export interface IncidentAiAnalysis {
   isLiveGemini?: boolean;
   isLiveGroq?: boolean;
   isAiDriven?: boolean;
+  photoAnalyzedByAi?: boolean;
   generatedAt?: string;
   diagnostics?: {
     endpoint?: string;

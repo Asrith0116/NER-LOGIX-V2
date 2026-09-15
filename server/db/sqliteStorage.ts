@@ -204,6 +204,13 @@ export class OperationalDatabase {
         status TEXT,
         raw_json TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS idempotency_records (
+        key TEXT PRIMARY KEY,
+        status_code INTEGER NOT NULL,
+        response_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
     `);
   }
 
@@ -1031,6 +1038,31 @@ export class OperationalDatabase {
     const newStock = Math.max(0, godown.availableStock - decrementBy);
     godown.availableStock = newStock;
     return this.saveGodown(godown);
+  }
+
+  // ── Idempotency Management ──────────────────────────────────────────────────
+  public getIdempotencyRecord(key: string): { statusCode: number; responseJson: any } | null {
+    if (!key) return null;
+    const row = this.db.prepare('SELECT status_code, response_json FROM idempotency_records WHERE key = ?').get(key) as
+      | { status_code: number; response_json: string }
+      | undefined;
+    if (!row) return null;
+    try {
+      return {
+        statusCode: row.status_code,
+        responseJson: JSON.parse(row.response_json),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  public saveIdempotencyRecord(key: string, statusCode: number, responseData: unknown) {
+    if (!key) return;
+    const stmt = this.db.prepare(
+      'INSERT OR REPLACE INTO idempotency_records (key, status_code, response_json, created_at) VALUES (?, ?, ?, ?)'
+    );
+    stmt.run(key, statusCode, JSON.stringify(responseData), new Date().toISOString());
   }
 
   // ── Health / Stats ────────────────────────────────────────────────────────

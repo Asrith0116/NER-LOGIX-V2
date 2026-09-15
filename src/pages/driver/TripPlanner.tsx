@@ -228,7 +228,7 @@ export function TripPlanner() {
       destination: destLocation,
       vehicleId: activeVehicle?.id || 'AS-01-J-4422',
       vehicleType: activeVehicle?.type || 'Refrigerated Truck',
-      driverName: activeVehicle?.driverName || 'Arjun Baruah',
+      driverName: activeVehicle?.driverName || 'Biren Gogoi',
       cargoCategory: selectedCargoOption.category,
       cargoSensitivity,
       priority: tripPriority,

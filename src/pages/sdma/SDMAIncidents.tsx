@@ -6,14 +6,11 @@ import { RiskBadge } from '@/components/ui/RiskBadge';
 import { Button } from '@/components/ui/Button';
 import { Notification } from '@/components/ui/Notification';
 import { AudioPlayer } from '@/components/ui/AudioPlayer';
-import { formatDateTime, formatTimeAgo, getIncidentTypeLabel } from '@/utils';
+import { formatTimeAgo, getIncidentTypeLabel } from '@/utils';
 import { cn } from '@/utils';
 import {
   CheckCircle,
   XCircle,
-  MapPin,
-  Clock,
-  User,
   AlertTriangle,
   FileCheck,
   Camera,
@@ -324,9 +321,42 @@ export function SDMAIncidents() {
                 </div>
               )}
 
+              {/* Field Evidence & Telemetry Source Card */}
+              <div className="p-4 rounded-xl bg-[#fafaf9] border border-[#e4e4e3] space-y-3">
+                <div className="flex items-center justify-between border-b border-[#e4e4e3] pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#1a1a19]">
+                    <FileCheck className="w-4 h-4 text-[#16a34a]" />
+                    <span>Driver Field Evidence & Telemetry Feed</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-[#5a5a57] bg-[#f0f0ef] px-2 py-0.5 rounded border border-[#e4e4e3]">
+                    Source: {selected.locationSource || 'DEVICE_GPS'}
+                  </span>
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div>
+                    <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Raw Typed Description</span>
+                    <p className="font-medium text-[#1a1a19] bg-white p-2.5 rounded-lg border border-[#e4e4e3] leading-relaxed">
+                      {selected.description || 'No additional typed description provided by driver.'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Observer / Unit</span>
+                      <p className="font-semibold text-[#1a1a19] mt-0.5">{selected.reportedBy}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">GPS Coordinates</span>
+                      <p className="font-mono text-[#1a1a19] mt-0.5">
+                        {selected.location[0].toFixed(5)}° N, {selected.location[1].toFixed(5)}° E
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* AI Structured Entity Extraction Card */}
-              <div className="p-4 rounded-xl bg-[#eff6ff] border border-[#bfdbfe] space-y-2">
-                <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="p-4 rounded-xl bg-[#eff6ff] border border-[#bfdbfe] space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2 border-b border-[#bfdbfe] pb-2">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-[#1e40af]">
                     <Sparkles className="w-4 h-4 text-[#2563eb]" />
                     <span>AI Autonomous Triage & Extraction Engine</span>
@@ -353,69 +383,48 @@ export function SDMAIncidents() {
                       </span>
                     ) : (
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f4f4f5] text-[#71717a] border border-[#e4e4e7]">
-                        Confidence: Not available · Deterministic fallback
+                        Confidence: Not available · Heuristic fallback
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
-                  <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">
-                    <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Road Impact</span>
-                    <span className={selected.aiAnalysis?.roadImpact === 'none' ? "font-bold text-[#166534]" : "font-bold text-[#dc2626]"}>
-                      {selected.aiAnalysis?.roadImpact ? (selected.aiAnalysis.roadImpact === 'none' ? 'NONE (NO OPERATIONAL ROAD IMPACT)' : selected.aiAnalysis.roadImpact.replace('_', ' ').toUpperCase()) : 'FULLY BLOCKED'}
-                    </span>
+                <div className="space-y-2 text-xs">
+                  <div>
+                    <span className="text-[10px] text-[#1e40af] uppercase font-bold block">Synthesized AI English Summary</span>
+                    <p className="font-semibold text-[#1e40af] bg-white p-2.5 rounded-lg border border-[#bfdbfe] leading-relaxed">
+                      {selected.aiAnalysis?.englishSummary || selected.description || 'Synthesizing report triage...'}
+                    </p>
                   </div>
-                  <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">
-                    <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Extracted Entities</span>
-                    <span className="font-semibold text-[#1a1a19] line-clamp-1">
-                      {selected.aiAnalysis?.extractedEntities?.join(' · ') || 'Corridor Sector'}
-                    </span>
-                  </div>
-                  <div className="p-2 bg-white rounded-lg border border-[#dbeafe]">
-                    <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Recommended Action</span>
-                    <span className="font-semibold text-[#2563eb] line-clamp-1">
-                      {selected.aiAnalysis?.recommendedAction || 'SDMA verification required before executing reroutes.'}
-                    </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+                    <div className="p-2.5 bg-white rounded-lg border border-[#dbeafe]">
+                      <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Road Blockage Impact</span>
+                      <span className={selected.aiAnalysis?.roadImpact === 'none' ? "font-bold text-[#166534]" : "font-bold text-[#dc2626]"}>
+                        {selected.aiAnalysis?.roadImpact ? (selected.aiAnalysis.roadImpact === 'none' ? 'NONE (NO OPERATIONAL IMPACT)' : selected.aiAnalysis.roadImpact.replace('_', ' ').toUpperCase()) : 'FULLY BLOCKED'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 bg-white rounded-lg border border-[#dbeafe]">
+                      <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Extracted Entities</span>
+                      <span className="font-semibold text-[#1a1a19] line-clamp-1">
+                        {selected.aiAnalysis?.extractedEntities?.join(' · ') || 'Corridor Sector'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 bg-white rounded-lg border border-[#dbeafe]">
+                      <span className="text-[10px] text-[#8a8a87] uppercase font-bold block">Recommended Action</span>
+                      <span className="font-semibold text-[#2563eb] line-clamp-1">
+                        {selected.aiAnalysis?.recommendedAction || 'SDMA verification required before executing reroutes.'}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <p className="text-[10px] text-[#64748b] italic border-t border-[#dbeafe] pt-1">
-                  Advisory Notice: AI classifications are preliminary and assist human operator verification.
+                  Advisory Notice: Autonomous entity classifications assist state authorities with high-throughput field triage.
                 </p>
               </div>
 
-              {/* Location & Metadata */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-[#f8f8f7] rounded-xl p-3 border border-[#e4e4e3]">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <MapPin className="w-3.5 h-3.5 text-[#2563eb]" />
-                    <span className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">Location</span>
-                  </div>
-                  <p className="text-xs font-bold text-[#1a1a19] truncate">{selected.locationName}</p>
-                  <p className="text-[10px] text-[#8a8a87] mt-0.5">
-                    {selected.location[0].toFixed(4)}°N, {selected.location[1].toFixed(4)}°E ({selected.locationSource || 'DEVICE_GPS'})
-                  </p>
-                </div>
-                <div className="bg-[#f8f8f7] rounded-xl p-3 border border-[#e4e4e3]">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Clock className="w-3.5 h-3.5 text-[#d97706]" />
-                    <span className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">Reported Time</span>
-                  </div>
-                  <p className="text-xs font-bold text-[#1a1a19]">{formatDateTime(selected.reportedAt)}</p>
-                  <p className="text-[10px] text-[#8a8a87] mt-0.5">{formatTimeAgo(selected.reportedAt)}</p>
-                </div>
-                <div className="bg-[#f8f8f7] rounded-xl p-3 border border-[#e4e4e3]">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <User className="w-3.5 h-3.5 text-[#16a34a]" />
-                    <span className="text-[10px] text-[#8a8a87] uppercase tracking-wider font-bold">Observer</span>
-                  </div>
-                  <p className="text-xs font-bold text-[#1a1a19] truncate">{selected.reportedBy}</p>
-                  <p className="text-[10px] text-[#8a8a87] mt-0.5">Field Transport Driver</p>
-                </div>
-              </div>
-
-              {/* Photo Evidence */}
-              <div className="p-3.5 rounded-xl bg-[#fafaf9] border border-[#e4e4e3] flex flex-col sm:flex-row gap-4 items-center">
+              {/* Photo Evidence with Photo-Aware AI Triage Badge */}
+              <div className="p-4 rounded-xl bg-[#fafaf9] border border-[#e4e4e3] flex flex-col sm:flex-row gap-4 items-center">
                 {selected.photoUrl ? (
                   <div className="w-full sm:w-48 h-32 rounded-lg bg-black/5 overflow-hidden shrink-0 border border-[#e4e4e3]">
                     <img
@@ -431,7 +440,7 @@ export function SDMAIncidents() {
                     <span className="text-[9px] text-[#a1a1aa]">Telemetry & acoustic report only</span>
                   </div>
                 )}
-                <div className="flex-1 space-y-1 text-xs">
+                <div className="flex-1 space-y-2 text-xs">
                   <div className="flex items-center gap-1.5 font-bold text-[#1a1a19]">
                     <Camera className="w-4 h-4 text-[#2563eb]" />
                     <span>Visual Evidence Analysis</span>
@@ -441,9 +450,22 @@ export function SDMAIncidents() {
                       <p className="text-[#5a5a57] leading-relaxed">
                         Geotagged image evidence attached by driver. Visual evidence available for human assessment.
                       </p>
-                      <span className="inline-block text-[10px] font-semibold text-[#16a34a] bg-[#f0fdf4] px-2 py-0.5 rounded border border-[#bbf7d0]">
-                        EXIF Metadata Validated
-                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selected.aiAnalysis?.photoAnalyzedByAi ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1e40af] bg-[#eff6ff] px-2 py-0.5 rounded border border-[#bfdbfe]">
+                            <Sparkles className="w-3 h-3 text-[#2563eb]" />
+                            <span>AI Analyzed Photo & Verified Evidence</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#166534] bg-[#f0fdf4] px-2 py-0.5 rounded border border-[#bbf7d0]">
+                            <Camera className="w-3 h-3 text-[#16a34a]" />
+                            <span>Photo Attached · Awaiting Authority Audit</span>
+                          </span>
+                        )}
+                        <span className="inline-block text-[10px] font-semibold text-[#5a5a57] bg-[#f4f4f3] px-2 py-0.5 rounded border border-[#e4e4e3]">
+                          EXIF Metadata Validated
+                        </span>
+                      </div>
                     </>
                   ) : (
                     <p className="text-[#5a5a57] leading-relaxed">

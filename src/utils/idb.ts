@@ -3,7 +3,8 @@ import type { Incident, Disruption } from '@/types';
 const DB_NAME = 'ner-logix-db';
 const STORE_NAME = 'incidents';
 const STORE_DISRUPTIONS = 'disruptions';
-const DB_VERSION = 2;
+const STORE_TRIP_MANIFESTS = 'trip_manifests';
+const DB_VERSION = 3;
 
 export function initDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -16,6 +17,9 @@ export function initDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_DISRUPTIONS)) {
         db.createObjectStore(STORE_DISRUPTIONS, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_TRIP_MANIFESTS)) {
+        db.createObjectStore(STORE_TRIP_MANIFESTS, { keyPath: 'vehicleId' });
       }
     };
 
@@ -117,11 +121,36 @@ export async function getAllDisruptions(): Promise<Disruption[]> {
 export async function clearAllStoredData(): Promise<void> {
   const db = await initDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction([STORE_NAME, STORE_DISRUPTIONS], 'readwrite');
+    const tx = db.transaction([STORE_NAME, STORE_DISRUPTIONS, STORE_TRIP_MANIFESTS], 'readwrite');
     tx.objectStore(STORE_NAME).clear();
     tx.objectStore(STORE_DISRUPTIONS).clear();
+    tx.objectStore(STORE_TRIP_MANIFESTS).clear();
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function saveTripManifest(manifest: { vehicleId: string; [key: string]: any }): Promise<void> {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_TRIP_MANIFESTS, 'readwrite');
+    const store = tx.objectStore(STORE_TRIP_MANIFESTS);
+    const request = store.put(manifest);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getTripManifest(vehicleId: string): Promise<any | null> {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_TRIP_MANIFESTS, 'readonly');
+    const store = tx.objectStore(STORE_TRIP_MANIFESTS);
+    const request = store.get(vehicleId);
+
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
   });
 }
 

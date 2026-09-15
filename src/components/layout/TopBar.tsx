@@ -3,6 +3,7 @@ import { cn } from '@/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/store/appStore';
 import { useNetworkStore } from '@/store/networkStore';
+import { useAuthStore } from '@/store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { DriverVehicleSelector } from '@/components/ui/DriverVehicleSelector';
 import {
@@ -17,6 +18,7 @@ import {
   Warehouse,
   AlertTriangle,
   Check,
+  LogOut,
 } from 'lucide-react';
 import type { NetworkStatus, UserRole } from '@/types';
 
@@ -59,16 +61,12 @@ export function TopBar({ className }: TopBarProps) {
   const networkStatus = useAppStore((state) => state.networkStatus);
   const setNetworkStatus = useAppStore((state) => state.setNetworkStatus);
   const toggleSidebar = useAppStore((state) => state.toggleSidebar);
-  const selectedDriverVehicleId = useAppStore((state) => state.selectedDriverVehicleId);
   const backendStatus = useAppStore((state) => state.backendStatus);
   const checkBackendConnection = useAppStore((state) => state.checkBackendConnection);
 
-  const activeVehicles = useNetworkStore((state) => state.activeVehicles);
-  const currentDriverVehicle =
-    activeVehicles.find((v) => v.id === selectedDriverVehicleId) ||
-    activeVehicles.find((v) => v.id === 'AS-01-J-4422') ||
-    activeVehicles[0];
+  const { user, login, logout } = useAuthStore();
 
+  const activeVehicles = useNetworkStore((state) => state.activeVehicles);
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -106,7 +104,7 @@ export function TopBar({ className }: TopBarProps) {
     driver: {
       title: 'Driver Cockpit',
       roleName: 'Driver / Field Operator',
-      subtitle: currentDriverVehicle ? `${currentDriverVehicle.id} · ${currentDriverVehicle.driverName}` : 'AS-01-J-4422',
+      subtitle: 'Field Operations',
       description: 'Journey safety & field reporting',
       icon: <Truck className="w-3.5 h-3.5 text-[#2563eb]" />,
       badgeBg: 'bg-[#eff6ff] text-[#1e40af] border-[#bfdbfe]',
@@ -160,10 +158,30 @@ export function TopBar({ className }: TopBarProps) {
     }
   };
 
-  const handleSelectRole = (r: UserRole, targetPath: string) => {
+  const handleSelectRole = async (r: UserRole, targetPath: string) => {
     setRole(r);
     setMenuOpen(false);
+    if (!user || user.role !== r) {
+      const emailMap: Record<UserRole, string> = {
+        driver: 'driver@nerlogix.in',
+        dispatcher: 'dispatcher@nerlogix.in',
+        sdma: 'sdma@nerlogix.in',
+        contractor: 'contractor@nerlogix.in',
+      };
+      const pwdMap: Record<UserRole, string> = {
+        driver: 'driver123',
+        dispatcher: 'dispatch123',
+        sdma: 'sdma123',
+        contractor: 'contractor123',
+      };
+      await login(emailMap[r], pwdMap[r]);
+    }
     navigate(targetPath);
+  };
+
+  const handleSignOut = () => {
+    logout();
+    navigate('/login');
   };
 
   return (
@@ -287,7 +305,7 @@ export function TopBar({ className }: TopBarProps) {
       {role === 'driver' && (
         <div className="flex items-center gap-2">
           <div className="hidden sm:block h-4 w-px bg-[#e4e4e3]" />
-          <DriverVehicleSelector id="topbar-driver-vehicle-selector" />
+          <DriverVehicleSelector id="topbar-driver-vehicle-selector" compact />
         </div>
       )}
 
@@ -347,10 +365,23 @@ export function TopBar({ className }: TopBarProps) {
           </motion.div>
         </AnimatePresence>
 
-        {/* Region */}
-        <div className="hidden xl:block text-xs text-[#8a8a87] pl-2.5 border-l border-[#e4e4e3]">
-          North Eastern Corridor
-        </div>
+        {/* User Authenticated Profile & Logout */}
+        {user && (
+          <div className="flex items-center gap-2 pl-2 border-l border-[#e4e4e3]">
+            <div className="hidden md:flex flex-col text-right">
+              <span className="text-xs font-bold text-neutral-900 leading-tight">{user.name}</span>
+              <span className="text-[10px] text-neutral-500 font-mono leading-tight">{user.role.toUpperCase()}</span>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-1 h-8 px-2 rounded-md text-xs font-semibold text-neutral-700 hover:text-red-600 hover:bg-red-50 border border-neutral-200 transition-colors cursor-pointer"
+              title="Sign Out of Session"
+            >
+              <LogOut className="w-3.5 h-3.5 text-neutral-500 hover:text-red-600" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

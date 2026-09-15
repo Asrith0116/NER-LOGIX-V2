@@ -362,8 +362,8 @@ export function HazardReport() {
       reportedVehicleId: currentDriverVehicle?.id,
       reportedAt: new Date().toISOString(),
       syncStatus: isOffline ? 'local_pending' : 'pending_verification',
-      photoUrl: photoUrl || undefined, // Real photo only; never inject fake stock images
-      photoCapturedAt: photoUrl ? (photoTime || new Date().toISOString()) : undefined,
+      photoUrl: photoBase64 || photoUrl || undefined, // Real base64 photo data URL; persists across all browser windows and server SQLite
+      photoCapturedAt: (photoBase64 || photoUrl) ? (photoTime || new Date().toISOString()) : undefined,
       voiceNote: Boolean(audioUrl),
       voiceNoteUrl: audioUrl || undefined,
       voiceTranscript: activeVoiceTranscript,
