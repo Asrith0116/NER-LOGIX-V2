@@ -14,13 +14,6 @@
 
 ---
 
-## 📸 Platform Previews & Key Screenshots
-
-- **Live Application URL**: [https://ais-dev-yvqz2t732bgoo7rlybtani-461292001335.asia-east1.run.app](https://ais-dev-yvqz2t732bgoo7rlybtani-461292001335.asia-east1.run.app)
-- **Shared Preview URL**: [https://ais-pre-yvqz2t732bgoo7rlybtani-461292001335.asia-east1.run.app](https://ais-pre-yvqz2t732bgoo7rlybtani-461292001335.asia-east1.run.app)
-
----
-
 ## 🌟 Key Features & Role-Based Architecture
 
 NER-LOGIX features a role-tailored user experience serving four operational groups:
