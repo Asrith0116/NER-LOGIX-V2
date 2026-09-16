@@ -505,7 +505,7 @@ This repository is provided with complete setup scripts and self-contained basel
 
 The recorded demonstration accompanies this repository and illustrates the end-to-end operational workflow from field hazard reporting through verification, network impact, rerouting, and emergency logistics.
 
-[Official Demo Video – add final link]
+[https://www.youtube.com/watch?v=P57AVXmGEkE]
 
 ---
 
